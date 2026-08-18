@@ -1,0 +1,26 @@
+services:
+  tentacles-db:
+    image: postgres:17-alpine
+    container_name: tentacles-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: tentacles
+      POSTGRES_USER: tentacles
+      POSTGRES_PASSWORD: tentacles_dev_password
+
+    volumes:
+      - tentacles-postgres-data:/var/lib/postgresql/data
+
+    ports:
+      - "5433:5432"
+
+    networks:
+      - proxy-tier
+
+volumes:
+  tentacles-postgres-data:
+
+networks:
+  proxy-tier:
+    external: true
