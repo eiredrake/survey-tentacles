@@ -105,3 +105,4 @@ coverage/
 *.key
 *.crt
 secrets/
+oidc_information.txt

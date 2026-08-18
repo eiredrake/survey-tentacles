@@ -12,10 +12,14 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/health").permitAll()
+                .requestMatchers(
+                    "/health",
+                    "/oauth2/**",
+                    "/login/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
-            .formLogin(form -> form.disable());
+            .oauth2Login(oauth -> {});
 
         return http.build();
     }
