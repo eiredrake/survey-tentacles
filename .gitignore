@@ -1,0 +1,107 @@
+# =========================
+
+# 🐙 survey-tentacles .gitignore
+
+# =========================
+
+# ---------- OS ----------
+
+.DS_Store
+Thumbs.db
+
+# ---------- Logs ----------
+
+*.log
+logs/
+*.out
+
+# ---------- Environment ----------
+
+.env
+.env.*
+!.env.example
+
+# ---------- VS Code ----------
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+
+# ---------- IntelliJ / Java IDEs ----------
+
+.idea/
+*.iml
+
+# =========================
+
+# ☕ Spring Boot (backend)
+
+# =========================
+
+backend/build/
+backend/out/
+backend/.gradle/
+backend/gradle-app.setting
+backend/!gradle/wrapper/gradle-wrapper.jar
+
+# Java compiled files
+
+*.class
+
+# =========================
+
+# 🌐 Next.js (frontend)
+
+# =========================
+
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+
+# Next.js cache
+
+frontend/.turbo/
+
+# =========================
+
+# 🐳 Docker / runtime data
+
+# =========================
+
+docker-data/
+data/
+tmp/
+
+# =========================
+
+# 🗄️ Database files (local dev)
+
+# =========================
+
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+
+# 🧪 Misc build artifacts
+
+# =========================
+
+dist/
+coverage/
+*.tgz
+*.zip
+
+# =========================
+
+# 🔐 Secrets (NEVER COMMIT)
+
+# =========================
+
+*.pem
+*.key
+*.crt
+secrets/
