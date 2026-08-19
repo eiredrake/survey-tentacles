@@ -122,6 +122,54 @@
 
                     section.appendChild(button);
 
+                    const resultsHeading = document.createElement("h3");
+                    resultsHeading.textContent = "Results";
+
+                    section.appendChild(resultsHeading);
+
+                    const resultsResponse = await fetch(
+                        `/api/surveys/${surveyId}/questions/${question.id}/results`
+                    );
+
+                    const results = await resultsResponse.json();
+
+                    const resultsList = document.createElement("ol");
+
+                    for (const result of results) {
+                        const item = document.createElement("li");
+
+                        item.textContent =
+                            `${result.date} — ${result.votes} vote${result.votes === 1 ? "" : "s"}`;
+
+                        resultsList.appendChild(item);
+                    }
+
+                    section.appendChild(resultsList);
+
+
+                    const participationHeading = document.createElement("h3");
+                    participationHeading.textContent = "Participation";
+
+                    section.appendChild(participationHeading);
+
+                    const participationResponse = await fetch(
+                        `/api/surveys/${surveyId}/questions/${question.id}/participation`
+                    );
+
+                    const participation = await participationResponse.json();
+
+                    const participationList = document.createElement("ul");
+
+                    for (const participant of participation) {
+                        const item = document.createElement("li");
+
+                        item.textContent =
+                            `${participant.name} — ${participant.answered ? "Answered" : "Not answered"}`;
+
+                        participationList.appendChild(item);
+                    }
+
+                    section.appendChild(participationList);
                 }
 
                 container.appendChild(section);
