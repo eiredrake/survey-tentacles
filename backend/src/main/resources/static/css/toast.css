@@ -1,0 +1,28 @@
+#toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+
+  background: #222;
+  color: white;
+
+  font-family: sans-serif;
+  text-align: center;
+}
+
+#toast[data-type="success"] {
+  background: #18794e;
+}
+
+#toast[data-type="error"] {
+  background: #b42318;
+}
+
+#toast[data-type="info"] {
+  background: #222;
+}
