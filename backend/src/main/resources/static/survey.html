@@ -24,6 +24,76 @@
         const params = new URLSearchParams(window.location.search);
         const surveyId = params.get("id");
 
+        function formatDate(dateString) {
+            const [year, month, day] = dateString.split("-").map(Number);
+
+            return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            });
+        }        
+
+        async function refreshSchedulingStatus(question, section) {
+            let statusContainer = section.querySelector(".scheduling-status");
+
+            if (!statusContainer) {
+                statusContainer = document.createElement("div");
+                statusContainer.className = "scheduling-status";
+                section.appendChild(statusContainer);
+            }
+
+            statusContainer.innerHTML = "";
+
+            const resultsHeading = document.createElement("h3");
+            resultsHeading.textContent = "Results";
+            statusContainer.appendChild(resultsHeading);
+
+            const resultsResponse = await fetch(
+                `/api/surveys/${surveyId}/questions/${question.id}/results`
+            );
+
+            const results = await resultsResponse.json();
+
+            const resultsList = document.createElement("ol");
+
+            for (const result of results) {
+                const item = document.createElement("li");
+
+                item.textContent =
+                    `${formatDate(result.date)} — ${result.votes} vote${result.votes === 1 ? "" : "s"}`;
+
+                resultsList.appendChild(item);
+            }
+
+            statusContainer.appendChild(resultsList);
+
+            const participationHeading = document.createElement("h3");
+            participationHeading.textContent = "Participation";
+            statusContainer.appendChild(participationHeading);
+
+            const participationResponse = await fetch(
+                `/api/surveys/${surveyId}/questions/${question.id}/participation`
+            );
+
+            const participation = await participationResponse.json();
+
+            const participationList = document.createElement("ul");
+
+            for (const participant of participation) {
+                const item = document.createElement("li");
+
+                item.textContent =
+                    `${participant.name} — ${participant.answered ? "Answered" : "Not answered"}`;
+
+                participationList.appendChild(item);
+            }
+
+            statusContainer.appendChild(participationList);
+        }
+
+
         async function loadQuestions() {
             const container = document.getElementById("questions");
 
@@ -81,7 +151,7 @@
                       checkbox.checked = mySelectedOptionIds.has(option.id);
 
                       label.appendChild(checkbox);
-                      label.append(` ${option.date}`);
+                      label.append(` ${formatDate(option.date)}`);
 
                       section.appendChild(label);
                       section.appendChild(document.createElement("br"));
@@ -115,61 +185,15 @@
 
                         if (response.ok) {
                             showToast("Response saved.", "success");
+                            await refreshSchedulingStatus(question, section);
                         } else {
                             showToast("Unable to save response.", "error");
                         }
                     });
 
                     section.appendChild(button);
-
-                    const resultsHeading = document.createElement("h3");
-                    resultsHeading.textContent = "Results";
-
-                    section.appendChild(resultsHeading);
-
-                    const resultsResponse = await fetch(
-                        `/api/surveys/${surveyId}/questions/${question.id}/results`
-                    );
-
-                    const results = await resultsResponse.json();
-
-                    const resultsList = document.createElement("ol");
-
-                    for (const result of results) {
-                        const item = document.createElement("li");
-
-                        item.textContent =
-                            `${result.date} — ${result.votes} vote${result.votes === 1 ? "" : "s"}`;
-
-                        resultsList.appendChild(item);
-                    }
-
-                    section.appendChild(resultsList);
-
-
-                    const participationHeading = document.createElement("h3");
-                    participationHeading.textContent = "Participation";
-
-                    section.appendChild(participationHeading);
-
-                    const participationResponse = await fetch(
-                        `/api/surveys/${surveyId}/questions/${question.id}/participation`
-                    );
-
-                    const participation = await participationResponse.json();
-
-                    const participationList = document.createElement("ul");
-
-                    for (const participant of participation) {
-                        const item = document.createElement("li");
-
-                        item.textContent =
-                            `${participant.name} — ${participant.answered ? "Answered" : "Not answered"}`;
-
-                        participationList.appendChild(item);
-                    }
-
-                    section.appendChild(participationList);
+                    
+                    await refreshSchedulingStatus(question, section);
                 }
 
                 container.appendChild(section);
