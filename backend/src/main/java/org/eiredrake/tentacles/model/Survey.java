@@ -20,6 +20,10 @@ public class Survey {
     @JoinColumn(name = "creator_id", nullable = false)
     private User creator;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SurveyStatus status = SurveyStatus.DEVELOPMENT;    
+
     public Long getId() {
         return id;
     }
@@ -50,5 +54,13 @@ public class Survey {
 
     public void setQuestions(List<Question> questions) {
         this.questions = questions;
+    }    
+
+    public SurveyStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(SurveyStatus status) {
+        this.status = status;
     }    
 }

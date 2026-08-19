@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.eiredrake.tentacles.model.SchedulingAnswer;
 import org.eiredrake.tentacles.service.SchedulingAnswerService;
 import org.eiredrake.tentacles.service.SurveyParticipantService;
+import org.eiredrake.tentacles.model.SurveyStatus;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -76,7 +77,8 @@ public class SurveyController {
                 "title", survey.getTitle(),
                 "creatorId", survey.getCreator().getId(),
                 "creatorName", survey.getCreator().getDisplayName(),
-                "questionCount", survey.getQuestions().size()
+                "questionCount", survey.getQuestions().size(),
+                "status", survey.getStatus().name()
             ))
             .toList();
     }  
@@ -273,4 +275,24 @@ public class SurveyController {
             "name", user.getDisplayName()
         );
     }      
+
+    @PostMapping("/{surveyId}/status")
+    public Map<String, Object> updateStatus(
+            @PathVariable Long surveyId,
+            @RequestBody Map<String, String> request) {
+
+        Survey survey = surveyService.findById(surveyId);
+
+        SurveyStatus status = SurveyStatus.valueOf(
+            request.get("status").toUpperCase()
+        );
+
+        survey.setStatus(status);
+        surveyService.save(survey);
+
+        return Map.of(
+            "id", survey.getId(),
+            "status", survey.getStatus().name()
+        );
+    }    
 }

@@ -8,6 +8,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
+import org.springframework.security.core.Authentication;
 
 @RestController
 public class UserController {
@@ -19,16 +21,29 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public Map<String, Object> me(@AuthenticationPrincipal OidcUser oidcUser) {
+    public Map<String, Object> me(
+        @AuthenticationPrincipal OidcUser oidcUser,
+        Authentication authentication) {
 
         User user = userService.findOrCreate(oidcUser);
+        List<String> groups = oidcUser.getClaimAsStringList("groups");
+
+        if (groups == null) {
+            groups = List.of();
+        }
+
+        List<String> authorities = authentication.getAuthorities().stream()
+            .map(authority -> authority.getAuthority())
+            .toList();        
 
         return Map.of(
             "id", user.getId(),
             "subject", user.getOidcSubject(),
             "username", user.getUsername(),
             "email", user.getEmail(),
-            "name", user.getDisplayName()
+            "name", user.getDisplayName(),
+            "groups", groups,
+            "authorities", authorities
         );
     }
 }
