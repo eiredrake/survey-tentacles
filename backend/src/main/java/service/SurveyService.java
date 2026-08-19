@@ -22,4 +22,9 @@ public class SurveyService {
     public List<Survey> findAll() {
         return surveyRepository.findAll();
     }
+
+    public Survey findById(Long id) {
+        return surveyRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Survey not found: " + id));
+    }    
 }
