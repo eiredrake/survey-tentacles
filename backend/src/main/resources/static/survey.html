@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey - Tentacles</title>
+</head>
+
+<body>
+    <main>
+        <a href="/">← Surveys</a>
+
+        <h1>Survey</h1>
+
+        <div id="questions">
+            Loading questions...
+        </div>
+    </main>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const surveyId = params.get("id");
+
+        async function loadQuestions() {
+            const container = document.getElementById("questions");
+
+            if (!surveyId) {
+                container.textContent = "No survey ID supplied.";
+                return;
+            }
+
+            const response = await fetch(`/api/surveys/${surveyId}/questions`);
+
+            if (!response.ok) {
+                container.textContent = "Unable to load questions.";
+                return;
+            }
+
+            const questions = await response.json();
+
+            container.innerHTML = "";
+
+            for (const question of questions) {
+                const section = document.createElement("section");
+
+                const heading = document.createElement("h2");
+                heading.textContent = question.prompt;
+
+                section.appendChild(heading);
+
+                if (question.type === "scheduling") {
+                    const response = await fetch(
+                        `/api/surveys/${surveyId}/questions/${question.id}`
+                    );
+
+                    const detail = await response.json();
+
+                    for (const option of detail.options) {
+                      const label = document.createElement("label");
+
+                      const checkbox = document.createElement("input");
+                      checkbox.type = "checkbox";
+                      checkbox.value = option.id;
+
+                      label.appendChild(checkbox);
+                      label.append(` ${option.date}`);
+
+                      section.appendChild(label);
+                      section.appendChild(document.createElement("br"));
+                    }
+
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = "Submit";
+
+                    button.addEventListener("click", async () => {
+                      const selected = [
+                          ...section.querySelectorAll('input[type="checkbox"]:checked')
+                      ].map(checkbox => Number(checkbox.value));
+
+                      const csrfResponse = await fetch("/csrf");
+                      const csrf = await csrfResponse.json();
+
+                      const response = await fetch(
+                          `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`,
+                          {
+                              method: "POST",
+                              headers: {
+                                  "Content-Type": "application/json",
+                                  [csrf.headerName]: csrf.token
+                              },
+                              body: JSON.stringify({
+                                  optionIds: selected
+                              })
+                          }
+                      );
+
+                      console.log("Submit status:", response.status);
+                    });
+
+                    section.appendChild(button);
+
+                }
+
+                container.appendChild(section);
+            }
+        }
+
+        loadQuestions();
+    </script>
+</body>
+</html>

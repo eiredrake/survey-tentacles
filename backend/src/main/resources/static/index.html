@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tentacles</title>
+</head>
+
+<body>
+    <main>
+        <h1>Tentacles</h1>
+
+        <p id="user">Loading user...</p>
+
+        <h2>Surveys</h2>
+
+        <div id="surveys">
+            Loading surveys...
+        </div>
+    </main>
+
+    <script>
+        async function loadUser() {
+            const response = await fetch("/me");
+
+            if (!response.ok) {
+                document.getElementById("user").textContent =
+                    "Unable to load user.";
+                return;
+            }
+
+            const user = await response.json();
+
+            document.getElementById("user").textContent =
+                `Logged in as ${user.name}`;
+        }
+
+        async function loadSurveys() {
+            const response = await fetch("/api/surveys");
+
+            if (!response.ok) {
+                document.getElementById("surveys").textContent =
+                    "Unable to load surveys.";
+                return;
+            }
+
+            const surveys = await response.json();
+            const container = document.getElementById("surveys");
+
+            container.innerHTML = "";
+
+            for (const survey of surveys) {
+              const item = document.createElement("div");
+
+              const link = document.createElement("a");
+              link.href = `/survey.html?id=${survey.id}`;
+              link.textContent =
+                  `${survey.title} — ${survey.questionCount} question(s)`;
+
+              item.appendChild(link);
+              container.appendChild(item);
+            }
+        }
+
+        loadUser();
+        loadSurveys();
+    </script>
+</body>
+</html>

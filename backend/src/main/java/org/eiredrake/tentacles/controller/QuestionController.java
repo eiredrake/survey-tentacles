@@ -1,0 +1,42 @@
+package org.eiredrake.tentacles.controller;
+
+import java.util.List;
+import java.util.Map;
+
+import org.eiredrake.tentacles.model.Question;
+import org.eiredrake.tentacles.repository.QuestionRepository;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.eiredrake.tentacles.model.SchedulingQuestion;
+
+@RestController
+@RequestMapping("/api/surveys")
+public class QuestionController {
+
+    private final QuestionRepository questionRepository;
+
+    public QuestionController(QuestionRepository questionRepository) {
+        this.questionRepository = questionRepository;
+    }
+
+    @GetMapping("/{surveyId}/questions")
+    public List<Map<String, Object>> listQuestions(
+            @PathVariable Long surveyId) {
+
+        List<Question> questions =
+                questionRepository.findBySurveyIdOrderByDisplayOrder(surveyId);
+
+        return questions.stream()
+                .map(question -> Map.<String, Object>of(
+                        "id", question.getId(),
+                        "prompt", question.getPrompt(),
+                        "displayOrder", question.getDisplayOrder(),
+                        "type", question instanceof SchedulingQuestion
+                                ? "scheduling"
+                                : "unknown"
+                ))
+                .toList();
+    }
+}
