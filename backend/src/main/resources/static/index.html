@@ -20,6 +20,20 @@
     </main>
 
     <script>
+        let currentUser = null;
+        let surveyStatuses = [];
+        
+        async function loadSurveyStatuses() {
+            const response = await fetch("/api/surveys/statuses");
+
+            if (!response.ok) {
+                surveyStatuses = [];
+                return;
+            }
+
+            surveyStatuses = await response.json();
+        }        
+
         async function loadUser() {
             const response = await fetch("/me");
 
@@ -30,6 +44,8 @@
             }
 
             const user = await response.json();
+
+            currentUser = user;
 
             document.getElementById("user").textContent =
                 `Logged in as ${user.name}`;
@@ -58,12 +74,62 @@
                   `${survey.title} — ${survey.questionCount} question(s)`;
 
               item.appendChild(link);
+              if (currentUser.authorities?.includes("ROLE_ADMIN")) {
+                    const statusSelect = document.createElement("select");
+
+                    for (const status of surveyStatuses) {
+                        const option = document.createElement("option");
+                        option.value = status;
+                        option.textContent =
+                            status.charAt(0) + status.slice(1).toLowerCase();
+
+                        if (status === survey.status) {
+                            option.selected = true;
+                        }
+
+                        statusSelect.appendChild(option);
+                    }
+
+                    statusSelect.addEventListener("change", async () => {
+                        const previousStatus = survey.status;
+
+                        const csrfResponse = await fetch("/csrf");
+                        const csrf = await csrfResponse.json();
+
+                        const response = await fetch(`/api/surveys/${survey.id}/status`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                [csrf.headerName]: csrf.token
+                            },
+                            body: JSON.stringify({
+                                status: statusSelect.value
+                            })
+                        });
+
+                        if (response.ok) {
+                            survey.status = statusSelect.value;
+                        } else {
+                            statusSelect.value = previousStatus;
+                            alert("Unable to update survey status.");
+                        }
+                    });                    
+
+                    item.append(" ");
+                    item.appendChild(statusSelect);
+                }
+
               container.appendChild(item);
             }
         }
 
-        loadUser();
-        loadSurveys();
+        async function initialize() {
+            await loadUser();
+            await loadSurveyStatuses();
+            await loadSurveys();
+        }
+
+        initialize();
     </script>
 </body>
 </html>

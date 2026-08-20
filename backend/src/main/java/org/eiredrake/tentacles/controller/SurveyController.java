@@ -149,6 +149,13 @@ public class SurveyController {
 
         User user = userService.findOrCreate(oidcUser);
         Survey survey = surveyService.findById(surveyId);
+
+        if (survey.getStatus() != SurveyStatus.OPEN) {
+            throw new IllegalStateException(
+                "Survey is not open for responses."
+            );
+        }        
+        
         surveyParticipantService.add(survey, user);        
 
         schedulingAnswerService.deleteForUserAndQuestion(
@@ -294,5 +301,12 @@ public class SurveyController {
             "id", survey.getId(),
             "status", survey.getStatus().name()
         );
-    }    
+    }  
+
+    @GetMapping("/statuses")
+    public List<String> getSurveyStatuses() {
+        return java.util.Arrays.stream(SurveyStatus.values())
+            .map(Enum::name)
+            .toList();
+    }      
 }
