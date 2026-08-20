@@ -24,6 +24,25 @@
         const params = new URLSearchParams(window.location.search);
         const surveyId = params.get("id");
 
+        let surveyStatus = null;
+
+        async function loadSurveyStatus() {
+            const response = await fetch("/api/surveys");
+
+            if (!response.ok) {
+                return;
+            }
+
+            const surveys = await response.json();
+            const survey = surveys.find(
+                survey => String(survey.id) === String(surveyId)
+            );
+
+            if (survey) {
+                surveyStatus = survey.status;
+            }
+        }        
+
         function formatDate(dateString) {
             const [year, month, day] = dateString.split("-").map(Number);
 
@@ -64,6 +83,7 @@
                 item.textContent =
                     `${formatDate(result.date)} — ${result.votes} vote${result.votes === 1 ? "" : "s"}`;
 
+
                 resultsList.appendChild(item);
             }
 
@@ -86,6 +106,10 @@
 
                 item.textContent =
                     `${participant.name} — ${participant.answered ? "Answered" : "Not answered"}`;
+
+                    if (participant.required && !participant.answered) {
+                        item.style.color = "red";
+                    }
 
                 participationList.appendChild(item);
             }
@@ -150,6 +174,8 @@
                       checkbox.value = option.id;
                       checkbox.checked = mySelectedOptionIds.has(option.id);
 
+                      checkbox.disabled = surveyStatus !== "OPEN";
+
                       label.appendChild(checkbox);
                       label.append(` ${formatDate(option.date)}`);
 
@@ -160,6 +186,8 @@
                     const button = document.createElement("button");
                     button.type = "button";
                     button.textContent = "Submit";
+
+                    button.disabled = surveyStatus !== "OPEN";
 
                     button.addEventListener("click", async () => {
                       const selected = [
@@ -200,7 +228,12 @@
             }
         }
 
-        loadQuestions();    
+        async function initialize() {
+            await loadSurveyStatus();
+            await loadQuestions();
+        }
+
+        initialize();
     </script>
 </body>
 </html>

@@ -8,30 +8,34 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserService {
 
-    private final UserRepository userRepository;
+  private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+  public UserService(UserRepository userRepository) {
+    this.userRepository = userRepository;
+  }
 
-    public User findOrCreate(OidcUser oidcUser) {
+  public User findOrCreate(OidcUser oidcUser) {
+    User user = userRepository
+      .findByOidcSubject(oidcUser.getSubject())
+      .orElseGet(User::new);
 
-        User user = userRepository
-                .findByOidcSubject(oidcUser.getSubject())
-                .orElseGet(User::new);
+    user.setOidcSubject(oidcUser.getSubject());
+    user.setUsername(oidcUser.getPreferredUsername());
+    user.setEmail(oidcUser.getEmail());
+    user.setDisplayName(oidcUser.getFullName());
 
-        user.setOidcSubject(oidcUser.getSubject());
-        user.setUsername(oidcUser.getPreferredUsername());
-        user.setEmail(oidcUser.getEmail());
-        user.setDisplayName(oidcUser.getFullName());
+    return userRepository.save(user);
+  }
 
-        return userRepository.save(user);
-    }
+  public User findByUsername(String username) {
+    return userRepository
+      .findByUsername(username)
+      .orElseThrow(() ->
+        new IllegalArgumentException("User not found: " + username)
+      );
+  }
 
-    public User findByUsername(String username) {
-        return userRepository.findByUsername(username)
-            .orElseThrow(() -> new IllegalArgumentException(
-                "User not found: " + username
-            ));
-    }    
+  public java.util.List<User> findAll() {
+    return userRepository.findAll();
+  }
 }
