@@ -82,11 +82,21 @@ async function loadSurveys() {
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "icon-button";
-      deleteButton.title = "Delete survey";
-      deleteButton.setAttribute("aria-label", "Delete survey");
       deleteButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
       
-      actionsCell.appendChild(deleteButton);      
+      if (survey.everPublished) {
+          deleteButton.disabled = true;
+          deleteButton.title = "Published surveys cannot be deleted";
+          deleteButton.setAttribute(
+              "aria-label",
+              "Published surveys cannot be deleted"
+          );
+      } else {
+          deleteButton.title = "Delete survey";
+          deleteButton.setAttribute("aria-label", "Delete survey");
+      }
+      
+      actionsCell.appendChild(deleteButton);
 
       if (currentUser.authorities?.includes("ROLE_ADMIN")) {
             const statusSelect = document.createElement("select");

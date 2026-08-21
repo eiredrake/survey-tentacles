@@ -146,7 +146,9 @@ public class SurveyController {
           "statusIcon",
           survey.getStatus().getIcon(),
           "required",
-          required
+          required,
+          "everPublished",
+          survey.isEverPublished()
         );
       })
       .toList();
@@ -462,6 +464,10 @@ public class SurveyController {
     );
 
     survey.setStatus(status);
+    if (status == SurveyStatus.PUBLISHED) {
+      survey.setEverPublished(true);
+    }
+
     surveyService.save(survey);
 
     return Map.of(

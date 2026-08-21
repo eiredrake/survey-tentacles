@@ -24,6 +24,9 @@ public class Survey {
     @Column(nullable = false)
     private SurveyStatus status = SurveyStatus.DEVELOPMENT;    
 
+    @Column(nullable = false)
+    private boolean everPublished = false;
+
     public Long getId() {
         return id;
     }
@@ -62,5 +65,13 @@ public class Survey {
 
     public void setStatus(SurveyStatus status) {
         this.status = status;
+    }    
+
+    public boolean isEverPublished() {
+        return everPublished;
+    }
+    
+    public void setEverPublished(boolean everPublished) {
+        this.everPublished = everPublished;
     }    
 }
