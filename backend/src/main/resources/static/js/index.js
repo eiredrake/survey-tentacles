@@ -25,8 +25,7 @@ async function loadUser() {
 
     currentUser = user;
 
-    document.getElementById("user").textContent =
-        `Logged in as ${user.name}`;
+    document.getElementById("user").textContent = `${user.name}`;
 }
 
 async function loadSurveys() {

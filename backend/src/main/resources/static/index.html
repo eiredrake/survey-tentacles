@@ -4,14 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tentacles</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">    
     <link rel="stylesheet" href="/css/tentacles.css">    
 </head>
 
 <body>
     <main>
-        <h1>Tentacles</h1>
-
-        <p id="user">Loading user...</p>
+        <header class="app-header">
+            <div class="app-title">Tentacles Survey System</div>
+        
+            <div class="app-user">
+                <span>User:</span>
+                <span id="user">Loading user...</span>
+        
+                <button
+                    id="logout-button"
+                    class="icon-button"
+                    type="button"
+                    title="Logout"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+        
+        <hr class="app-divider">
 
         <h2>Surveys</h2>
         <form id="create-survey-form">
