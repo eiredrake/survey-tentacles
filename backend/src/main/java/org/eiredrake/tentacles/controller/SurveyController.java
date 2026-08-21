@@ -424,6 +424,8 @@ public class SurveyController {
           assignment.getUser().getId(),
           "username",
           assignment.getUser().getUsername(),
+          "name",
+          assignment.getUser().getDisplayName(),
           "required",
           assignment.isRequired()
         )
@@ -463,5 +465,35 @@ public class SurveyController {
     surveyAssignmentService.delete(surveyId, userId);
 
     return Map.of("surveyId", surveyId, "userId", userId, "deleted", true);
+  }
+
+  @PostMapping("/{surveyId}/assignments/{userId}/required")
+  public Map<String, Object> updateAssignmentRequired(
+    @PathVariable Long surveyId,
+    @PathVariable Long userId,
+    @RequestBody Map<String, Object> request
+  ) {
+    SurveyAssignment assignment = surveyAssignmentService
+      .findBySurveyId(surveyId)
+      .stream()
+      .filter(item -> item.getUser().getId().equals(userId))
+      .findFirst()
+      .orElseThrow(() ->
+        new IllegalArgumentException("Assignment not found for user: " + userId)
+      );
+
+    boolean required = Boolean.TRUE.equals(request.get("required"));
+
+    assignment.setRequired(required);
+    assignment = surveyAssignmentService.save(assignment);
+
+    return Map.of(
+      "userId",
+      assignment.getUser().getId(),
+      "name",
+      assignment.getUser().getDisplayName(),
+      "required",
+      assignment.isRequired()
+    );
   }
 }
