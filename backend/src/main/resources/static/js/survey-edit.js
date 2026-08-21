@@ -35,6 +35,7 @@ async function loadSurvey() {
 function setupSchedulingQuestionForm() {
   const form = document.getElementById("scheduling-question-form");
   const promptInput = document.getElementById("scheduling-question-prompt");
+  const dateInput = document.getElementById("scheduling-question-date");
 
   form.addEventListener("submit", async event => {
       event.preventDefault();
@@ -59,7 +60,7 @@ function setupSchedulingQuestionForm() {
               body: JSON.stringify({
                   prompt: prompt,
                   displayOrder: 1,
-                  dates: []
+                  dates: [dateInput.value]
               })
           }
       );
