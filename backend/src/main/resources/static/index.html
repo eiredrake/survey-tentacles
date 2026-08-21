@@ -31,7 +31,19 @@
         <hr class="app-divider">
 
         <section class="survey-section">
-            <h2>Active Surveys</h2>
+            <div class="section-heading">
+                <h2>Active Surveys</h2>
+            
+                <button
+                    id="create-survey-button"
+                    class="icon-button"
+                    type="button"
+                    title="Create survey"
+                    aria-label="Create survey"
+                >
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
         
             <table class="survey-table">
                 <thead>
@@ -70,15 +82,6 @@
             </table>
         </section>
 
-        <form id="create-survey-form">
-            <input
-                id="create-survey-title"
-                type="text"
-                placeholder="Survey title"
-                required
-            >
-            <button type="submit">Create Survey</button>
-        </form>
     </main>
 
     <script src="/js/index.js"></script>

@@ -211,19 +211,10 @@ async function loadSurveys() {
     }
 }
 
-function setupCreateSurveyForm() {
-  const form = document.getElementById("create-survey-form");
-  const titleInput = document.getElementById("create-survey-title");
+function setupCreateSurveyButton() {
+  const button = document.getElementById("create-survey-button");
 
-  form.addEventListener("submit", async event => {
-      event.preventDefault();
-
-      const title = titleInput.value.trim();
-
-      if (!title) {
-          return;
-      }
-
+  button.addEventListener("click", async () => {
       const csrfResponse = await fetch("/csrf");
       const csrf = await csrfResponse.json();
 
@@ -234,27 +225,26 @@ function setupCreateSurveyForm() {
               [csrf.headerName]: csrf.token
           },
           body: JSON.stringify({
-              title: title
+              title: "New Survey"
           })
       });
 
       if (!response.ok) {
-          showToast("Unable to create survey", "error");
+          alert("Unable to create survey.");
           return;
       }
 
       const survey = await response.json();
 
-      window.location.href = `/survey.html?id=${survey.id}`;
+      window.location.href = `/survey-edit.html?id=${survey.id}`;
   });
 }
-
 
 async function initialize() {
   await loadUser();
   await loadSurveyStatuses();
   await loadSurveys();
-  setupCreateSurveyForm();
+  setupCreateSurveyButton();
 }
 
 initialize();

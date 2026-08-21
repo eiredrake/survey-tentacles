@@ -103,3 +103,23 @@ main {
   opacity: 0.25;
   cursor: not-allowed;
 }
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-heading h2 {
+  margin: 0;
+}
+
+.editor-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-title h1 {
+  margin: 0;
+}

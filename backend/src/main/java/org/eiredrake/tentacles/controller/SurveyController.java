@@ -83,12 +83,12 @@ public class SurveyController {
     @AuthenticationPrincipal OidcUser oidcUser
   ) {
     User currentUser = userService.findOrCreate(oidcUser);
-  
+
     boolean isAdmin = authentication
       .getAuthorities()
       .stream()
       .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
-  
+
     return surveyService
       .findAll()
       .stream()
@@ -96,18 +96,18 @@ public class SurveyController {
         if (isAdmin) {
           return true;
         }
-  
+
         if (
           survey.getStatus() != SurveyStatus.OPEN &&
           survey.getStatus() != SurveyStatus.PUBLISHED
         ) {
           return false;
         }
-  
+
         List<?> assignments = surveyAssignmentService.findBySurveyId(
           survey.getId()
         );
-  
+
         return (
           assignments.isEmpty() ||
           surveyAssignmentService.isAssigned(
@@ -121,12 +121,11 @@ public class SurveyController {
           .findBySurveyId(survey.getId())
           .stream()
           .anyMatch(SurveyAssignment::isRequired);
-  
 
-          boolean active = switch (survey.getStatus()) {
-            case DEVELOPMENT, OPEN -> true;
-            case CLOSED, PUBLISHED -> false;
-          };
+        boolean active = switch (survey.getStatus()) {
+          case DEVELOPMENT, OPEN -> true;
+          case CLOSED, PUBLISHED -> false;
+        };
 
         return Map.of(
           "id",
@@ -452,6 +451,25 @@ public class SurveyController {
       .toList();
   }
 
+  @PostMapping("/{surveyId}/title")
+  public Map<String, Object> updateTitle(
+    @PathVariable Long surveyId,
+    @RequestBody Map<String, String> request
+  ) {
+    Survey survey = surveyService.findById(surveyId);
+
+    String title = request.get("title");
+
+    if (title == null || title.isBlank()) {
+      throw new IllegalArgumentException("Survey title is required.");
+    }
+
+    survey.setTitle(title.trim());
+    surveyService.save(survey);
+
+    return Map.of("id", survey.getId(), "title", survey.getTitle());
+  }
+
   @PostMapping("/{surveyId}/status")
   public Map<String, Object> updateStatus(
     @PathVariable Long surveyId,
@@ -528,18 +546,11 @@ public class SurveyController {
   }
 
   @DeleteMapping("/{surveyId}")
-  public Map<String, Object> deleteSurvey(
-    @PathVariable Long surveyId
-  ) {
+  public Map<String, Object> deleteSurvey(@PathVariable Long surveyId) {
     Survey survey = surveyService.findById(surveyId);
 
     surveyService.delete(survey);
 
-    return Map.of(
-      "id",
-      surveyId,
-      "deleted",
-      true
-    );
+    return Map.of("id", surveyId, "deleted", true);
   }
 }

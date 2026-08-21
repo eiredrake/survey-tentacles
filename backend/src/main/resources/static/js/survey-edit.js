@@ -32,6 +32,67 @@ async function loadSurvey() {
     container.textContent = "";
 }
 
+function setupTitleEditor() {
+  const button = document.getElementById("edit-title-button");
+  const heading = document.getElementById("survey-title");
+
+  button.addEventListener("click", () => {
+      const currentTitle = heading.textContent.replace(/^Edit:\s*/, "");
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = currentTitle;
+
+      heading.replaceWith(input);
+      input.focus();
+      input.select();
+
+      input.addEventListener("keydown", async event => {
+        if (event.key !== "Enter") {
+            return;
+        }
+    
+        const newTitle = input.value.trim();
+    
+        if (!newTitle) {
+            return;
+        }
+    
+        const csrfResponse = await fetch("/csrf");
+        const csrf = await csrfResponse.json();
+    
+        const response = await fetch(
+            `/api/surveys/${surveyId}/title`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    [csrf.headerName]: csrf.token
+                },
+                body: JSON.stringify({
+                    title: newTitle
+                })
+            }
+        );
+    
+        if (!response.ok) {
+            showToast("Unable to update survey title.", "error");
+            return;
+        }
+    
+        const updatedSurvey = await response.json();
+    
+        const newHeading = document.createElement("h1");
+        newHeading.id = "survey-title";
+        newHeading.textContent = `Edit: ${updatedSurvey.title}`;
+    
+        input.replaceWith(newHeading);
+    
+        showToast("Survey title updated.", "success");
+    });      
+  });
+}
+
 function setupSchedulingQuestionForm() {
   const form = document.getElementById("scheduling-question-form");
   const promptInput = document.getElementById("scheduling-question-prompt");
@@ -77,6 +138,7 @@ function setupSchedulingQuestionForm() {
 
 async function initialize() {
   await loadSurvey();
+  setupTitleEditor();
   setupSchedulingQuestionForm();
 }
 
