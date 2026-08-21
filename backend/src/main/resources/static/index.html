@@ -53,9 +53,21 @@
         <section class="survey-section">
             <h2>Inactive Surveys</h2>
         
-            <div id="inactive-surveys">
-                Loading surveys...
-            </div>
+            <table class="survey-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Required</th>
+                        <th>Status</th>
+                        <th class="actions-column">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inactive-surveys">
+                    <tr>
+                        <td colspan="4">Loading surveys...</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <form id="create-survey-form">
