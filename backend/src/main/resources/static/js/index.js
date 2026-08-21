@@ -16,8 +16,7 @@ async function loadUser() {
     const response = await fetch("/me");
 
     if (!response.ok) {
-        document.getElementById("user").textContent =
-            "Unable to load user.";
+        document.getElementById("user").textContent = "Unable to load user.";
         return;
     }
 
@@ -32,27 +31,75 @@ async function loadSurveys() {
     const response = await fetch("/api/surveys");
 
     if (!response.ok) {
-        document.getElementById("surveys").textContent =
-            "Unable to load surveys.";
+        document.getElementById("surveys").textContent = "Unable to load surveys.";
         return;
     }
 
     const surveys = await response.json();
-    const container = document.getElementById("surveys");
-
-    container.innerHTML = "";
+    const activeContainer = document.getElementById("active-surveys");
+    const inactiveContainer = document.getElementById("inactive-surveys");
+    
+    activeContainer.innerHTML = "";
+    inactiveContainer.innerHTML = "";
 
     for (const survey of surveys) {
-      const item = document.createElement("div");
+      const item = document.createElement("tr");
+
+      const nameCell = document.createElement("td");
 
       const link = document.createElement("a");
       link.href = `/survey.html?id=${survey.id}`;
-      link.textContent =
-          `${survey.title} — ${survey.questionCount} question(s)`;
+      link.textContent = survey.title;
+      
+      nameCell.appendChild(link);
+      item.appendChild(nameCell);
+      
+      const requiredCell = document.createElement("td");
 
-      item.appendChild(link);
+      if (survey.required) {
+          requiredCell.innerHTML =
+              '<i class="fa-solid fa-check" title="Required"></i>';
+      }
+      
+      item.appendChild(requiredCell);
+      
+      const statusCell = document.createElement("td");
+      item.appendChild(statusCell);
+      
+      const actionsCell = document.createElement("td");
+      actionsCell.className = "actions-column";
+      item.appendChild(actionsCell);
+
+      const editLink = document.createElement("a");
+      editLink.href = `/survey-edit.html?id=${survey.id}`;
+      editLink.className = "icon-button";
+      editLink.title = "Edit survey";
+      editLink.setAttribute("aria-label", "Edit survey");
+      editLink.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+      
+      actionsCell.appendChild(editLink);      
+
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "icon-button";
+      deleteButton.title = "Delete survey";
+      deleteButton.setAttribute("aria-label", "Delete survey");
+      deleteButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      
+      actionsCell.appendChild(deleteButton);      
+
       if (currentUser.authorities?.includes("ROLE_ADMIN")) {
             const statusSelect = document.createElement("select");
+            statusSelect.hidden = true;
+
+            const statusButton = document.createElement("button");
+            statusButton.type = "button";
+            statusButton.className = "icon-button";
+            statusButton.title = survey.status;
+            statusButton.setAttribute("aria-label", `Change survey status: ${survey.status}`);
+            statusButton.innerHTML = `<i class="fa-solid ${survey.statusIcon}"></i>`;
+            
+            statusCell.appendChild(statusButton);            
 
             for (const status of surveyStatuses) {
                 const option = document.createElement("option");
@@ -66,6 +113,12 @@ async function loadSurveys() {
 
                 statusSelect.appendChild(option);
             }
+
+            statusButton.addEventListener("click", () => {
+              statusButton.hidden = true;
+              statusSelect.hidden = false;
+              statusSelect.focus();
+          });
 
             statusSelect.addEventListener("change", async () => {
                 const previousStatus = survey.status;
@@ -85,18 +138,35 @@ async function loadSurveys() {
                 });
 
                 if (response.ok) {
-                    survey.status = statusSelect.value;
+                    const updatedSurvey = await response.json();
+                
+                    survey.status = updatedSurvey.status;
+                    survey.statusIcon = updatedSurvey.statusIcon;
+                
+                    statusButton.title = survey.status;
+                    statusButton.setAttribute(
+                        "aria-label",
+                        `Change survey status: ${survey.status}`
+                    );
+                
+                    statusButton.innerHTML = `<i class="fa-solid ${survey.statusIcon}"></i>`;
+                
+                    statusSelect.hidden = true;
+                    statusButton.hidden = false;
                 } else {
                     statusSelect.value = previousStatus;
-                    alert("Unable to update survey status.");
+                    showToast("Unable to update survey status", "error");
                 }
             });                    
 
-            item.append(" ");
-            item.appendChild(statusSelect);
+            statusCell.appendChild(statusSelect);
         }
 
-      container.appendChild(item);
+        if (survey.active) {
+            activeContainer.appendChild(item);
+        } else {
+            inactiveContainer.appendChild(item);
+        }
     }
 }
 
@@ -128,7 +198,7 @@ function setupCreateSurveyForm() {
       });
 
       if (!response.ok) {
-          alert("Unable to create survey.");
+          showToast("Unable to create survey", "error");
           return;
       }
 

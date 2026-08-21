@@ -83,12 +83,12 @@ public class SurveyController {
     @AuthenticationPrincipal OidcUser oidcUser
   ) {
     User currentUser = userService.findOrCreate(oidcUser);
-
+  
     boolean isAdmin = authentication
       .getAuthorities()
       .stream()
       .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
-
+  
     return surveyService
       .findAll()
       .stream()
@@ -96,18 +96,18 @@ public class SurveyController {
         if (isAdmin) {
           return true;
         }
-
+  
         if (
           survey.getStatus() != SurveyStatus.OPEN &&
           survey.getStatus() != SurveyStatus.PUBLISHED
         ) {
           return false;
         }
-
+  
         List<?> assignments = surveyAssignmentService.findBySurveyId(
           survey.getId()
         );
-
+  
         return (
           assignments.isEmpty() ||
           surveyAssignmentService.isAssigned(
@@ -116,10 +116,23 @@ public class SurveyController {
           )
         );
       })
-      .map(survey ->
-        Map.of(
+      .map(survey -> {
+        boolean required = surveyAssignmentService
+          .findBySurveyId(survey.getId())
+          .stream()
+          .anyMatch(SurveyAssignment::isRequired);
+  
+
+          boolean active = switch (survey.getStatus()) {
+            case DEVELOPMENT, OPEN -> true;
+            case CLOSED, PUBLISHED -> false;
+          };
+
+        return Map.of(
           "id",
           survey.getId(),
+          "active",
+          active,
           "title",
           survey.getTitle(),
           "creatorId",
@@ -129,9 +142,13 @@ public class SurveyController {
           "questionCount",
           survey.getQuestions().size(),
           "status",
-          survey.getStatus().name()
-        )
-      )
+          survey.getStatus().name(),
+          "statusIcon",
+          survey.getStatus().getIcon(),
+          "required",
+          required
+        );
+      })
       .toList();
   }
 
@@ -447,7 +464,14 @@ public class SurveyController {
     survey.setStatus(status);
     surveyService.save(survey);
 
-    return Map.of("id", survey.getId(), "status", survey.getStatus().name());
+    return Map.of(
+      "id",
+      survey.getId(),
+      "status",
+      survey.getStatus().name(),
+      "statusIcon",
+      survey.getStatus().getIcon()
+    );
   }
 
   @GetMapping("/statuses")
