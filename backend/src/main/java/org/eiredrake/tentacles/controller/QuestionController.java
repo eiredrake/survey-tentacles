@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.eiredrake.tentacles.model.SchedulingQuestion;
+import org.eiredrake.tentacles.model.QuestionType;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -39,4 +40,11 @@ public class QuestionController {
                 ))
                 .toList();
     }
+
+    @GetMapping("/question-types")
+    public List<String> getQuestionTypes() {
+        return java.util.Arrays.stream(QuestionType.values())
+            .map(Enum::name)
+            .toList();
+    }    
 }

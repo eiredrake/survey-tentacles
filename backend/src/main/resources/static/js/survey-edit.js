@@ -136,10 +136,65 @@ function setupSchedulingQuestionForm() {
   });
 }
 
+async function loadQuestionTypes() {
+  const response = await fetch("/api/surveys/question-types");
+
+  if (!response.ok) {
+      showToast("Unable to load question types.", "error");
+      return;
+  }
+
+  const questionTypes = await response.json();
+  const select = document.getElementById("question-type-select");
+
+  select.innerHTML = "";
+
+  for (const questionType of questionTypes) {
+      const option = document.createElement("option");
+
+      option.value = questionType;
+      option.textContent = questionType
+          .replaceAll("_", " ")
+          .toLowerCase()
+          .replace(/\b\w/g, letter => letter.toUpperCase());
+
+      select.appendChild(option);
+  }
+}
+
+function setupQuestionTypePicker() {
+  const addButton = document.getElementById("add-question-button");
+  const typeSelect = document.getElementById("question-type-select");
+
+  addButton.addEventListener("click", event => {
+      event.stopPropagation();
+
+      typeSelect.hidden = false;
+      typeSelect.focus();
+  });
+
+  typeSelect.addEventListener("click", event => {
+      event.stopPropagation();
+  });
+
+  typeSelect.addEventListener("change", () => {
+      const selectedType = typeSelect.value;
+
+      typeSelect.hidden = true;
+
+      console.log("Selected question type:", selectedType);
+  });
+
+  document.addEventListener("click", () => {
+      typeSelect.hidden = true;
+  });
+}
+
 async function initialize() {
   await loadSurvey();
+  await loadQuestionTypes();
   setupTitleEditor();
-  setupSchedulingQuestionForm();
+  setupQuestionTypePicker();
 }
 
 initialize();

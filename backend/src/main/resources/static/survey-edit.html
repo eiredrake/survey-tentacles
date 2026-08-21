@@ -31,22 +31,36 @@
           Loading survey...
         </div>
       
-        <section id="scheduling-question-editor">
-            <h2>Add Scheduling Question</h2>
-        
-            <form id="scheduling-question-form">
-                <label>
-                    Question
-                    <input
-                        id="scheduling-question-prompt"
-                        type="text"
-                        required
-                    >
-                </label>
-        
-                <button type="submit">Add Scheduling Question</button>
-            </form>
-        </section>
+        <section id="question-editor">
+          <div class="section-heading">
+              <h2>Questions</h2>
+      
+              <select id="question-type-select" hidden>
+              </select>
+      
+              <button
+                  id="add-question-button"
+                  class="icon-button"
+                  type="button"
+                  title="Add question"
+                  aria-label="Add question"
+              >
+                  <i class="fa-solid fa-plus"></i>
+              </button>
+          </div>
+      
+          <table class="survey-table">
+              <thead>
+                  <tr>
+                      <th>Question</th>
+                      <th>Type</th>
+                      <th class="actions-column">Actions</th>
+                  </tr>
+              </thead>
+              <tbody id="question-list">
+              </tbody>
+          </table>
+      </section>
     </main>
 
     <script src="/js/toast.js"></script>
