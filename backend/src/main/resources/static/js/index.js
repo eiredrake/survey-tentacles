@@ -31,9 +31,13 @@ async function loadSurveys() {
     const response = await fetch("/api/surveys");
 
     if (!response.ok) {
-        document.getElementById("surveys").textContent = "Unable to load surveys.";
-        return;
-    }
+      document.getElementById("active-surveys").innerHTML =
+          '<tr><td colspan="4">Unable to load surveys.</td></tr>';
+  
+      document.getElementById("inactive-surveys").innerHTML = "";
+  
+      return;
+  }
 
     const surveys = await response.json();
     const activeContainer = document.getElementById("active-surveys");
@@ -94,6 +98,33 @@ async function loadSurveys() {
       } else {
           deleteButton.title = "Delete survey";
           deleteButton.setAttribute("aria-label", "Delete survey");
+
+          deleteButton.addEventListener("click", async () => {
+            const confirmed = confirm(
+                `Delete "${survey.title}"? This cannot be undone.`
+            );
+        
+            if (!confirmed) {
+                return;
+            }
+        
+            const csrfResponse = await fetch("/csrf");
+            const csrf = await csrfResponse.json();
+        
+            const response = await fetch(`/api/surveys/${survey.id}`, {
+                method: "DELETE",
+                headers: {
+                    [csrf.headerName]: csrf.token
+                }
+            });
+        
+            if (!response.ok) {
+                alert("Unable to delete survey.");
+                return;
+            }
+        
+            await loadSurveys();
+        });          
       }
       
       actionsCell.appendChild(deleteButton);

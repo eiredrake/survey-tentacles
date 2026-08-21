@@ -19,6 +19,16 @@ public class SurveyService {
         return surveyRepository.save(survey);
     }
 
+    public void delete(Survey survey) {
+        if (survey.isEverPublished()) {
+            throw new IllegalStateException(
+                "Published surveys cannot be deleted."
+            );
+        }
+    
+        surveyRepository.delete(survey);
+    }    
+
     public List<Survey> findAll() {
         return surveyRepository.findAll();
     }

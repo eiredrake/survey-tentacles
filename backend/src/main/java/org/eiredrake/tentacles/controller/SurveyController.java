@@ -526,4 +526,20 @@ public class SurveyController {
       assignment.isRequired()
     );
   }
+
+  @DeleteMapping("/{surveyId}")
+  public Map<String, Object> deleteSurvey(
+    @PathVariable Long surveyId
+  ) {
+    Survey survey = surveyService.findById(surveyId);
+
+    surveyService.delete(survey);
+
+    return Map.of(
+      "id",
+      surveyId,
+      "deleted",
+      true
+    );
+  }
 }
