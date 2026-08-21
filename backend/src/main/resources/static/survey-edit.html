@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Survey - Tentacles</title>
+    <link rel="stylesheet" href="/css/tentacles.css">
+    <link rel="stylesheet" href="/css/toast.css">
+</head>
+
+<body>
+    <main>
+        <a href="/">← Surveys</a>
+
+        <h1 id="survey-title">Edit Survey</h1>
+
+        <div id="survey-editor">
+          Loading survey...
+        </div>
+      
+        <section id="scheduling-question-editor">
+            <h2>Add Scheduling Question</h2>
+        
+            <form id="scheduling-question-form">
+                <label>
+                    Question
+                    <input
+                        id="scheduling-question-prompt"
+                        type="text"
+                        required
+                    >
+                </label>
+        
+                <button type="submit">Add Scheduling Question</button>
+            </form>
+        </section>
+    </main>
+
+    <script src="/js/toast.js"></script>
+    <script src="/js/survey-edit.js"></script>
+</body>
+</html>
