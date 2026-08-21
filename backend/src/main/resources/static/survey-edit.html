@@ -60,7 +60,68 @@
               <tbody id="question-list">
               </tbody>
           </table>
+
+          <div id="question-form-container" hidden>
+          </div>
+                    
       </section>
+        <template id="scheduling-question-template">
+          <div class="question-editor-panel">
+              <div class="question-editor-row">
+                  <label for="scheduling-editor-prompt">Question:</label>
+                  <input
+                      id="scheduling-editor-prompt"
+                      type="text"
+                  >
+              </div>
+      
+              <div class="question-editor-row">
+                  <label class="question-editor-checkbox">
+                      <input
+                          id="scheduling-editor-include-time"
+                          type="checkbox"
+                      >
+                      Include time in selection
+                  </label>
+              </div>
+      
+              <div class="question-editor-layout">
+                  <div class="question-editor-picker">
+                      Date picker will go here.
+                  </div>
+      
+                  <div class="question-editor-selections">
+                      <h3>Selections</h3>
+      
+                      <div id="scheduling-editor-selection-list">
+                          No dates selected.
+                      </div>
+                  </div>
+              </div>
+      
+              <div class="question-editor-actions">
+                  <button
+                      id="cancel-question-button"
+                      class="icon-button"
+                      type="button"
+                      title="Cancel"
+                      aria-label="Cancel"
+                  >
+                      <i class="fa-solid fa-xmark"></i>
+                  </button>
+      
+                  <button
+                      id="save-question-button"
+                      class="icon-button"
+                      type="button"
+                      title="Save question"
+                      aria-label="Save question"
+                  >
+                      <i class="fa-solid fa-floppy-disk"></i>
+                  </button>
+              </div>
+          </div>
+      </template>      
     </main>
 
     <script src="/js/toast.js"></script>

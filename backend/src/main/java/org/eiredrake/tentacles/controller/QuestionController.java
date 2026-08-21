@@ -42,9 +42,12 @@ public class QuestionController {
     }
 
     @GetMapping("/question-types")
-    public List<String> getQuestionTypes() {
+    public List<Map<String, String>> getQuestionTypes() {
         return java.util.Arrays.stream(QuestionType.values())
-            .map(Enum::name)
+            .map(type -> Map.of(
+                "name", type.name(),
+                "editorTemplateId", type.getEditorTemplateId()
+            ))
             .toList();
-    }    
+    }  
 }

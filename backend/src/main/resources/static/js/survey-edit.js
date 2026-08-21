@@ -1,5 +1,33 @@
 const params = new URLSearchParams(window.location.search);
 const surveyId = params.get("id");
+function showQuestionEditor(templateId) {
+  const container = document.getElementById("question-form-container");
+  const template = document.getElementById(templateId);
+
+  if (!template) {
+      showToast("Question editor template not found.", "error");
+      return;
+  }
+
+  container.replaceChildren(
+      template.content.cloneNode(true)
+  );
+
+  container.hidden = false;
+  setupQuestionEditorButtons();
+}
+
+function setupQuestionEditorButtons() {
+  const container = document.getElementById("question-form-container");
+  const cancelButton = document.getElementById("cancel-question-button");
+
+  if (cancelButton) {
+      cancelButton.addEventListener("click", () => {
+          container.replaceChildren();
+          container.hidden = true;
+      });
+  }
+}
 
 async function loadSurvey() {
     const container = document.getElementById("survey-editor");
@@ -152,14 +180,17 @@ async function loadQuestionTypes() {
   for (const questionType of questionTypes) {
       const option = document.createElement("option");
 
-      option.value = questionType;
-      option.textContent = questionType
+      option.value = questionType.editorTemplateId;
+
+      option.textContent = questionType.name
           .replaceAll("_", " ")
           .toLowerCase()
           .replace(/\b\w/g, letter => letter.toUpperCase());
 
       select.appendChild(option);
   }
+
+  select.selectedIndex = -1;
 }
 
 function setupQuestionTypePicker() {
@@ -182,7 +213,8 @@ function setupQuestionTypePicker() {
 
       typeSelect.hidden = true;
 
-      console.log("Selected question type:", selectedType);
+      showQuestionEditor(selectedType);
+      typeSelect.selectedIndex = -1;
   });
 
   document.addEventListener("click", () => {
