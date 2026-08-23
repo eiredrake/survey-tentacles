@@ -18,7 +18,6 @@ function showQuestionEditor(templateId) {
   container.hidden = false;
   setupQuestionEditorButtons();
   setupSchedulingEditor();
-  setupSchedulingSelectionControls();
   setupSchedulingQuestionSave();
 }
 
@@ -44,113 +43,6 @@ function getSchedulingSelections() {
   }));
 }
 
-function setupSchedulingSelectionControls() {
-  const dateInput =
-      document.getElementById("scheduling-editor-date");
-
-  const timeInput =
-      document.getElementById("scheduling-editor-time");
-
-  const includeTimeCheckbox =
-      document.getElementById("scheduling-editor-include-time");
-
-  const addButton =
-      document.getElementById("add-scheduling-selection-button");
-
-  const selectionList =
-      document.getElementById("scheduling-editor-selection-list");
-
-  if (
-      !dateInput ||
-      !timeInput ||
-      !includeTimeCheckbox ||
-      !addButton ||
-      !selectionList
-  ) {
-      return;
-  }
-
-  addButton.addEventListener("click", () => {
-      const selectedDates =
-          dateInput._flatpickr?.selectedDates ?? [];
-
-      if (!selectedDates.length) {
-          return;
-      }
-
-      if (
-          selectionList.textContent.trim() ===
-          "No dates selected."
-      ) {
-          selectionList.replaceChildren();
-      }
-
-      for (const selectedDate of selectedDates) {
-          const selection =
-              document.createElement("div");
-
-          selection.className = "scheduling-selection";
-
-          const year = selectedDate.getFullYear();
-
-          const month = String(
-              selectedDate.getMonth() + 1
-          ).padStart(2, "0");
-
-          const day = String(
-              selectedDate.getDate()
-          ).padStart(2, "0");
-
-          const dateValue = `${year}-${month}-${day}`;
-
-          selection.dataset.date = dateValue;
-          selection.dataset.time = includeTimeCheckbox.checked ? timeInput.value : "";              
-
-          const text =
-              document.createElement("span");
-
-          text.textContent =
-              includeTimeCheckbox.checked &&
-              timeInput.value
-                  ? `${dateValue} ${timeInput.value}`
-                  : dateValue;
-
-          const removeButton =
-              document.createElement("button");
-
-          removeButton.type = "button";
-          removeButton.className = "icon-button";
-          removeButton.title = "Remove selection";
-
-          removeButton.setAttribute(
-              "aria-label",
-              "Remove selection"
-          );
-
-          removeButton.innerHTML =
-              '<i class="fa-solid fa-xmark"></i>';
-
-          removeButton.addEventListener(
-              "click",
-              () => {
-                  selection.remove();
-
-                  if (!selectionList.children.length) {
-                      selectionList.textContent =
-                          "No dates selected.";
-                  }
-              }
-          );
-
-          selection.appendChild(text);
-          selection.appendChild(removeButton);
-
-          selectionList.appendChild(selection);
-      }
-
-      dateInput._flatpickr.clear();
-  });
-}
 
 async function loadSurvey() {
     const container = document.getElementById("survey-editor");
@@ -280,8 +172,12 @@ function setupSchedulingQuestionSave() {
       const csrfResponse = await fetch("/csrf");
       const csrf = await csrfResponse.json();
 
+      const url = editingQuestionId === null
+      ? `/api/surveys/${surveyId}/questions/scheduling`
+      : `/api/surveys/${surveyId}/questions/${editingQuestionId}/scheduling`;
+  
       const response = await fetch(
-          `/api/surveys/${surveyId}/questions/scheduling`,
+          url,
           {
               method: "POST",
               headers: {
@@ -304,6 +200,9 @@ function setupSchedulingQuestionSave() {
           return;
       }
 
+      const wasEditing = editingQuestionId !== null;
+      editingQuestionId = null;
+
       const container =
       document.getElementById("question-form-container");
   
@@ -313,9 +212,11 @@ function setupSchedulingQuestionSave() {
       await loadQuestions();
 
       showToast(
-          "Scheduling question created.",
-          "success"
-      );
+        wasEditing
+            ? "Scheduling question updated."
+            : "Scheduling question created.",
+        "success"
+    );
   });
 }
 
@@ -386,21 +287,91 @@ function setupSchedulingEditor() {
   const timeContainer =
       document.getElementById("scheduling-editor-time-container");
 
+  const timeInput =
+      document.getElementById("scheduling-editor-time");
+
   const dateInput =
       document.getElementById("scheduling-editor-date");
 
-  if (!includeTimeCheckbox || !timeContainer || !dateInput) {
+  const selectionList =
+      document.getElementById("scheduling-editor-selection-list");
+
+  if (
+      !includeTimeCheckbox ||
+      !timeContainer ||
+      !timeInput ||
+      !dateInput ||
+      !selectionList
+  ) {
       return;
   }
 
+  function renderSelections(selectedDates) {
+      selectionList.replaceChildren();
+
+      if (!selectedDates.length) {
+          selectionList.textContent = "No dates selected.";
+          return;
+      }
+
+      for (const selectedDate of selectedDates) {
+          const year = selectedDate.getFullYear();
+          const month = String(
+              selectedDate.getMonth() + 1
+          ).padStart(2, "0");
+
+          const day = String(
+              selectedDate.getDate()
+          ).padStart(2, "0");
+
+          const dateValue = `${year}-${month}-${day}`;
+
+          const selection =
+              document.createElement("div");
+
+          selection.className = "scheduling-selection";
+          selection.dataset.date = dateValue;
+          selection.dataset.time =
+              includeTimeCheckbox.checked
+                  ? timeInput.value
+                  : "";
+
+          const text =
+              document.createElement("span");
+
+          text.textContent =
+              selection.dataset.time
+                  ? `${dateValue} ${selection.dataset.time}`
+                  : dateValue;
+
+          selection.appendChild(text);
+          selectionList.appendChild(selection);
+      }
+  }
+
   dateInput._flatpickr = flatpickr(dateInput, {
-    mode: "multiple",
-    dateFormat: "Y-m-d",
-    inline: true
-});
+      mode: "multiple",
+      dateFormat: "Y-m-d",
+      inline: true,
+
+      onChange: selectedDates => {
+          renderSelections(selectedDates);
+      }
+  });
 
   includeTimeCheckbox.addEventListener("change", () => {
-      timeContainer.hidden = !includeTimeCheckbox.checked;
+      timeContainer.hidden =
+          !includeTimeCheckbox.checked;
+
+      renderSelections(
+          dateInput._flatpickr.selectedDates
+      );
+  });
+
+  timeInput.addEventListener("change", () => {
+      renderSelections(
+          dateInput._flatpickr.selectedDates
+      );
   });
 }
 

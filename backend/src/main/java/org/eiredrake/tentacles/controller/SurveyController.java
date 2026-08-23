@@ -158,6 +158,67 @@ public class SurveyController {
       .toList();
   }
 
+  @PostMapping("/{surveyId}/questions/{questionId}/scheduling")
+public Map<String, Object> updateSchedulingQuestion(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId,
+  @RequestBody Map<String, Object> request
+) {
+  SchedulingQuestion question =
+    (SchedulingQuestion) questionService.findById(questionId);
+
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
+    );
+  }
+
+  question.setPrompt((String) request.get("prompt"));
+
+  question.getOptions().clear();
+
+  @SuppressWarnings("unchecked")
+  List<Map<String, String>> selections =
+    (List<Map<String, String>>) request.get("selections");
+
+  for (Map<String, String> selection : selections) {
+    SchedulingOption option = new SchedulingOption();
+    option.setQuestion(question);
+
+    String date = selection.get("date");
+    String time = selection.get("time");
+    String timeZone = selection.get("timeZone");
+
+    if (time == null || time.isBlank()) {
+      option.setDate(LocalDate.parse(date));
+      option.setDateTime(null);
+    } else {
+      LocalDateTime localDateTime =
+        LocalDateTime.parse(date + "T" + time);
+
+      option.setDate(null);
+      option.setDateTime(
+        localDateTime
+          .atZone(ZoneId.of(timeZone))
+          .toInstant()
+      );
+    }
+
+    question.getOptions().add(option);
+  }
+
+  questionService.save(question);
+
+  return Map.of(
+    "id",
+    question.getId(),
+    "prompt",
+    question.getPrompt(),
+    "optionCount",
+    question.getOptions().size()
+  );
+}
+
   @PostMapping("/{surveyId}/questions/scheduling")
   public Map<String, Object> createSchedulingQuestion(
     @PathVariable Long surveyId,
