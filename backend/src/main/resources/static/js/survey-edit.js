@@ -302,6 +302,14 @@ function setupSchedulingQuestionSave() {
           return;
       }
 
+      const container =
+      document.getElementById("question-form-container");
+  
+      container.replaceChildren();
+      container.hidden = true;
+      
+      await loadQuestions();
+
       showToast(
           "Scheduling question created.",
           "success"
