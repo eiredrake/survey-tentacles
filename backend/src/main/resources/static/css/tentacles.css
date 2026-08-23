@@ -123,3 +123,97 @@ main {
 .editor-title h1 {
   margin: 0;
 }
+
+/* Participant survey */
+
+.survey-page-heading {
+  margin-bottom: 24px;
+}
+
+.survey-page-heading h1 {
+  margin-bottom: 0;
+}
+
+.survey-question {
+  max-width: 700px;
+  padding: 24px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.survey-question .question-prompt {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.scheduling-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scheduling-options label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 8px 12px;
+
+  border: 1px solid #ccc;
+  border-radius: 6px;
+
+  cursor: pointer;
+}
+
+.scheduling-options label:hover {
+  background: #f5f5f5;
+}
+
+.scheduling-options input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.question-actions {
+  margin-top: 20px;
+}
+
+.submit-answer-button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.submit-answer-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scheduling-status {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+@media (max-width: 600px) {
+  main {
+    padding: 12px;
+  }
+
+  .app-title {
+    font-size: 1.4rem;
+  }
+
+  .app-user {
+    font-size: 1rem;
+  }
+
+  .survey-question {
+    padding: 16px;
+  }
+
+  .scheduling-options label {
+    padding: 14px 12px;
+  }
+}
