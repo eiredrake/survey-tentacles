@@ -21,4 +21,8 @@ public class QuestionService {
         return questionRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Question not found: " + id));
     }    
+
+    public void delete(Question question) {
+        questionRepository.delete(question);
+    }    
 }

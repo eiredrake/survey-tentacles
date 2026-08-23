@@ -1,6 +1,8 @@
 package org.eiredrake.tentacles.controller;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import org.eiredrake.tentacles.model.SchedulingAnswer;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.eiredrake.tentacles.model.Question;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -168,10 +171,34 @@ public class SurveyController {
     @SuppressWarnings("unchecked")
     List<String> dates = (List<String>) request.get("dates");
 
-    for (String date : dates) {
+    @SuppressWarnings("unchecked")
+    List<Map<String, String>> selections =
+      (List<Map<String, String>>) request.get("selections");
+    
+    for (Map<String, String> selection : selections) {
       SchedulingOption option = new SchedulingOption();
       option.setQuestion(question);
-      option.setDate(LocalDate.parse(date));
+    
+      String date = selection.get("date");
+      String time = selection.get("time");
+      String timeZone = selection.get("timeZone");
+    
+      if (time == null || time.isBlank()) {
+        option.setDate(LocalDate.parse(date));
+        option.setDateTime(null);
+      } else {
+        LocalDateTime localDateTime = LocalDateTime.parse(
+          date + "T" + time
+        );
+    
+        option.setDate(null);
+        option.setDateTime(
+          localDateTime
+            .atZone(ZoneId.of(timeZone))
+            .toInstant()
+        );
+      }
+    
       question.getOptions().add(option);
     }
 
@@ -553,4 +580,27 @@ public class SurveyController {
 
     return Map.of("id", surveyId, "deleted", true);
   }
+
+  @DeleteMapping("/{surveyId}/questions/{questionId}")
+  public Map<String, Object> deleteQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId
+  ) {
+    Question question = questionService.findById(questionId);
+  
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
+    }
+  
+    questionService.delete(question);
+  
+    return Map.of(
+      "id",
+      questionId,
+      "deleted",
+      true
+    );
+  }  
 }

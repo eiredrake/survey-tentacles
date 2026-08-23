@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Survey - Tentacles</title>
-    <link rel="stylesheet"href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">        
+    <link rel="stylesheet"href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">    
     <link rel="stylesheet" href="/css/tentacles.css">
     <link rel="stylesheet" href="/css/toast.css">
 </head>
@@ -63,7 +64,7 @@
 
           <div id="question-form-container" hidden>
           </div>
-                    
+
       </section>
         <template id="scheduling-question-template">
           <div class="question-editor-panel">
@@ -87,7 +88,28 @@
       
               <div class="question-editor-layout">
                   <div class="question-editor-picker">
-                      Date picker will go here.
+                      <label for="scheduling-editor-date">Date:</label>
+
+                      <input
+                          id="scheduling-editor-date"
+                          type="date"
+                      >
+
+                      <div id="scheduling-editor-time-container" hidden>
+                          <label for="scheduling-editor-time">Time:</label>
+
+                          <input
+                              id="scheduling-editor-time"
+                              type="time"
+                          >
+                      </div>
+
+                      <button
+                          id="add-scheduling-selection-button"
+                          type="button"
+                      >
+                          Add Selection
+                      </button>
                   </div>
       
                   <div class="question-editor-selections">
@@ -125,6 +147,7 @@
     </main>
 
     <script src="/js/toast.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="/js/survey-edit.js"></script>
 </body>
 </html>
