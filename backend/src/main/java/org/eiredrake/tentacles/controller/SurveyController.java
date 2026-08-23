@@ -3,8 +3,11 @@ package org.eiredrake.tentacles.controller;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.eiredrake.tentacles.model.Question;
+import org.eiredrake.tentacles.model.QuestionType;
 import org.eiredrake.tentacles.model.SchedulingAnswer;
 import org.eiredrake.tentacles.model.SchedulingOption;
 import org.eiredrake.tentacles.model.SchedulingQuestion;
@@ -28,9 +31,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.eiredrake.tentacles.model.Question;
-import java.util.HashMap;
-import org.eiredrake.tentacles.model.QuestionType;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -159,65 +159,64 @@ public class SurveyController {
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/scheduling")
-public Map<String, Object> updateSchedulingQuestion(
-  @PathVariable Long surveyId,
-  @PathVariable Long questionId,
-  @RequestBody Map<String, Object> request
-) {
-  SchedulingQuestion question =
-    (SchedulingQuestion) questionService.findById(questionId);
-
-  if (!question.getSurvey().getId().equals(surveyId)) {
-    throw new IllegalArgumentException(
-      "Question does not belong to survey: " + surveyId
+  public Map<String, Object> updateSchedulingQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId,
+    @RequestBody Map<String, Object> request
+  ) {
+    SchedulingQuestion question = (SchedulingQuestion) questionService.findById(
+      questionId
     );
-  }
 
-  question.setPrompt((String) request.get("prompt"));
-
-  question.getOptions().clear();
-
-  @SuppressWarnings("unchecked")
-  List<Map<String, String>> selections =
-    (List<Map<String, String>>) request.get("selections");
-
-  for (Map<String, String> selection : selections) {
-    SchedulingOption option = new SchedulingOption();
-    option.setQuestion(question);
-
-    String date = selection.get("date");
-    String time = selection.get("time");
-    String timeZone = selection.get("timeZone");
-
-    if (time == null || time.isBlank()) {
-      option.setDate(LocalDate.parse(date));
-      option.setDateTime(null);
-    } else {
-      LocalDateTime localDateTime =
-        LocalDateTime.parse(date + "T" + time);
-
-      option.setDate(null);
-      option.setDateTime(
-        localDateTime
-          .atZone(ZoneId.of(timeZone))
-          .toInstant()
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
       );
     }
 
-    question.getOptions().add(option);
+    question.setPrompt((String) request.get("prompt"));
+
+    question.getOptions().clear();
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, String>> selections = (List<
+      Map<String, String>
+    >) request.get("selections");
+
+    for (Map<String, String> selection : selections) {
+      SchedulingOption option = new SchedulingOption();
+      option.setQuestion(question);
+
+      String date = selection.get("date");
+      String time = selection.get("time");
+      String timeZone = selection.get("timeZone");
+
+      if (time == null || time.isBlank()) {
+        option.setDate(LocalDate.parse(date));
+        option.setDateTime(null);
+      } else {
+        LocalDateTime localDateTime = LocalDateTime.parse(date + "T" + time);
+
+        option.setDate(null);
+        option.setDateTime(
+          localDateTime.atZone(ZoneId.of(timeZone)).toInstant()
+        );
+      }
+
+      question.getOptions().add(option);
+    }
+
+    questionService.save(question);
+
+    return Map.of(
+      "id",
+      question.getId(),
+      "prompt",
+      question.getPrompt(),
+      "optionCount",
+      question.getOptions().size()
+    );
   }
-
-  questionService.save(question);
-
-  return Map.of(
-    "id",
-    question.getId(),
-    "prompt",
-    question.getPrompt(),
-    "optionCount",
-    question.getOptions().size()
-  );
-}
 
   @PostMapping("/{surveyId}/questions/scheduling")
   public Map<String, Object> createSchedulingQuestion(
@@ -236,33 +235,30 @@ public Map<String, Object> updateSchedulingQuestion(
     List<String> dates = (List<String>) request.get("dates");
 
     @SuppressWarnings("unchecked")
-    List<Map<String, String>> selections =
-      (List<Map<String, String>>) request.get("selections");
-    
+    List<Map<String, String>> selections = (List<
+      Map<String, String>
+    >) request.get("selections");
+
     for (Map<String, String> selection : selections) {
       SchedulingOption option = new SchedulingOption();
       option.setQuestion(question);
-    
+
       String date = selection.get("date");
       String time = selection.get("time");
       String timeZone = selection.get("timeZone");
-    
+
       if (time == null || time.isBlank()) {
         option.setDate(LocalDate.parse(date));
         option.setDateTime(null);
       } else {
-        LocalDateTime localDateTime = LocalDateTime.parse(
-          date + "T" + time
-        );
-    
+        LocalDateTime localDateTime = LocalDateTime.parse(date + "T" + time);
+
         option.setDate(null);
         option.setDateTime(
-          localDateTime
-            .atZone(ZoneId.of(timeZone))
-            .toInstant()
+          localDateTime.atZone(ZoneId.of(timeZone)).toInstant()
         );
       }
-    
+
       question.getOptions().add(option);
     }
 
@@ -288,18 +284,18 @@ public Map<String, Object> updateSchedulingQuestion(
     );
 
     List<Map<String, Object>> options = question
-    .getOptions()
-    .stream()
-    .map(option -> {
-      Map<String, Object> result = new HashMap<>();
-  
-      result.put("id", option.getId());
-      result.put("date", option.getDate());
-      result.put("dateTime", option.getDateTime());
-  
-      return result;
-    })
-    .toList();
+      .getOptions()
+      .stream()
+      .map(option -> {
+        Map<String, Object> result = new HashMap<>();
+
+        result.put("id", option.getId());
+        result.put("date", option.getDate());
+        result.put("dateTime", option.getDateTime());
+
+        return result;
+      })
+      .toList();
 
     return Map.of(
       "id",
@@ -374,29 +370,27 @@ public Map<String, Object> updateSchedulingQuestion(
   }
 
   @GetMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
-  public List<Map<String, Object>> getSchedulingAnswers(
-    @PathVariable Long surveyId,
-    @PathVariable Long questionId
-  ) {
-    return schedulingAnswerService
-      .findByQuestionId(questionId)
-      .stream()
-      .map(answer ->
-        Map.<String, Object>of(
-          "answerId",
-          answer.getId(),
-          "userId",
-          answer.getUser().getId(),
-          "username",
-          answer.getUser().getUsername(),
-          "optionId",
-          answer.getOption().getId(),
-          "date",
-          answer.getOption().getDate()
-        )
-      )
-      .toList();
-  }
+public List<Map<String, Object>> getSchedulingAnswers(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId
+) {
+  return schedulingAnswerService
+    .findByQuestionId(questionId)
+    .stream()
+    .map(answer -> {
+      Map<String, Object> result = new HashMap<>();
+
+      result.put("answerId", answer.getId());
+      result.put("userId", answer.getUser().getId());
+      result.put("username", answer.getUser().getUsername());
+      result.put("optionId", answer.getOption().getId());
+      result.put("date", answer.getOption().getDate());
+      result.put("dateTime", answer.getOption().getDateTime());
+
+      return result;
+    })
+    .toList();
+}
 
   @GetMapping("/{surveyId}/questions/{questionId}/results")
   public List<Map<String, Object>> getSchedulingResults(
@@ -410,16 +404,19 @@ public Map<String, Object> updateSchedulingQuestion(
     return question
       .getOptions()
       .stream()
-      .map(option ->
-        Map.<String, Object>of(
-          "optionId",
-          option.getId(),
-          "date",
-          option.getDate(),
+      .map(option -> {
+        Map<String, Object> result = new HashMap<>();
+
+        result.put("optionId", option.getId());
+        result.put("date", option.getDate());
+        result.put("dateTime", option.getDateTime());
+        result.put(
           "votes",
           schedulingAnswerService.countByOptionId(option.getId())
-        )
-      )
+        );
+
+        return result;
+      })
       .sorted((a, b) ->
         Long.compare((Long) b.get("votes"), (Long) a.get("votes"))
       )
@@ -657,20 +654,15 @@ public Map<String, Object> updateSchedulingQuestion(
     @PathVariable Long questionId
   ) {
     Question question = questionService.findById(questionId);
-  
+
     if (!question.getSurvey().getId().equals(surveyId)) {
       throw new IllegalArgumentException(
         "Question does not belong to survey: " + surveyId
       );
     }
-  
+
     questionService.delete(question);
-  
-    return Map.of(
-      "id",
-      questionId,
-      "deleted",
-      true
-    );
-  }  
+
+    return Map.of("id", questionId, "deleted", true);
+  }
 }

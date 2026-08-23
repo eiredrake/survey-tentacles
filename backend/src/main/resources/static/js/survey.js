@@ -199,6 +199,24 @@ function formatDate(dateString) {
     });
 }        
 
+function formatSchedulingDate(date, dateTime) {
+  if (dateTime) {
+      return new Date(dateTime).toLocaleString(
+          undefined,
+          {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit"
+          }
+      );
+  }
+
+  return formatDate(date);
+}
+
 async function refreshSchedulingStatus(question, section) {
     let statusContainer = section.querySelector(".scheduling-status");
 
@@ -225,9 +243,7 @@ async function refreshSchedulingStatus(question, section) {
     for (const result of results) {
         const item = document.createElement("li");
 
-        item.textContent =
-            `${formatDate(result.date)} — ${result.votes} vote${result.votes === 1 ? "" : "s"}`;
-
+        item.textContent = `${formatSchedulingDate(result.date, result.dateTime)} — ${result.votes} vote${result.votes === 1 ? "" : "s"}`;
 
         resultsList.appendChild(item);
     }
@@ -264,113 +280,220 @@ async function refreshSchedulingStatus(question, section) {
 
 
 async function loadQuestions() {
-    const container = document.getElementById("questions");
+  const container = document.getElementById("questions");
 
-    if (!surveyId) {
-        container.textContent = "No survey ID supplied.";
-        return;
-    }
+  if (!surveyId) {
+      container.textContent = "No survey ID supplied.";
+      return;
+  }
 
-    const response = await fetch(`/api/surveys/${surveyId}/questions`);
+  const response = await fetch(
+      `/api/surveys/${surveyId}/questions`
+  );
 
-    if (!response.ok) {
-        container.textContent = "Unable to load questions.";
-        return;
-    }
+  if (!response.ok) {
+      container.textContent = "Unable to load questions.";
+      return;
+  }
 
-    const questions = await response.json();
+  const questions = await response.json();
 
-    container.innerHTML = "";
+  container.replaceChildren();
 
-    for (const question of questions) {
-        const section = document.createElement("section");
+  for (const question of questions) {
+      const template =
+          document.getElementById(
+              question.participantTemplateId
+          );
 
-        const heading = document.createElement("h2");
-        heading.textContent = question.prompt;
+      if (!template) {
+          showToast(
+              `Participant template not found for question ${question.id}.`,
+              "error"
+          );
+          continue;
+      }
 
-        section.appendChild(heading);
+      const fragment =
+          template.content.cloneNode(true);
 
-        if (question.type === "scheduling") {
-            const response = await fetch(
-                `/api/surveys/${surveyId}/questions/${question.id}`
-            );
+      const section =
+          fragment.querySelector(".survey-question");
 
-            const detail = await response.json();
-            const meResponse = await fetch("/me");
-            const me = await meResponse.json();
+      const heading =
+          section.querySelector(".question-prompt");
 
-            const answersResponse = await fetch(
-                `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`
-            );
+      heading.textContent = question.prompt;
 
-            const answers = await answersResponse.json();
+      /*
+       * The scheduling template contains these controls.
+       * This lets the HTML template determine which behavior
+       * is appropriate instead of comparing against a
+       * hard-coded Java enum value.
+       */
+      const optionsContainer =
+          section.querySelector(".scheduling-options");
 
-            const mySelectedOptionIds = new Set(
-                answers
-                    .filter(answer => answer.userId === me.id)
-                    .map(answer => answer.optionId)
-            );                    
+      const submitButton =
+          section.querySelector(".submit-answer-button");
 
-            for (const option of detail.options) {
-              const label = document.createElement("label");
+      if (optionsContainer && submitButton) {
+          const detailResponse = await fetch(
+              `/api/surveys/${surveyId}/questions/${question.id}`
+          );
 
-              const checkbox = document.createElement("input");
-              checkbox.type = "checkbox";
-              checkbox.value = option.id;
-              checkbox.checked = mySelectedOptionIds.has(option.id);
+          if (!detailResponse.ok) {
+              showToast(
+                  "Unable to load question details.",
+                  "error"
+              );
+              continue;
+          }
 
-              checkbox.disabled = surveyStatus !== "OPEN";
+          const detail =
+              await detailResponse.json();
 
-              label.appendChild(checkbox);
-              label.append(` ${formatDate(option.date)}`);
+          const answersResponse = await fetch(
+              `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`
+          );
 
-              section.appendChild(label);
-              section.appendChild(document.createElement("br"));
-            }
+          if (!answersResponse.ok) {
+              showToast(
+                  "Unable to load existing answers.",
+                  "error"
+              );
+              continue;
+          }
 
-            const button = document.createElement("button");
-            button.type = "button";
-            button.textContent = "Submit";
+          const answers =
+              await answersResponse.json();
 
-            button.disabled = surveyStatus !== "OPEN";
-
-            button.addEventListener("click", async () => {
-              const selected = [
-                  ...section.querySelectorAll('input[type="checkbox"]:checked')
-              ].map(checkbox => Number(checkbox.value));
-
-              const csrfResponse = await fetch("/csrf");
-              const csrf = await csrfResponse.json();
-
-              const response = await fetch(
-                  `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`,
-                  {
-                      method: "POST",
-                      headers: {
-                          "Content-Type": "application/json",
-                          [csrf.headerName]: csrf.token
-                      },
-                      body: JSON.stringify({
-                          optionIds: selected
-                      })
-                  }
+          const mySelectedOptionIds =
+              new Set(
+                  answers
+                      .filter(
+                          answer =>
+                              answer.userId === currentUser.id
+                      )
+                      .map(
+                          answer => answer.optionId
+                      )
               );
 
-                if (response.ok) {
-                    showToast("Response saved.", "success");
-                    await refreshSchedulingStatus(question, section);
-                } else {
-                    showToast("Unable to save response.", "error");
-                }
-            });
+          for (const option of detail.options) {
+              const label =
+                  document.createElement("label");
 
-            section.appendChild(button);
-            
-            await refreshSchedulingStatus(question, section);
-        }
+              const checkbox =
+                  document.createElement("input");
 
-        container.appendChild(section);
-    }
+              checkbox.type = "checkbox";
+              checkbox.value = option.id;
+
+              checkbox.checked =
+                  mySelectedOptionIds.has(option.id);
+
+              checkbox.disabled =
+                  surveyStatus !== "OPEN";
+
+              const text =
+                  document.createElement("span");
+
+              if (option.dateTime) {
+                  const localDateTime =
+                      new Date(option.dateTime);
+
+                  text.textContent =
+                      localDateTime.toLocaleString(
+                          undefined,
+                          {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit"
+                          }
+                      );
+              } else {
+                  text.textContent =
+                      formatDate(option.date);
+              }
+
+              label.appendChild(checkbox);
+              label.append(" ");
+              label.appendChild(text);
+
+              optionsContainer.appendChild(label);
+              optionsContainer.appendChild(
+                  document.createElement("br")
+              );
+          }
+
+          submitButton.disabled =
+              surveyStatus !== "OPEN";
+
+          submitButton.addEventListener(
+              "click",
+              async () => {
+                  const selected = [
+                      ...optionsContainer.querySelectorAll(
+                          'input[type="checkbox"]:checked'
+                      )
+                  ].map(
+                      checkbox =>
+                          Number(checkbox.value)
+                  );
+
+                  const csrfResponse =
+                      await fetch("/csrf");
+
+                  const csrf =
+                      await csrfResponse.json();
+
+                  const saveResponse = await fetch(
+                      `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`,
+                      {
+                          method: "POST",
+                          headers: {
+                              "Content-Type":
+                                  "application/json",
+                              [csrf.headerName]:
+                                  csrf.token
+                          },
+                          body: JSON.stringify({
+                              optionIds: selected
+                          })
+                      }
+                  );
+
+                  if (saveResponse.ok) {
+                      showToast(
+                          "Response saved.",
+                          "success"
+                      );
+
+                      await refreshSchedulingStatus(
+                          question,
+                          section
+                      );
+                  } else {
+                      showToast(
+                          "Unable to save response.",
+                          "error"
+                      );
+                  }
+              }
+          );
+
+          await refreshSchedulingStatus(
+              question,
+              section
+          );
+      }
+
+      container.appendChild(fragment);
+  }
 }
 
 async function initialize() {

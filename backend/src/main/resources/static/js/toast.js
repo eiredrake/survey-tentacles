@@ -1,17 +1,30 @@
 function showToast(message, type = "info") {
-  let toast = document.getElementById("toast");
-  
-  if (!toast) {
-      toast = document.createElement("div");
-      toast.id = "toast";
-      document.body.appendChild(toast);
-  }
+    let toast = document.getElementById("toast");
 
-  toast.dataset.type = type;
-  toast.textContent = message;
-  toast.hidden = false;
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "toast";
+        document.body.appendChild(toast);
+    }
 
-  setTimeout(() => {
-      toast.hidden = true;
-  }, 2500);
+    toast.dataset.type = type;
+    toast.textContent = message;
+    toast.hidden = false;
+
+    if (type === "error") {
+        toast.title = "Click to dismiss";
+
+        toast.onclick = () => {
+            toast.hidden = true;
+        };
+
+        return;
+    }
+
+    toast.title = "";
+    toast.onclick = null;
+
+    setTimeout(() => {
+        toast.hidden = true;
+    }, 2500);
 }

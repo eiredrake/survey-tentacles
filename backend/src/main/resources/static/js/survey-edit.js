@@ -494,7 +494,38 @@ function populateSchedulingSelections(options) {
       return;
   }
 
+  const includeTimeCheckbox =
+    document.getElementById("scheduling-editor-include-time");
+
+  const timeContainer =
+      document.getElementById("scheduling-editor-time-container");
+
+  const timeInput =
+      document.getElementById("scheduling-editor-time");
+
   selectionList.replaceChildren();
+
+  const timedOption = options.find(option => option.dateTime);
+
+    if (timedOption) {
+        const localDateTime = new Date(timedOption.dateTime);
+    
+        const hours = String(
+            localDateTime.getHours()
+        ).padStart(2, "0");
+    
+        const minutes = String(
+            localDateTime.getMinutes()
+        ).padStart(2, "0");
+    
+        includeTimeCheckbox.checked = true;
+        timeContainer.hidden = false;
+        timeInput.value = `${hours}:${minutes}`;
+    } else {
+        includeTimeCheckbox.checked = false;
+        timeContainer.hidden = true;
+        timeInput.value = "";
+    }  
 
   for (const option of options) {
       const selection =
