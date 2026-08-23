@@ -217,3 +217,41 @@ main {
     padding: 14px 12px;
   }
 }
+
+.scheduling-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scheduling-result {
+  padding: 8px 0;
+}
+
+.scheduling-result-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 5px;
+}
+
+.scheduling-result-track {
+  height: 10px;
+  background: #e5e5e5;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.scheduling-result-bar {
+  height: 100%;
+  background: #777;
+  border-radius: 999px;
+}
+
+.scheduling-result-leading .scheduling-result-header {
+  font-weight: 700;
+}
+
+.scheduling-result-leading .scheduling-result-bar {
+  background: #222;
+}
