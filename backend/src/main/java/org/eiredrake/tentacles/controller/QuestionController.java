@@ -34,9 +34,8 @@ public class QuestionController {
                         "id", question.getId(),
                         "prompt", question.getPrompt(),
                         "displayOrder", question.getDisplayOrder(),
-                        "type", question instanceof SchedulingQuestion
-                                ? "scheduling"
-                                : "unknown"
+                        "type", question.getType().name(),
+                        "editorTemplateId", question.getType().getEditorTemplateId()
                 ))
                 .toList();
     }

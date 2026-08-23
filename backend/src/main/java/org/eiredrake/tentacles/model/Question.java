@@ -22,6 +22,10 @@ public class Question {
     @Column(nullable = false)
     private Integer displayOrder;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private QuestionType type;
+
     public Long getId() {
         return id;
     }
@@ -59,5 +63,13 @@ public class Question {
 
     public void setAnswers(List<Answer> answers) {
         this.answers = answers;
+    }
+
+    public QuestionType getType() {
+        return type;
+    }
+    
+    public void setType(QuestionType type) {
+        this.type = type;
     }
 }

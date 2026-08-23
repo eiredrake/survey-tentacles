@@ -29,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.eiredrake.tentacles.model.Question;
+import java.util.HashMap;
+import org.eiredrake.tentacles.model.QuestionType;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -164,6 +166,7 @@ public class SurveyController {
     Survey survey = surveyService.findById(surveyId);
 
     SchedulingQuestion question = new SchedulingQuestion();
+    question.setType(QuestionType.SCHEDULING);
     question.setSurvey(survey);
     question.setPrompt((String) request.get("prompt"));
     question.setDisplayOrder((Integer) request.get("displayOrder"));
@@ -224,12 +227,18 @@ public class SurveyController {
     );
 
     List<Map<String, Object>> options = question
-      .getOptions()
-      .stream()
-      .map(option ->
-        Map.<String, Object>of("id", option.getId(), "date", option.getDate())
-      )
-      .toList();
+    .getOptions()
+    .stream()
+    .map(option -> {
+      Map<String, Object> result = new HashMap<>();
+  
+      result.put("id", option.getId());
+      result.put("date", option.getDate());
+      result.put("dateTime", option.getDateTime());
+  
+      return result;
+    })
+    .toList();
 
     return Map.of(
       "id",

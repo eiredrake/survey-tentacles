@@ -1,5 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 const surveyId = params.get("id");
+let editingQuestionId = null;
+
 function showQuestionEditor(templateId) {
   const container = document.getElementById("question-form-container");
   const template = document.getElementById(templateId);
@@ -366,6 +368,8 @@ function setupQuestionTypePicker() {
 
       typeSelect.hidden = true;
 
+      editingQuestionId = null;
+
       showQuestionEditor(selectedType);
       typeSelect.selectedIndex = -1;
   });
@@ -435,6 +439,29 @@ async function loadQuestions() {
       editButton.innerHTML =
           '<i class="fa-solid fa-pen-to-square"></i>';
 
+          editButton.addEventListener("click", async () => {
+            const response = await fetch(
+                `/api/surveys/${surveyId}/questions/${question.id}`
+            );
+        
+            if (!response.ok) {
+                showToast("Unable to load question.", "error");
+                return;
+            }
+        
+            const questionDetails = await response.json();
+        
+            editingQuestionId = question.id;
+
+            showQuestionEditor(question.editorTemplateId);
+        
+            const promptInput =
+            document.getElementById("scheduling-editor-prompt");
+        
+            promptInput.value = questionDetails.prompt;
+            populateSchedulingSelections(questionDetails.options);
+        });          
+
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "icon-button";
@@ -482,6 +509,132 @@ async function loadQuestions() {
       row.appendChild(actionsCell);
 
       list.appendChild(row);
+  }
+}
+
+function populateSchedulingSelections(options) {
+  const selectionList =
+      document.getElementById("scheduling-editor-selection-list");
+
+  const dateInput =
+      document.getElementById("scheduling-editor-date");
+
+  if (!selectionList) {
+      return;
+  }
+
+  selectionList.replaceChildren();
+
+  for (const option of options) {
+      const selection =
+          document.createElement("div");
+
+      selection.className = "scheduling-selection";
+
+      let date;
+      let time = "";
+
+      if (option.dateTime) {
+          const localDateTime =
+              new Date(option.dateTime);
+
+          const year =
+              localDateTime.getFullYear();
+
+          const month = String(
+              localDateTime.getMonth() + 1
+          ).padStart(2, "0");
+
+          const day = String(
+              localDateTime.getDate()
+          ).padStart(2, "0");
+
+          date = `${year}-${month}-${day}`;
+
+          time = [
+              String(
+                  localDateTime.getHours()
+              ).padStart(2, "0"),
+
+              String(
+                  localDateTime.getMinutes()
+              ).padStart(2, "0")
+          ].join(":");
+      } else {
+          date = option.date;
+      }
+
+      selection.dataset.date = date;
+      selection.dataset.time = time;
+
+      const text =
+          document.createElement("span");
+
+      text.textContent = time
+          ? `${date} ${time}`
+          : date;
+
+      const removeButton =
+          document.createElement("button");
+
+      removeButton.type = "button";
+      removeButton.className = "icon-button";
+      removeButton.title = "Remove selection";
+
+      removeButton.setAttribute(
+          "aria-label",
+          "Remove selection"
+      );
+
+      removeButton.innerHTML =
+          '<i class="fa-solid fa-xmark"></i>';
+
+      removeButton.addEventListener(
+          "click",
+          () => {
+              selection.remove();
+
+              const remainingDates = Array.from(
+                  selectionList.querySelectorAll(
+                      ".scheduling-selection"
+                  )
+              ).map(
+                  item => item.dataset.date
+              );
+
+              if (dateInput?._flatpickr) {
+                  dateInput._flatpickr.setDate(
+                      remainingDates,
+                      false
+                  );
+              }
+
+              if (!selectionList.children.length) {
+                  selectionList.textContent =
+                      "No dates selected.";
+              }
+          }
+      );
+
+      selection.appendChild(text);
+      selection.appendChild(removeButton);
+
+      selectionList.appendChild(selection);
+  }
+
+  if (dateInput?._flatpickr) {
+      const selectedDates = Array.from(
+          selectionList.querySelectorAll(
+              ".scheduling-selection"
+          )
+      ).map(
+          selection => selection.dataset.date
+      );
+
+      dateInput._flatpickr.setDate(
+          selectedDates,
+          false
+      );
   }
 }
 
