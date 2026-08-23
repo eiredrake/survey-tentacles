@@ -279,3 +279,38 @@ main {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.inactive-surveys-section summary {
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.inactive-surveys-section summary h2 {
+  display: inline;
+}
+
+.inactive-surveys-section[open] summary {
+  margin-bottom: 8px;
+}
+
+.inactive-surveys-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.inactive-surveys-summary::-webkit-details-marker {
+  display: none;
+}
+
+.inactive-surveys-chevron {
+  font-size: 0.9rem;
+  transition: transform 0.15s ease;
+}
+
+.inactive-surveys-section[open]
+.inactive-surveys-chevron {
+  transform: rotate(90deg);
+}
