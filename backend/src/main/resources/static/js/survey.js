@@ -3,6 +3,7 @@ const surveyId = params.get("id");
 
 let surveyStatus = null;
 let currentUser = null;
+let surveyAcceptingResponses = false;
 
 async function loadCurrentUser() {
   const response = await fetch("/me");
@@ -37,6 +38,7 @@ async function loadSurveyStatus() {
 
     if (survey) {
       surveyStatus = survey.status;
+      surveyAcceptingResponses = survey.acceptingResponses;
       document.getElementById("survey-title").textContent = survey.title;
     }
 }        
@@ -594,8 +596,7 @@ async function loadQuestions() {
               checkbox.checked =
                   mySelectedOptionIds.has(option.id);
 
-              checkbox.disabled =
-                  surveyStatus !== "OPEN";
+              checkbox.disabled = !surveyAcceptingResponses;
 
               const text =
                   document.createElement("span");
@@ -631,15 +632,13 @@ async function loadQuestions() {
               );
           }
 
-          submitButton.disabled = surveyStatus !== "OPEN";
+          submitButton.disabled = !surveyAcceptingResponses;
           if (selectAllButton) {
-              selectAllButton.disabled =
-                  surveyStatus !== "OPEN";
+              selectAllButton.disabled = !surveyAcceptingResponses;
           }
           
           if (clearAllButton) {
-              clearAllButton.disabled =
-                  surveyStatus !== "OPEN";
+              clearAllButton.disabled = !surveyAcceptingResponses;
           }
 
 

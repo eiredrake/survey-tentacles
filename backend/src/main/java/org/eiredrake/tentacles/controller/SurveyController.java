@@ -132,29 +132,22 @@ public class SurveyController {
           case CLOSED, PUBLISHED -> false;
         };
 
-        return Map.of(
-          "id",
-          survey.getId(),
-          "active",
-          active,
-          "title",
-          survey.getTitle(),
-          "creatorId",
-          survey.getCreator().getId(),
-          "creatorName",
-          survey.getCreator().getDisplayName(),
-          "questionCount",
-          survey.getQuestions().size(),
-          "status",
-          survey.getStatus().name(),
-          "statusIcon",
-          survey.getStatus().getIcon(),
-          "required",
-          required,
-          "everPublished",
-          survey.isEverPublished()
+        Map<String, Object> result = new HashMap<>();
+
+        result.put("id", survey.getId());
+        result.put("active", active);
+        result.put("title", survey.getTitle());
+        result.put("creatorId", survey.getCreator().getId());
+        result.put("creatorName", survey.getCreator().getDisplayName());
+        result.put("questionCount", survey.getQuestions().size());
+        result.put("status", survey.getStatus().name());
+        result.put("statusIcon", survey.getStatus().getIcon());
+        result.put("required", required);
+        result.put("everPublished", survey.isEverPublished());
+        result.put("acceptingResponses", survey.getStatus().isAcceptingResponses()
         );
-      })
+
+        return result;})
       .toList();
   }
 

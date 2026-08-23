@@ -1,18 +1,27 @@
 package org.eiredrake.tentacles.model;
 
 public enum SurveyStatus {
-    DEVELOPMENT("fa-file-pen"),
-    OPEN("fa-lock-open"),
-    CLOSED("fa-lock"),
-    PUBLISHED("fa-book");
+    DEVELOPMENT("fa-file-pen", false),
+    OPEN("fa-lock-open", true),
+    CLOSED("fa-unlock", false),
+    PUBLISHED("fa-book", false);
 
     private final String icon;
+    private final boolean acceptingResponses;
 
-    SurveyStatus(String icon) {
+    SurveyStatus(
+        String icon,
+        boolean acceptingResponses
+    ) {
         this.icon = icon;
+        this.acceptingResponses = acceptingResponses;
     }
 
     public String getIcon() {
         return icon;
+    }
+
+    public boolean isAcceptingResponses() {
+        return acceptingResponses;
     }
 }
