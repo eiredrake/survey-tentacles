@@ -631,8 +631,17 @@ async function loadQuestions() {
               );
           }
 
-          submitButton.disabled =
-              surveyStatus !== "OPEN";
+          submitButton.disabled = surveyStatus !== "OPEN";
+          if (selectAllButton) {
+              selectAllButton.disabled =
+                  surveyStatus !== "OPEN";
+          }
+          
+          if (clearAllButton) {
+              clearAllButton.disabled =
+                  surveyStatus !== "OPEN";
+          }
+
 
           submitButton.addEventListener(
               "click",
