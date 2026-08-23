@@ -255,3 +255,27 @@ main {
 .scheduling-result-leading .scheduling-result-bar {
   background: #222;
 }
+
+.multi-select-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.multi-select-actions button {
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.multi-select-actions button:hover {
+  text-decoration-thickness: 2px;
+}
+
+.multi-select-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

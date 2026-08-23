@@ -21,162 +21,7 @@ async function loadCurrentUser() {
           currentUser.name;
   }
 }
-
-async function loadAssignmentAdmin() {
-    if (!currentUser?.authorities?.includes("ROLE_ADMIN")) {
-        return;
-    }
-
-    const main = document.querySelector("main");
-
-    const section = document.createElement("section");
-    section.id = "assignment-admin";
-
-    const heading = document.createElement("h2");
-    heading.textContent = "Survey Assignments";
-    section.appendChild(heading);
-
-    const usersResponse = await fetch("/api/users");
-    const users = await usersResponse.json();
-
-    const userSelect = document.createElement("select");
-
-    for (const user of users) {
-        const option = document.createElement("option");
-        option.value = user.username;
-        option.textContent = user.name;
-        userSelect.appendChild(option);
-    }
-
-    const requiredCheckbox = document.createElement("input");
-    requiredCheckbox.type = "checkbox";
-    requiredCheckbox.checked = true;
-
-    const requiredLabel = document.createElement("label");
-    requiredLabel.appendChild(requiredCheckbox);
-    requiredLabel.append(" Required");
-
-    const addButton = document.createElement("button");
-    addButton.textContent = "Add User";
-
-    addButton.addEventListener("click", async () => {
-        const csrfResponse = await fetch("/csrf");
-        const csrf = await csrfResponse.json();
-
-        const response = await fetch(
-            `/api/surveys/${surveyId}/assignments`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    [csrf.headerName]: csrf.token
-                },
-                body: JSON.stringify({
-                    username: userSelect.value,
-                    required: requiredCheckbox.checked
-                })
-            }
-        );
-
-        if (!response.ok) {
-            alert("Unable to add assignment.");
-            return;
-        }
-
-        location.reload();
-    });            
-
-    section.appendChild(userSelect);
-    section.appendChild(requiredLabel);
-    section.appendChild(addButton);            
-
-    const response = await fetch(
-        `/api/surveys/${surveyId}/assignments`
-    );
-
-    if (!response.ok) {
-        section.append("Unable to load assignments.");
-        main.appendChild(section);
-        return;
-    }
-
-    const assignments = await response.json();
-
-    const list = document.createElement("ul");
-
-    for (const assignment of assignments) {
-        const item = document.createElement("li");
-
-        item.append(`${assignment.name} — `);
-
-        const requiredToggle = document.createElement("input");
-        requiredToggle.type = "checkbox";
-        requiredToggle.checked = assignment.required;
-
-        const requiredToggleLabel = document.createElement("label");
-        requiredToggleLabel.appendChild(requiredToggle);
-        requiredToggleLabel.append(" Required");
-        item.appendChild(requiredToggleLabel);
-
-        requiredToggle.addEventListener("change", async () => {
-            const csrfResponse = await fetch("/csrf");
-            const csrf = await csrfResponse.json();
-
-            const response = await fetch(
-                `/api/surveys/${surveyId}/assignments/${assignment.userId}/required`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        [csrf.headerName]: csrf.token
-                    },
-                    body: JSON.stringify({
-                        required: requiredToggle.checked
-                    })
-                }
-            );
-
-            if (!response.ok) {
-                requiredToggle.checked = !requiredToggle.checked;
-                showToast("Unable to update assignment.", "error");
-                return;
-            }
-
-            showToast("Assignment updated.", "success");
-        });
-
-        const removeButton = document.createElement("button");
-        removeButton.textContent = "Remove";
-
-        removeButton.addEventListener("click", async () => {
-            const csrfResponse = await fetch("/csrf");
-            const csrf = await csrfResponse.json();
-
-            const response = await fetch(
-                `/api/surveys/${surveyId}/assignments/${assignment.userId}`,
-                {
-                    method: "DELETE",
-                    headers: {
-                        [csrf.headerName]: csrf.token
-                    }
-                }
-            );
-
-            if (!response.ok) {
-                alert("Unable to remove assignment.");
-                return;
-            }
-
-            location.reload();
-        });
-
-        item.appendChild(removeButton);
-        list.appendChild(item);
-    }
-
-    section.appendChild(list);
-    main.appendChild(section);
-}        
+      
 
 async function loadSurveyStatus() {
     const response = await fetch("/api/surveys");
@@ -403,6 +248,50 @@ async function refreshSchedulingStatus(question, section) {
     document.addEventListener("click", () => {
         addControls.hidden = true;
     });
+
+    userSelect.addEventListener("change", async () => {
+      if (!userSelect.value) {
+          return;
+      }
+  
+      const csrfResponse = await fetch("/csrf");
+      const csrf = await csrfResponse.json();
+  
+      const response = await fetch(
+          `/api/surveys/${surveyId}/assignments`,
+          {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+                  [csrf.headerName]: csrf.token
+              },
+              body: JSON.stringify({
+                  username: userSelect.value,
+                  required: true
+              })
+          }
+      );
+  
+      if (!response.ok) {
+          showToast(
+              "Unable to add participant.",
+              "error"
+          );
+          return;
+      }
+  
+      addControls.hidden = true;
+  
+      await refreshSchedulingStatus(
+          question,
+          section
+      );
+  
+      showToast(
+          "Participant added.",
+          "success"
+      );
+  });    
   
 
     const participationByUserId = new Map(
@@ -622,13 +511,34 @@ async function loadQuestions() {
        * is appropriate instead of comparing against a
        * hard-coded Java enum value.
        */
-      const optionsContainer =
-          section.querySelector(".scheduling-options");
+      const optionsContainer = section.querySelector(".scheduling-options");
 
-      const submitButton =
-          section.querySelector(".submit-answer-button");
+      const submitButton = section.querySelector(".submit-answer-button");
+
+      const selectAllButton = section.querySelector(".select-all-button");
+      
+      const clearAllButton = section.querySelector(".select-none-button");          
 
       if (optionsContainer && submitButton) {
+          selectAllButton?.addEventListener("click", () => {
+            optionsContainer
+                .querySelectorAll('input[type="checkbox"]:not(:disabled)')
+                .forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+        });
+        
+        clearAllButton?.addEventListener("click", () => {
+            optionsContainer
+                .querySelectorAll('input[type="checkbox"]:not(:disabled)')
+                .forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+        });
+
+
+
+
           const detailResponse = await fetch(
               `/api/surveys/${surveyId}/questions/${question.id}`
           );
