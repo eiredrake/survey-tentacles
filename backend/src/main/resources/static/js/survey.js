@@ -5,14 +5,22 @@ let surveyStatus = null;
 let currentUser = null;
 
 async function loadCurrentUser() {
-    const response = await fetch("/me");
+  const response = await fetch("/me");
 
-    if (!response.ok) {
-        return;
-    }
+  if (!response.ok) {
+      return;
+  }
 
-    currentUser = await response.json();
-}     
+  currentUser = await response.json();
+
+  const userElement =
+      document.getElementById("user");
+
+  if (userElement) {
+      userElement.textContent =
+          currentUser.name;
+  }
+}
 
 async function loadAssignmentAdmin() {
     if (!currentUser?.authorities?.includes("ROLE_ADMIN")) {
