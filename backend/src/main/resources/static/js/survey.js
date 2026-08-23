@@ -300,34 +300,273 @@ async function refreshSchedulingStatus(question, section) {
       resultsList.appendChild(item);
   }
   
-  statusContainer.appendChild(resultsList);
+    statusContainer.appendChild(resultsList);
 
-    const participationHeading = document.createElement("h3");
-    participationHeading.textContent = "Participation";
-    statusContainer.appendChild(participationHeading);
+    if (currentUser?.authorities?.includes("ROLE_ADMIN")) {
+      const participationResponse = await fetch(
+          `/api/surveys/${surveyId}/questions/${question.id}/participation`
+      );
+  
+      if (!participationResponse.ok) {
+          showToast("Unable to load participants.", "error");
+          return;
+      }
+  
+      const participation = await participationResponse.json();
+  
+      const assignmentsResponse = await fetch(
+          `/api/surveys/${surveyId}/assignments`
+      );
+  
+      if (!assignmentsResponse.ok) {
+          showToast("Unable to load assignments.", "error");
+          return;
+      }
+  
+      const assignments = await assignmentsResponse.json();
+  
+      const participantsSection = document.createElement("div");
+      participantsSection.className = "participants-section";
+  
+      const heading = document.createElement("div");
+      heading.className = "section-heading";
+  
+      const headingText = document.createElement("h3");
+      headingText.textContent = "Participants";
+  
+      const addButton = document.createElement("button");
+      addButton.type = "button";
+      addButton.className = "icon-button";
+      addButton.title = "Add participant";
+      addButton.setAttribute("aria-label", "Add participant");
+  
+      const addIcon = document.createElement("i");
+      addIcon.className = "fa-solid fa-plus";
+  
+      addButton.appendChild(addIcon);
+  
+      heading.appendChild(headingText);
+      heading.appendChild(addButton);
+  
+      participantsSection.appendChild(heading);
+  
+      const addControls = document.createElement("div");
+      addControls.className = "participant-add-controls";
+      addControls.hidden = true;
+  
+      const usersResponse = await fetch("/api/users");
+  
+      if (!usersResponse.ok) {
+          showToast("Unable to load users.", "error");
+          return;
+      }
+  
+      const users = await usersResponse.json();
+  
+      const assignedUserIds = new Set(
+          assignments.map(assignment => assignment.userId)
+      );
+  
+      const userSelect = document.createElement("select");
+  
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select user...";
+      userSelect.appendChild(placeholder);
+  
+      for (const user of users) {
+          if (assignedUserIds.has(user.userId)) {
+              continue;
+          }
+  
+          const option = document.createElement("option");
+          option.value = user.username;
+          option.textContent = user.name || user.username;
+  
+          userSelect.appendChild(option);
+      }
+  
+      addControls.appendChild(userSelect);
+      participantsSection.appendChild(addControls);
+  
+      addButton.addEventListener("click", event => {
+        event.stopPropagation();
+    
+        addControls.hidden = false;
+        userSelect.focus();
+    });
+    
+    addControls.addEventListener("click", event => {
+        event.stopPropagation();
+    });
+    
+    document.addEventListener("click", () => {
+        addControls.hidden = true;
+    });
+  
 
-    const participationResponse = await fetch(
-        `/api/surveys/${surveyId}/questions/${question.id}/participation`
-    );
+    const participationByUserId = new Map(
+      participation.map(participant => [
+          participant.userId,
+          participant
+      ])
+  );
+  
+  const table = document.createElement("table");
+  table.className = "survey-table participants-table";
+  
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  
+  for (const headingText of [
+      "Name",
+      "Required",
+      "Status",
+      "Actions"
+  ]) {
+      const th = document.createElement("th");
+      th.textContent = headingText;
+      headerRow.appendChild(th);
+  }
+  
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+  
+  const tbody = document.createElement("tbody");
+  
+  for (const assignment of assignments) {
+      const participant =
+          participationByUserId.get(assignment.userId);
+  
+      const row = document.createElement("tr");
+  
+      const nameCell = document.createElement("td");
+      nameCell.textContent =
+          assignment.name || assignment.username;
+  
+      const requiredCell = document.createElement("td");
+  
+      const requiredToggle = document.createElement("input");
+      requiredToggle.type = "checkbox";
+      requiredToggle.checked = assignment.required;
 
-    const participation = await participationResponse.json();
-
-    const participationList = document.createElement("ul");
-
-    for (const participant of participation) {
-        const item = document.createElement("li");
-
-        item.textContent =
-            `${participant.name} — ${participant.answered ? "Answered" : "Not answered"}`;
-
-            if (participant.required && !participant.answered) {
-                item.style.color = "red";
+      requiredToggle.addEventListener("change", async () => {
+        const csrfResponse = await fetch("/csrf");
+        const csrf = await csrfResponse.json();
+    
+        const response = await fetch(
+            `/api/surveys/${surveyId}/assignments/${assignment.userId}/required`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    [csrf.headerName]: csrf.token
+                },
+                body: JSON.stringify({
+                    required: requiredToggle.checked
+                })
             }
+        );
+    
+        if (!response.ok) {
+            requiredToggle.checked =
+                !requiredToggle.checked;
+    
+            showToast(
+                "Unable to update participant.",
+                "error"
+            );
+    
+            return;
+        }
+    
+        showToast(
+            "Participant updated.",
+            "success"
+        );
+    });      
+  
+      requiredCell.appendChild(requiredToggle);
+  
+      const statusCell = document.createElement("td");
+  
+      statusCell.textContent =
+          participant?.answered
+              ? "Answered"
+              : "Not answered";
+  
+      const actionsCell = document.createElement("td");
+      actionsCell.className = "actions-column";
+  
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "icon-button";
+      removeButton.title = "Remove participant";
+      removeButton.setAttribute(
+          "aria-label",
+          "Remove participant"
+      );
 
-        participationList.appendChild(item);
-    }
+      removeButton.addEventListener("click", async () => {
+        const confirmed = confirm(
+            `Remove ${assignment.name || assignment.username} from this survey?`
+        );
+    
+        if (!confirmed) {
+            return;
+        }
+    
+        const csrfResponse = await fetch("/csrf");
+        const csrf = await csrfResponse.json();
+    
+        const response = await fetch(
+            `/api/surveys/${surveyId}/assignments/${assignment.userId}`,
+            {
+                method: "DELETE",
+                headers: {
+                    [csrf.headerName]: csrf.token
+                }
+            }
+        );
+    
+        if (!response.ok) {
+            showToast(
+                "Unable to remove participant.",
+                "error"
+            );
+            return;
+        }
+    
+        await refreshSchedulingStatus(
+            question,
+            section
+        );
+    
+        showToast(
+            "Participant removed.",
+            "success"
+        );
+    });      
+  
+      const removeIcon = document.createElement("i");
+      removeIcon.className = "fa-solid fa-xmark";
+  
+      removeButton.appendChild(removeIcon);
+      actionsCell.appendChild(removeButton);
+  
+      row.appendChild(nameCell);
+      row.appendChild(requiredCell);
+      row.appendChild(statusCell);
+      row.appendChild(actionsCell);
+  
+      tbody.appendChild(row);
+  }
+  
+  table.appendChild(tbody);
+  participantsSection.appendChild(table);
 
-    statusContainer.appendChild(participationList);
+      statusContainer.appendChild(participantsSection);
+  }
 }
 
 
@@ -552,7 +791,6 @@ async function initialize() {
     await loadCurrentUser();
     await loadSurveyStatus();
     await loadQuestions();
-    await loadAssignmentAdmin();
 }
 
 initialize();
