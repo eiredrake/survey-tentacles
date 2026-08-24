@@ -3,22 +3,30 @@ const surveyId = params.get("id");
 let editingQuestionId = null;
 
 function showQuestionEditor(templateId) {
-  const container = document.getElementById("question-form-container");
-  const template = document.getElementById(templateId);
+    const container =
+        document.getElementById("question-form-container");
 
-  if (!template) {
-      showToast("Question editor template not found.", "error");
-      return;
-  }
+    const template =
+        document.getElementById(templateId);
 
-  container.replaceChildren(
-      template.content.cloneNode(true)
-  );
+    if (!template) {
+        showToast(
+            "Question editor template not found.",
+            "error"
+        );
+        return;
+    }
 
-  container.hidden = false;
-  setupQuestionEditorButtons();
-  setupSchedulingEditor();
-  setupSchedulingQuestionSave();
+    container.replaceChildren(
+        template.content.cloneNode(true)
+    );
+
+    container.hidden = false;
+
+    setupQuestionEditorButtons();
+    setupSchedulingEditor();
+    setupSchedulingQuestionSave();
+    setupShortTextQuestionSave();
 }
 
 function setupQuestionEditorButtons() {
@@ -137,17 +145,18 @@ function setupTitleEditor() {
 }
 
 function setupSchedulingQuestionSave() {
-  const saveButton = document.getElementById("save-question-button");
+    const saveButton =
+    document.getElementById("save-question-button");
 
-  if (!saveButton) {
-      return;
-  }
+    const promptInput = document.getElementById("scheduling-editor-prompt");
 
- 
+    if (!saveButton || !promptInput) {
+        return;
+    }
 
   saveButton.addEventListener("click", async () => {
       const required = document.querySelector(".question-required")?.checked ?? false;    
-      const prompt =document.getElementById("scheduling-editor-prompt").value.trim();
+      const prompt = promptInput.value.trim();
 
       const selections = getSchedulingSelections();
 
@@ -218,6 +227,82 @@ function setupSchedulingQuestionSave() {
         "success"
     );
   });
+}
+
+function setupShortTextQuestionSave() {
+    const saveButton =
+        document.getElementById("save-question-button");
+
+    const promptInput =
+        document.getElementById("short-text-editor-prompt");
+
+    if (!saveButton || !promptInput) {
+        return;
+    }
+
+    saveButton.addEventListener("click", async () => {
+        const prompt = promptInput.value.trim();
+
+        const required =
+            document.querySelector(".question-required")
+                ?.checked ?? false;
+
+        if (!prompt) {
+            showToast(
+                "Enter a question.",
+                "error"
+            );
+            return;
+        }
+
+        const csrfResponse = await fetch("/csrf");
+        const csrf = await csrfResponse.json();
+
+        const url = editingQuestionId === null
+        ? `/api/surveys/${surveyId}/questions/short-text`
+        : `/api/surveys/${surveyId}/questions/${editingQuestionId}/short-text`;        
+
+        const response = await fetch(url,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    [csrf.headerName]: csrf.token
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    displayOrder: 1,
+                    required: required
+                })
+            }
+        );
+
+        if (!response.ok) {
+            showToast(
+                "Unable to create short text question.",
+                "error"
+            );
+            return;
+        }
+
+        const wasEditing = editingQuestionId !== null;
+        editingQuestionId = null;
+
+        const container =
+            document.getElementById("question-form-container");
+
+        container.replaceChildren();
+        container.hidden = true;
+
+        await loadQuestions();
+
+        showToast(
+            wasEditing
+                ? "Short text question updated."
+                : "Short text question created.",
+            "success"
+        );
+    });
 }
 
 async function loadQuestionTypes() {
@@ -407,39 +492,53 @@ async function loadQuestions() {
       editButton.className = "icon-button";
       editButton.title = "Edit question";
       editButton.setAttribute("aria-label", "Edit question");
-      editButton.innerHTML =
-          '<i class="fa-solid fa-pen-to-square"></i>';
-
-          editButton.addEventListener("click", async () => {
-            const response = await fetch(
-                `/api/surveys/${surveyId}/questions/${question.id}`
-            );
-        
-            if (!response.ok) {
-                showToast("Unable to load question.", "error");
-                return;
-            }
-        
-            const questionDetails = await response.json();
-        
-            editingQuestionId = question.id;
-
-            showQuestionEditor(question.editorTemplateId);
-        
-            const promptInput =
-            document.getElementById("scheduling-editor-prompt");
-        
-            promptInput.value = questionDetails.prompt;
-
-            const requiredCheckbox =
+      editButton.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+      editButton.addEventListener("click", async () => {
+        const response = await fetch(
+            `/api/surveys/${surveyId}/questions/${question.id}`
+        );
+    
+        if (!response.ok) {
+            showToast("Unable to load question.", "error");
+            return;
+        }
+    
+        const questionDetails = await response.json();
+    
+        editingQuestionId = question.id;
+    
+        showQuestionEditor(question.editorTemplateId);
+    
+        const requiredCheckbox =
             document.querySelector(".question-required");
-        
-            if (requiredCheckbox) {
-                requiredCheckbox.checked = question.required;
-            }
-
-            populateSchedulingSelections(questionDetails.options);
-        });          
+    
+        if (requiredCheckbox) {
+            requiredCheckbox.checked =
+                questionDetails.required === true;
+        }
+    
+        const schedulingPrompt =
+            document.getElementById("scheduling-editor-prompt");
+    
+        if (schedulingPrompt) {
+            schedulingPrompt.value =
+                questionDetails.prompt;
+    
+            populateSchedulingSelections(
+                questionDetails.options ?? []
+            );
+    
+            return;
+        }
+    
+        const shortTextPrompt =
+            document.getElementById("short-text-editor-prompt");
+    
+        if (shortTextPrompt) {
+            shortTextPrompt.value =
+                questionDetails.prompt;
+        }
+    });        
 
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";

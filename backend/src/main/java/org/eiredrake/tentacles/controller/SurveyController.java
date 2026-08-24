@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.eiredrake.tentacles.model.ShortTextQuestion;
+import org.eiredrake.tentacles.model.ShortTextAnswer;
+import org.eiredrake.tentacles.service.ShortTextAnswerService;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -43,6 +45,7 @@ public class SurveyController {
   private final SchedulingAnswerService schedulingAnswerService;
   private final SurveyParticipantService surveyParticipantService;
   private final SurveyAssignmentService surveyAssignmentService;
+  private final ShortTextAnswerService shortTextAnswerService;
 
   public SurveyController(
     SurveyService surveyService,
@@ -50,7 +53,8 @@ public class SurveyController {
     QuestionService questionService,
     SchedulingAnswerService schedulingAnswerService,
     SurveyParticipantService surveyParticipantService,
-    SurveyAssignmentService surveyAssignmentService
+    SurveyAssignmentService surveyAssignmentService,
+    ShortTextAnswerService shortTextAnswerService
   ) {
     this.surveyService = surveyService;
     this.userService = userService;
@@ -58,6 +62,7 @@ public class SurveyController {
     this.schedulingAnswerService = schedulingAnswerService;
     this.surveyParticipantService = surveyParticipantService;
     this.surveyAssignmentService = surveyAssignmentService;
+    this.shortTextAnswerService = shortTextAnswerService;
   }
 
   @PostMapping
@@ -143,16 +148,21 @@ public class SurveyController {
             .filter(Question::isRequired)
             .allMatch(question ->
               switch (question.getType()) {
-                case SCHEDULING ->
-                  schedulingAnswerService.hasAnswered(
-                    question.getId(),
-                    currentUser.getId()
-                  );
+              case SCHEDULING ->
+                schedulingAnswerService.hasAnswered(
+                  question.getId(),
+                  currentUser.getId()
+                );
 
-                case SINGLE_SELECT,
-                    MULTI_SELECT,
-                    SHORT_TEXT -> false;
-              }
+              case SHORT_TEXT ->
+                shortTextAnswerService.hasAnswered(
+                  question.getId(),
+                  currentUser.getId()
+                );
+
+              case SINGLE_SELECT,
+                  MULTI_SELECT -> false;
+}
             );
 
         boolean active = switch (survey.getStatus()) {
@@ -350,39 +360,128 @@ public Map<String, Object> updateSchedulingQuestion(
   }
 
   @GetMapping("/{surveyId}/questions/{questionId}")
-  public Map<String, Object> getQuestion(
-    @PathVariable Long surveyId,
-    @PathVariable Long questionId
-  ) {
-    SchedulingQuestion question = (SchedulingQuestion) questionService.findById(
-      questionId
-    );
+public Map<String, Object> getQuestion(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId
+) {
+  Question question = questionService.findById(questionId);
 
-    List<Map<String, Object>> options = question
-      .getOptions()
-      .stream()
-      .map(option -> {
-        Map<String, Object> result = new HashMap<>();
-
-        result.put("id", option.getId());
-        result.put("date", option.getDate());
-        result.put("dateTime", option.getDateTime());
-
-        return result;
-      })
-      .toList();
-
-    return Map.of(
-      "id",
-      question.getId(),
-      "prompt",
-      question.getPrompt(),
-      "displayOrder",
-      question.getDisplayOrder(),
-      "options",
-      options
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
     );
   }
+
+  Map<String, Object> result = new HashMap<>();
+
+  result.put("id", question.getId());
+  result.put("prompt", question.getPrompt());
+  result.put("displayOrder", question.getDisplayOrder());
+  result.put("required", question.isRequired());
+  result.put("type", question.getType().name());
+
+  if (question instanceof SchedulingQuestion schedulingQuestion) {
+    List<Map<String, Object>> options =
+      schedulingQuestion
+        .getOptions()
+        .stream()
+        .map(option -> {
+          Map<String, Object> optionResult =
+            new HashMap<>();
+
+          optionResult.put("id", option.getId());
+          optionResult.put("date", option.getDate());
+          optionResult.put(
+            "dateTime",
+            option.getDateTime()
+          );
+
+          return optionResult;
+        })
+        .toList();
+
+    result.put("options", options);
+  }
+
+  return result;
+}
+
+@PostMapping("/{surveyId}/questions/{questionId}/answers/short-text")
+public Map<String, Object> answerShortTextQuestion(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId,
+  @AuthenticationPrincipal OidcUser oidcUser,
+  @RequestBody Map<String, String> request
+) {
+  ShortTextQuestion question =
+    (ShortTextQuestion) questionService.findById(questionId);
+
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
+    );
+  }
+
+  Survey survey = surveyService.findById(surveyId);
+
+  if (survey.getStatus() != SurveyStatus.OPEN) {
+    throw new IllegalStateException(
+      "Survey is not open for responses."
+    );
+  }
+
+  User user = userService.findOrCreate(oidcUser);
+
+  String value = request.get("value");
+
+  if (value == null) {
+    value = "";
+  }
+
+  value = value.trim();
+
+  if (question.isRequired() && value.isBlank()) {
+    throw new IllegalArgumentException(
+      "This question is required."
+    );
+  }
+
+  if (value.length() > 500) {
+    throw new IllegalArgumentException(
+      "Answer cannot exceed 500 characters."
+    );
+  }
+
+  surveyParticipantService.add(survey, user);
+
+  shortTextAnswerService.deleteForUserAndQuestion(
+    question.getId(),
+    user.getId()
+  );
+
+  if (!value.isBlank()) {
+    ShortTextAnswer answer = new ShortTextAnswer();
+
+    answer.setQuestion(question);
+    answer.setUser(user);
+    answer.setValue(value);
+
+    answer = shortTextAnswerService.save(answer);
+
+    return Map.of(
+      "questionId", question.getId(),
+      "userId", user.getId(),
+      "answerId", answer.getId(),
+      "value", answer.getValue()
+    );
+  }
+
+  return Map.of(
+    "questionId", question.getId(),
+    "userId", user.getId(),
+    "value", ""
+  );
+}
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
   public Map<String, Object> answerSchedulingQuestion(
@@ -452,6 +551,8 @@ public Map<String, Object> updateSchedulingQuestion(
       saved
     );
   }
+
+
 
   @GetMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
   public List<Map<String, Object>> getSchedulingAnswers(
@@ -750,6 +851,38 @@ public Map<String, Object> updateSchedulingQuestion(
     return Map.of("id", questionId, "deleted", true);
   }
 
+  @PostMapping("/{surveyId}/questions/{questionId}/short-text")
+public Map<String, Object> updateShortTextQuestion(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId,
+  @RequestBody Map<String, Object> request
+) {
+  ShortTextQuestion question =
+    (ShortTextQuestion) questionService.findById(questionId);
+
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
+    );
+  }
+
+  question.setPrompt((String) request.get("prompt"));
+  question.setRequired(
+    Boolean.TRUE.equals(request.get("required"))
+  );
+
+  questionService.save(question);
+
+  return Map.of(
+    "id",
+    question.getId(),
+    "prompt",
+    question.getPrompt(),
+    "required",
+    question.isRequired()
+  );
+}
+
   @PostMapping("/{surveyId}/questions/short-text")
 public Map<String, Object> createShortTextQuestion(
   @PathVariable Long surveyId,
@@ -779,4 +912,23 @@ public Map<String, Object> createShortTextQuestion(
       question.isRequired()
     );
   }
+
+@GetMapping("/{surveyId}/questions/{questionId}/answers/short-text")
+public List<Map<String, Object>> getShortTextAnswers(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId
+) {
+  return shortTextAnswerService
+    .findByQuestionId(questionId)
+    .stream()
+    .map(answer ->
+      Map.<String, Object>of(
+        "answerId", answer.getId(),
+        "userId", answer.getUser().getId(),
+        "username", answer.getUser().getUsername(),
+        "value", answer.getValue()
+      )
+    )
+    .toList();
+}  
 }

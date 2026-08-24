@@ -517,9 +517,122 @@ async function loadQuestions() {
 
       const submitButton = section.querySelector(".submit-answer-button");
 
+      const shortTextInput = section.querySelector(".short-text-input");
+  
+      const shortTextCharacterCount = section.querySelector(".short-text-character-count");
+
       const selectAllButton = section.querySelector(".select-all-button");
       
       const clearAllButton = section.querySelector(".select-none-button");          
+
+      if (shortTextInput && submitButton) {
+        shortTextInput.disabled =
+            !surveyAcceptingResponses;
+    
+        submitButton.disabled =
+            !surveyAcceptingResponses;
+    
+        const answersResponse = await fetch(
+            `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`
+        );
+    
+        if (!answersResponse.ok) {
+            showToast(
+                "Unable to load existing answer.",
+                "error"
+            );
+            continue;
+        }
+    
+        const answers =
+            await answersResponse.json();
+    
+        const existingAnswer = answers.find(
+            answer => answer.userId === currentUser.id
+        );
+    
+        if (existingAnswer) {
+            shortTextInput.value =
+                existingAnswer.value;
+        }
+    
+        const updateCharacterCount = () => {
+            shortTextCharacterCount.textContent =
+                `${shortTextInput.value.length} / 500`;
+        };
+    
+        updateCharacterCount();
+    
+        shortTextInput.addEventListener(
+            "input",
+            updateCharacterCount
+        );
+    
+        submitButton.addEventListener(
+            "click",
+            async () => {
+                const value =
+                    shortTextInput.value.trim();
+    
+                if (
+                    question.required &&
+                    value.length === 0
+                ) {
+                    section.classList.add(
+                        "question-required-error"
+                    );
+    
+                    showToast(
+                        "This question is required. Please enter a response.",
+                        "error"
+                    );
+    
+                    setTimeout(() => {
+                        section.classList.remove(
+                            "question-required-error"
+                        );
+                    }, 1200);
+    
+                    return;
+                }
+    
+                const csrfResponse =
+                    await fetch("/csrf");
+    
+                const csrf =
+                    await csrfResponse.json();
+    
+                const saveResponse = await fetch(
+                    `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                            [csrf.headerName]:
+                                csrf.token
+                        },
+                        body: JSON.stringify({
+                            value: value
+                        })
+                    }
+                );
+    
+                if (!saveResponse.ok) {
+                    showToast(
+                        "Unable to save response.",
+                        "error"
+                    );
+                    return;
+                }
+    
+                showToast(
+                    "Response saved.",
+                    "success"
+                );
+            }
+        );
+    }      
 
       if (optionsContainer && submitButton) {
           selectAllButton?.addEventListener("click", () => {
