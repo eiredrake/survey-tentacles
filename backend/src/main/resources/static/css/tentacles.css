@@ -320,3 +320,12 @@ main {
   outline-offset: 4px;
   transition: outline-color 0.2s ease;
 }
+
+.required-survey-incomplete {
+  font-weight: 600;
+}
+
+.required-survey-incomplete td:first-child {
+  border-left: 4px solid currentColor;
+  padding-left: 10px;
+}

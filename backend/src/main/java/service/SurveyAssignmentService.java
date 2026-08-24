@@ -28,6 +28,16 @@ public class SurveyAssignmentService {
     );
   }
 
+  public boolean isRequired(Long surveyId, Long userId) {
+    return surveyAssignmentRepository
+        .findBySurveyId(surveyId)
+        .stream()
+        .anyMatch(assignment ->
+            assignment.getUser().getId().equals(userId) &&
+            assignment.isRequired()
+        );
+    }   
+
   public SurveyAssignment save(SurveyAssignment assignment) {
     return surveyAssignmentRepository.save(assignment);
   }
@@ -36,4 +46,6 @@ public class SurveyAssignmentService {
   public void delete(Long surveyId, Long userId) {
     surveyAssignmentRepository.deleteBySurveyIdAndUserId(surveyId, userId);
   }
+
+ 
 }

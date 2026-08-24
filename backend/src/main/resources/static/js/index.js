@@ -28,25 +28,46 @@ async function loadUser() {
 }
 
 async function loadSurveys() {
-    const response = await fetch("/api/surveys");
+  const response = await fetch("/api/surveys");
 
-    if (!response.ok) {
+  if (!response.ok) {
       document.getElementById("active-surveys").innerHTML =
           '<tr><td colspan="4">Unable to load surveys.</td></tr>';
-  
+
       document.getElementById("inactive-surveys").innerHTML = "";
-  
+
       return;
   }
 
-    const surveys = await response.json();
-    const activeContainer = document.getElementById("active-surveys");
-    const inactiveContainer = document.getElementById("inactive-surveys");
-    
-    activeContainer.innerHTML = "";
-    inactiveContainer.innerHTML = "";
+  const surveys = await response.json();
 
-    for (const survey of surveys) {
+  const activeContainer =
+      document.getElementById("active-surveys");
+
+  const inactiveContainer =
+      document.getElementById("inactive-surveys");
+
+  const isAdmin =
+      currentUser.authorities?.includes("ROLE_ADMIN");
+
+  document
+      .querySelectorAll(".status-heading")
+      .forEach(heading => {
+          heading.textContent =
+              isAdmin ? "Status" : "Completed";
+      });
+
+  document
+      .querySelectorAll(".actions-column")
+      .forEach(element => {
+          element.style.display =
+              isAdmin ? "" : "none";
+      });      
+
+  activeContainer.replaceChildren();
+  inactiveContainer.replaceChildren();
+
+  for (const survey of surveys) {
       const item = document.createElement("tr");
 
       const nameCell = document.createElement("td");
@@ -54,165 +75,254 @@ async function loadSurveys() {
       const link = document.createElement("a");
       link.href = `/survey.html?id=${survey.id}`;
       link.textContent = survey.title;
-      
+
       nameCell.appendChild(link);
-      item.appendChild(nameCell);
-      
+
       const requiredCell = document.createElement("td");
 
       if (survey.required) {
-          requiredCell.innerHTML =
-              '<i class="fa-solid fa-check" title="Required"></i>';
-      }
-      
-      item.appendChild(requiredCell);
-      
-      const statusCell = document.createElement("td");
-      item.appendChild(statusCell);
-      
-      const actionsCell = document.createElement("td");
-      actionsCell.className = "actions-column";
-      item.appendChild(actionsCell);
-
-      const editLink = document.createElement("a");
-      editLink.href = `/survey-edit.html?id=${survey.id}`;
-      editLink.className = "icon-button";
-      editLink.title = "Edit survey";
-      editLink.setAttribute("aria-label", "Edit survey");
-      editLink.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
-      
-      actionsCell.appendChild(editLink);      
-
-      const deleteButton = document.createElement("button");
-      deleteButton.type = "button";
-      deleteButton.className = "icon-button";
-      deleteButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-      
-      if (survey.everPublished) {
-          deleteButton.disabled = true;
-          deleteButton.title = "Published surveys cannot be deleted";
-          deleteButton.setAttribute(
-              "aria-label",
-              "Published surveys cannot be deleted"
-          );
-      } else {
-          deleteButton.title = "Delete survey";
-          deleteButton.setAttribute("aria-label", "Delete survey");
-
-          deleteButton.addEventListener("click", async () => {
-            const confirmed = confirm(
-                `Delete "${survey.title}"? This cannot be undone.`
-            );
-        
-            if (!confirmed) {
-                return;
-            }
-        
-            const csrfResponse = await fetch("/csrf");
-            const csrf = await csrfResponse.json();
-        
-            const response = await fetch(`/api/surveys/${survey.id}`, {
-                method: "DELETE",
-                headers: {
-                    [csrf.headerName]: csrf.token
-                }
-            });
-        
-            if (!response.ok) {
-                alert("Unable to delete survey.");
-                return;
-            }
-        
-            await loadSurveys();
-        });          
-      }
-      
-      actionsCell.appendChild(deleteButton);
-
-      if (currentUser.authorities?.includes("ROLE_ADMIN")) {
-            const statusSelect = document.createElement("select");
-            statusSelect.hidden = true;
-
-            const statusButton = document.createElement("button");
-            statusButton.type = "button";
-            statusButton.className = "icon-button";
-            statusButton.title = survey.status;
-            statusButton.setAttribute("aria-label", `Change survey status: ${survey.status}`);
-            statusButton.innerHTML = `<i class="fa-solid ${survey.statusIcon}"></i>`;
-            
-            statusCell.appendChild(statusButton);            
-
-            for (const status of surveyStatuses) {
-                const option = document.createElement("option");
-                option.value = status;
-                option.textContent =
-                    status.charAt(0) + status.slice(1).toLowerCase();
-
-                if (status === survey.status) {
-                    option.selected = true;
-                }
-
-                statusSelect.appendChild(option);
-            }
-
-            statusButton.addEventListener("click", () => {
-              statusButton.hidden = true;
-              statusSelect.hidden = false;
-              statusSelect.focus();
-          });
-
-            statusSelect.addEventListener("change", async () => {
-                const previousStatus = survey.status;
-
-                const csrfResponse = await fetch("/csrf");
-                const csrf = await csrfResponse.json();
-
-                const response = await fetch(`/api/surveys/${survey.id}/status`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        [csrf.headerName]: csrf.token
-                    },
-                    body: JSON.stringify({
-                        status: statusSelect.value
-                    })
-                });
-
-                if (response.ok) {
-                    const updatedSurvey = await response.json();
-                
-                    survey.status = updatedSurvey.status;
-                    survey.statusIcon = updatedSurvey.statusIcon;
-                
-                    statusButton.title = survey.status;
-                    statusButton.setAttribute(
-                        "aria-label",
-                        `Change survey status: ${survey.status}`
-                    );
-                
-                    statusButton.innerHTML = `<i class="fa-solid ${survey.statusIcon}"></i>`;
-                
-                    statusSelect.hidden = true;
-                    statusButton.hidden = false;
-                } else {
-                    statusSelect.value = previousStatus;
-                    showToast("Unable to update survey status", "error");
-                }
-            });                    
-
-            statusCell.appendChild(statusSelect);
-        }
-
-        if (survey.active) {
-            activeContainer.appendChild(item);
-        } else {
-            inactiveContainer.appendChild(item);
+        requiredCell.innerHTML =
+            '<i class="fa-solid fa-check" title="Required"></i>';
+    
+        if (!isAdmin && !survey.completed) {
+            item.classList.add("required-survey-incomplete");
         }
     }
+
+      const statusCell = document.createElement("td");
+
+      if (!isAdmin && survey.completed) {
+          statusCell.innerHTML =
+              '<i class="fa-solid fa-check" title="Completed"></i>';
+      }
+
+      const actionsCell = document.createElement("td");
+      actionsCell.className = "actions-column";
+
+      if (!isAdmin) {
+        actionsCell.style.display = "none";
+      }
+
+      item.appendChild(nameCell);
+      item.appendChild(requiredCell);
+      item.appendChild(statusCell);
+      item.appendChild(actionsCell);
+
+      if (isAdmin) {
+          const editLink = document.createElement("a");
+          editLink.href =
+              `/survey-edit.html?id=${survey.id}`;
+          editLink.className = "icon-button";
+          editLink.title = "Edit survey";
+          editLink.setAttribute(
+              "aria-label",
+              "Edit survey"
+          );
+          editLink.innerHTML =
+              '<i class="fa-solid fa-pen-to-square"></i>';
+
+          actionsCell.appendChild(editLink);
+
+          const deleteButton =
+              document.createElement("button");
+
+          deleteButton.type = "button";
+          deleteButton.className = "icon-button";
+          deleteButton.innerHTML =
+              '<i class="fa-solid fa-xmark"></i>';
+
+          if (survey.everPublished) {
+              deleteButton.disabled = true;
+              deleteButton.title =
+                  "Published surveys cannot be deleted";
+
+              deleteButton.setAttribute(
+                  "aria-label",
+                  "Published surveys cannot be deleted"
+              );
+          } else {
+              deleteButton.title = "Delete survey";
+              deleteButton.setAttribute(
+                  "aria-label",
+                  "Delete survey"
+              );
+
+              deleteButton.addEventListener(
+                  "click",
+                  async () => {
+                      const confirmed = confirm(
+                          `Delete "${survey.title}"? This cannot be undone.`
+                      );
+
+                      if (!confirmed) {
+                          return;
+                      }
+
+                      const csrfResponse =
+                          await fetch("/csrf");
+
+                      const csrf =
+                          await csrfResponse.json();
+
+                      const deleteResponse = await fetch(
+                          `/api/surveys/${survey.id}`,
+                          {
+                              method: "DELETE",
+                              headers: {
+                                  [csrf.headerName]:
+                                      csrf.token
+                              }
+                          }
+                      );
+
+                      if (!deleteResponse.ok) {
+                          showToast(
+                              "Unable to delete survey.",
+                              "error"
+                          );
+                          return;
+                      }
+
+                      await loadSurveys();
+                  }
+              );
+          }
+
+          actionsCell.appendChild(deleteButton);
+
+          const statusSelect =
+              document.createElement("select");
+
+          statusSelect.hidden = true;
+
+          const statusButton =
+              document.createElement("button");
+
+          statusButton.type = "button";
+          statusButton.className = "icon-button";
+          statusButton.title = survey.status;
+
+          statusButton.setAttribute(
+              "aria-label",
+              `Change survey status: ${survey.status}`
+          );
+
+          statusButton.innerHTML =
+              `<i class="fa-solid ${survey.statusIcon}"></i>`;
+
+          statusCell.appendChild(statusButton);
+
+          for (const status of surveyStatuses) {
+              const option =
+                  document.createElement("option");
+
+              option.value = status;
+
+              option.textContent =
+                  status.charAt(0) +
+                  status.slice(1).toLowerCase();
+
+              if (status === survey.status) {
+                  option.selected = true;
+              }
+
+              statusSelect.appendChild(option);
+          }
+
+          statusButton.addEventListener(
+              "click",
+              () => {
+                  statusButton.hidden = true;
+                  statusSelect.hidden = false;
+                  statusSelect.focus();
+              }
+          );
+
+          statusSelect.addEventListener(
+              "change",
+              async () => {
+                  const previousStatus =
+                      survey.status;
+
+                  const csrfResponse =
+                      await fetch("/csrf");
+
+                  const csrf =
+                      await csrfResponse.json();
+
+                  const statusResponse = await fetch(
+                      `/api/surveys/${survey.id}/status`,
+                      {
+                          method: "POST",
+                          headers: {
+                              "Content-Type":
+                                  "application/json",
+                              [csrf.headerName]:
+                                  csrf.token
+                          },
+                          body: JSON.stringify({
+                              status:
+                                  statusSelect.value
+                          })
+                      }
+                  );
+
+                  if (statusResponse.ok) {
+                      const updatedSurvey =
+                          await statusResponse.json();
+
+                      survey.status =
+                          updatedSurvey.status;
+
+                      survey.statusIcon =
+                          updatedSurvey.statusIcon;
+
+                      statusButton.title =
+                          survey.status;
+
+                      statusButton.setAttribute(
+                          "aria-label",
+                          `Change survey status: ${survey.status}`
+                      );
+
+                      statusButton.innerHTML =
+                          `<i class="fa-solid ${survey.statusIcon}"></i>`;
+
+                      statusSelect.hidden = true;
+                      statusButton.hidden = false;
+                  } else {
+                      statusSelect.value =
+                          previousStatus;
+
+                      showToast(
+                          "Unable to update survey status",
+                          "error"
+                      );
+                  }
+              }
+          );
+
+          statusCell.appendChild(statusSelect);
+      }
+
+      if (survey.active) {
+          activeContainer.appendChild(item);
+      } else {
+          inactiveContainer.appendChild(item);
+      }
+  }
 }
 
 function setupCreateSurveyButton() {
-  const button = document.getElementById("create-survey-button");
+    const button = document.getElementById("create-survey-button");
+
+    const isAdmin =
+    currentUser.authorities?.includes("ROLE_ADMIN");
+
+    if (!isAdmin) {
+    button.hidden = true;
+    return;
+    }  
 
   button.addEventListener("click", async () => {
       const csrfResponse = await fetch("/csrf");

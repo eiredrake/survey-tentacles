@@ -122,10 +122,37 @@ public class SurveyController {
         );
       })
       .map(survey -> {
-        boolean required = surveyAssignmentService
-          .findBySurveyId(survey.getId())
-          .stream()
-          .anyMatch(SurveyAssignment::isRequired);
+        boolean userRequired =
+          surveyAssignmentService.isRequired(
+            survey.getId(),
+            currentUser.getId()
+          );
+
+        boolean hasRequiredQuestions =
+          survey.getQuestions()
+            .stream()
+            .anyMatch(Question::isRequired);
+
+        boolean required =
+          userRequired || hasRequiredQuestions;
+
+          boolean completed = survey
+            .getQuestions()
+            .stream()
+            .filter(Question::isRequired)
+            .allMatch(question ->
+              switch (question.getType()) {
+                case SCHEDULING ->
+                  schedulingAnswerService.hasAnswered(
+                    question.getId(),
+                    currentUser.getId()
+                  );
+
+                case SINGLE_SELECT,
+                    MULTI_SELECT,
+                    SHORT_TEXT -> false;
+              }
+            );
 
         boolean active = switch (survey.getStatus()) {
           case DEVELOPMENT, OPEN -> true;
@@ -144,10 +171,8 @@ public class SurveyController {
         result.put("statusIcon", survey.getStatus().getIcon());
         result.put("required", required);
         result.put("everPublished", survey.isEverPublished());
-        result.put(
-          "acceptingResponses",
-          survey.getStatus().isAcceptingResponses()
-        );
+        result.put("completed", completed);
+        result.put("acceptingResponses",survey.getStatus().isAcceptingResponses());
 
         return result;
       })
