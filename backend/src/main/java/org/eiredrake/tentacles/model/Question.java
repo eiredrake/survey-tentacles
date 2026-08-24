@@ -26,6 +26,9 @@ public class Question {
     @Column(nullable = false)
     private QuestionType type;
 
+    @Column(nullable = false)
+    private boolean required = false;    
+
     public Long getId() {
         return id;
     }
@@ -72,4 +75,12 @@ public class Question {
     public void setType(QuestionType type) {
         this.type = type;
     }
+
+    public boolean isRequired() {
+        return required;
+    }
+    
+    public void setRequired(boolean required) {
+        this.required = required;
+    }    
 }

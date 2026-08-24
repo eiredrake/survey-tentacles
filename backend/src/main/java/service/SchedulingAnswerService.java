@@ -36,6 +36,11 @@ public class SchedulingAnswerService {
         schedulingAnswerRepository.deleteByQuestionIdAndUserId(questionId, userId);
     }  
 
+    @Transactional
+    public void deleteForQuestion(Long questionId) {
+        schedulingAnswerRepository.deleteByQuestionId(questionId);
+    }    
+
     public List<SchedulingAnswer> findByQuestionId(Long questionId) {
         return schedulingAnswerRepository.findByQuestionId(questionId);
     }   

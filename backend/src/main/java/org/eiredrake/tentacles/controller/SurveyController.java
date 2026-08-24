@@ -144,37 +144,84 @@ public class SurveyController {
         result.put("statusIcon", survey.getStatus().getIcon());
         result.put("required", required);
         result.put("everPublished", survey.isEverPublished());
-        result.put("acceptingResponses", survey.getStatus().isAcceptingResponses()
+        result.put(
+          "acceptingResponses",
+          survey.getStatus().isAcceptingResponses()
         );
 
-        return result;})
+        return result;
+      })
       .toList();
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/scheduling")
-  public Map<String, Object> updateSchedulingQuestion(
-    @PathVariable Long surveyId,
-    @PathVariable Long questionId,
-    @RequestBody Map<String, Object> request
-  ) {
-    SchedulingQuestion question = (SchedulingQuestion) questionService.findById(
-      questionId
+public Map<String, Object> updateSchedulingQuestion(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId,
+  @RequestBody Map<String, Object> request
+) {
+  SchedulingQuestion question =
+    (SchedulingQuestion) questionService.findById(questionId);
+
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
+    );
+  }
+
+  question.setPrompt((String) request.get("prompt"));
+  question.setRequired(
+    Boolean.TRUE.equals(request.get("required"))
+  );
+
+  @SuppressWarnings("unchecked")
+  List<Map<String, String>> selections =
+    (List<Map<String, String>>) request.get("selections");
+
+  List<String> existingValues = question
+    .getOptions()
+    .stream()
+    .map(option -> {
+      if (option.getDateTime() != null) {
+        return option.getDateTime().toString();
+      }
+
+      return option.getDate().toString();
+    })
+    .sorted()
+    .toList();
+
+  List<String> submittedValues = selections
+    .stream()
+    .map(selection -> {
+      String date = selection.get("date");
+      String time = selection.get("time");
+      String timeZone = selection.get("timeZone");
+
+      if (time == null || time.isBlank()) {
+        return LocalDate.parse(date).toString();
+      }
+
+      LocalDateTime localDateTime =
+        LocalDateTime.parse(date + "T" + time);
+
+      return localDateTime
+        .atZone(ZoneId.of(timeZone))
+        .toInstant()
+        .toString();
+    })
+    .sorted()
+    .toList();
+
+  boolean optionsChanged =
+    !existingValues.equals(submittedValues);
+
+  if (optionsChanged) {
+    schedulingAnswerService.deleteForQuestion(
+      question.getId()
     );
 
-    if (!question.getSurvey().getId().equals(surveyId)) {
-      throw new IllegalArgumentException(
-        "Question does not belong to survey: " + surveyId
-      );
-    }
-
-    question.setPrompt((String) request.get("prompt"));
-
     question.getOptions().clear();
-
-    @SuppressWarnings("unchecked")
-    List<Map<String, String>> selections = (List<
-      Map<String, String>
-    >) request.get("selections");
 
     for (Map<String, String> selection : selections) {
       SchedulingOption option = new SchedulingOption();
@@ -188,28 +235,36 @@ public class SurveyController {
         option.setDate(LocalDate.parse(date));
         option.setDateTime(null);
       } else {
-        LocalDateTime localDateTime = LocalDateTime.parse(date + "T" + time);
+        LocalDateTime localDateTime =
+          LocalDateTime.parse(date + "T" + time);
 
         option.setDate(null);
         option.setDateTime(
-          localDateTime.atZone(ZoneId.of(timeZone)).toInstant()
+          localDateTime
+            .atZone(ZoneId.of(timeZone))
+            .toInstant()
         );
       }
 
       question.getOptions().add(option);
     }
-
-    questionService.save(question);
-
-    return Map.of(
-      "id",
-      question.getId(),
-      "prompt",
-      question.getPrompt(),
-      "optionCount",
-      question.getOptions().size()
-    );
   }
+
+  questionService.save(question);
+
+  return Map.of(
+    "id",
+    question.getId(),
+    "prompt",
+    question.getPrompt(),
+    "required",
+    question.isRequired(),
+    "optionCount",
+    question.getOptions().size(),
+    "responsesCleared",
+    optionsChanged
+  );
+}
 
   @PostMapping("/{surveyId}/questions/scheduling")
   public Map<String, Object> createSchedulingQuestion(
@@ -223,6 +278,7 @@ public class SurveyController {
     question.setSurvey(survey);
     question.setPrompt((String) request.get("prompt"));
     question.setDisplayOrder((Integer) request.get("displayOrder"));
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
 
     @SuppressWarnings("unchecked")
     List<String> dates = (List<String>) request.get("dates");
@@ -330,6 +386,15 @@ public class SurveyController {
     @SuppressWarnings("unchecked")
     List<Integer> optionIds = (List<Integer>) request.get("optionIds");
 
+    if (
+      question.isRequired() &&
+      (optionIds == null || optionIds.isEmpty())
+    ) {
+      throw new IllegalArgumentException(
+        "This question is required."
+      );
+    }
+
     int saved = 0;
 
     for (Integer optionId : optionIds) {
@@ -363,27 +428,27 @@ public class SurveyController {
   }
 
   @GetMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
-public List<Map<String, Object>> getSchedulingAnswers(
-  @PathVariable Long surveyId,
-  @PathVariable Long questionId
-) {
-  return schedulingAnswerService
-    .findByQuestionId(questionId)
-    .stream()
-    .map(answer -> {
-      Map<String, Object> result = new HashMap<>();
+  public List<Map<String, Object>> getSchedulingAnswers(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId
+  ) {
+    return schedulingAnswerService
+      .findByQuestionId(questionId)
+      .stream()
+      .map(answer -> {
+        Map<String, Object> result = new HashMap<>();
 
-      result.put("answerId", answer.getId());
-      result.put("userId", answer.getUser().getId());
-      result.put("username", answer.getUser().getUsername());
-      result.put("optionId", answer.getOption().getId());
-      result.put("date", answer.getOption().getDate());
-      result.put("dateTime", answer.getOption().getDateTime());
+        result.put("answerId", answer.getId());
+        result.put("userId", answer.getUser().getId());
+        result.put("username", answer.getUser().getUsername());
+        result.put("optionId", answer.getOption().getId());
+        result.put("date", answer.getOption().getDate());
+        result.put("dateTime", answer.getOption().getDateTime());
 
-      return result;
-    })
-    .toList();
-}
+        return result;
+      })
+      .toList();
+  }
 
   @GetMapping("/{surveyId}/questions/{questionId}/results")
   public List<Map<String, Object>> getSchedulingResults(

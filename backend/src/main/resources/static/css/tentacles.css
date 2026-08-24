@@ -314,3 +314,9 @@ main {
 .inactive-surveys-chevron {
   transform: rotate(90deg);
 }
+
+.question-required-error {
+  outline: 3px solid #b00020;
+  outline-offset: 4px;
+  transition: outline-color 0.2s ease;
+}

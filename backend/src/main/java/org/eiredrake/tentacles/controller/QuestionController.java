@@ -36,6 +36,8 @@ public class QuestionController {
           question.getPrompt(),
           "displayOrder",
           question.getDisplayOrder(),
+          "required",
+          question.isRequired(),
           "type",
           question.getType().name(),
           "editorTemplateId",

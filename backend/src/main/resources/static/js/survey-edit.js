@@ -137,18 +137,17 @@ function setupTitleEditor() {
 }
 
 function setupSchedulingQuestionSave() {
-  const saveButton =
-      document.getElementById("save-question-button");
+  const saveButton = document.getElementById("save-question-button");
 
   if (!saveButton) {
       return;
   }
 
+ 
+
   saveButton.addEventListener("click", async () => {
-      const prompt =
-          document.getElementById("scheduling-editor-prompt")
-              .value
-              .trim();
+      const required = document.querySelector(".question-required")?.checked ?? false;    
+      const prompt =document.getElementById("scheduling-editor-prompt").value.trim();
 
       const selections = getSchedulingSelections();
 
@@ -187,6 +186,7 @@ function setupSchedulingQuestionSave() {
               body: JSON.stringify({
                   prompt: prompt,
                   displayOrder: 1,
+                  required: required,
                   selections: requestSelections
               })
           }
@@ -430,6 +430,14 @@ async function loadQuestions() {
             document.getElementById("scheduling-editor-prompt");
         
             promptInput.value = questionDetails.prompt;
+
+            const requiredCheckbox =
+            document.querySelector(".question-required");
+        
+            if (requiredCheckbox) {
+                requiredCheckbox.checked = question.required;
+            }
+
             populateSchedulingSelections(questionDetails.options);
         });          
 

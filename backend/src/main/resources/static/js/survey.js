@@ -654,11 +654,24 @@ async function loadQuestions() {
                           Number(checkbox.value)
                   );
 
-                  const csrfResponse =
-                      await fetch("/csrf");
+                  if (question.required && selected.length === 0) {
+                    section.classList.add("question-required-error");
+                
+                    showToast(
+                        "This question is required. Please select at least one option.",
+                        "error"
+                    );
+                
+                    setTimeout(() => {
+                        section.classList.remove("question-required-error");
+                    }, 1200);
+                
+                    return;
+                }                  
 
-                  const csrf =
-                      await csrfResponse.json();
+                  const csrfResponse = await fetch("/csrf");
+
+                  const csrf = await csrfResponse.json();
 
                   const saveResponse = await fetch(
                       `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`,
