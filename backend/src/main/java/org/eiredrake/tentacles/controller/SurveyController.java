@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.eiredrake.tentacles.model.ShortTextQuestion;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -747,5 +748,35 @@ public Map<String, Object> updateSchedulingQuestion(
     questionService.delete(question);
 
     return Map.of("id", questionId, "deleted", true);
+  }
+
+  @PostMapping("/{surveyId}/questions/short-text")
+public Map<String, Object> createShortTextQuestion(
+  @PathVariable Long surveyId,
+  @RequestBody Map<String, Object> request
+  ) {
+    Survey survey = surveyService.findById(surveyId);
+
+    ShortTextQuestion question = new ShortTextQuestion();
+
+    question.setType(QuestionType.SHORT_TEXT);
+    question.setSurvey(survey);
+    question.setPrompt((String) request.get("prompt"));
+    question.setDisplayOrder((Integer) request.get("displayOrder"));
+    question.setRequired(
+      Boolean.TRUE.equals(request.get("required"))
+    );
+
+    question =
+      (ShortTextQuestion) questionService.save(question);
+
+    return Map.of(
+      "id",
+      question.getId(),
+      "prompt",
+      question.getPrompt(),
+      "required",
+      question.isRequired()
+    );
   }
 }

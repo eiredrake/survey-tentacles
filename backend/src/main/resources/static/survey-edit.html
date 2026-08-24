@@ -144,6 +144,50 @@
               </div>
           </div>
       </template>      
+      <template id="short-text-question-template">
+          <div class="question-editor-panel">
+              <div class="question-editor-row">
+                  <label for="short-text-editor-prompt">
+                      Question:
+                  </label>
+      
+                  <input
+                      id="short-text-editor-prompt"
+                      type="text"
+                  >
+      
+                  <label>
+                      <input
+                          type="checkbox"
+                          class="question-required"
+                      >
+                      Required
+                  </label>
+              </div>
+      
+              <div class="question-editor-actions">
+                  <button
+                      id="cancel-question-button"
+                      class="icon-button"
+                      type="button"
+                      title="Cancel"
+                      aria-label="Cancel"
+                  >
+                      <i class="fa-solid fa-xmark"></i>
+                  </button>
+      
+                  <button
+                      id="save-question-button"
+                      class="icon-button"
+                      type="button"
+                      title="Save question"
+                      aria-label="Save question"
+                  >
+                      <i class="fa-solid fa-floppy-disk"></i>
+                  </button>
+              </div>
+          </div>
+      </template>      
     </main>
 
     <script src="/js/toast.js"></script>
