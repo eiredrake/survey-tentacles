@@ -1,3 +1,5 @@
+name: survey-tentacles
+
 services:
   tentacles-db:
     image: postgres:17-alpine
@@ -6,21 +8,33 @@ services:
 
     environment:
       POSTGRES_DB: tentacles
-      POSTGRES_USER: tentacles
-      POSTGRES_PASSWORD: tentacles_dev_password
+      POSTGRES_USER: ${TENTACLES_USERNAME}
+      POSTGRES_PASSWORD: ${TENTACLES_PASSWORD}
 
     volumes:
       - tentacles-postgres-data:/var/lib/postgresql/data
 
-    ports:
-      - "5433:5432"
+  tentacles:
+    image: ghcr.io/eiredrake/survey_tentacles:v1.0.0
+    container_name: tentacles
+    restart: unless-stopped
 
-    networks:
-      - proxy-tier
+    depends_on:
+      - tentacles-db
+
+    environment:
+      TENTACLES_DB_URL: jdbc:postgresql://tentacles-db:5432/tentacles
+      TENTACLES_USERNAME: ${TENTACLES_USERNAME}
+      TENTACLES_PASSWORD: ${TENTACLES_PASSWORD}
+
+      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID}
+      AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET}
+      AUTHENTIK_ISSUER_URI: ${AUTHENTIK_ISSUER_URI}
+
+      TENTACLES_PUBLIC_BASE_URL: ${TENTACLES_PUBLIC_BASE_URL}
+
+    ports:
+      - "8080:8080"
 
 volumes:
   tentacles-postgres-data:
-
-networks:
-  proxy-tier:
-    external: true
