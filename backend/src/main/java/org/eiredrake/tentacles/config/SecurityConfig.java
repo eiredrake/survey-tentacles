@@ -44,7 +44,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/health",
                     "/oauth2/**",
-                    "/login/**"
+                    "/login/**",
+                    "/s/**"
                 ).permitAll()
 
                 // Survey administration
