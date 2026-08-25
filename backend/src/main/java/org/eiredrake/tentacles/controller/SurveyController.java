@@ -926,6 +926,7 @@ public List<Map<String, Object>> getShortTextAnswers(
         "answerId", answer.getId(),
         "userId", answer.getUser().getId(),
         "username", answer.getUser().getUsername(),
+        "name", answer.getUser().getDisplayName(),
         "value", answer.getValue()
       )
     )

@@ -329,3 +329,14 @@ main {
   border-left: 4px solid currentColor;
   padding-left: 10px;
 }
+
+.short-text-answer {
+  width: 100%;
+}
+
+.short-text-input {
+  width: 100%;
+  min-height: 120px;
+  box-sizing: border-box;
+  resize: vertical;
+}

@@ -460,6 +460,66 @@ async function refreshSchedulingStatus(question, section) {
   }
 }
 
+async function refreshShortTextStatus(question, section) {
+    if (!currentUser?.authorities?.includes("ROLE_ADMIN")) {
+        return;
+    }
+
+    const statusContainer = section.querySelector(".short-text-status");
+
+    if (!statusContainer) {
+        return;
+    }
+
+    const response = await fetch(
+        `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`
+    );
+
+    if (!response.ok) {
+        showToast(
+            "Unable to load short text answers.",
+            "error"
+        );
+        return;
+    }
+
+    const answers = await response.json();
+
+    statusContainer.replaceChildren();
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Answers";
+
+    statusContainer.appendChild(heading);
+
+    if (!answers.length) {
+        const empty = document.createElement("p");
+        empty.textContent = "No answers yet.";
+
+        statusContainer.appendChild(empty);
+        return;
+    }
+
+    for (const answer of answers) {
+        const answerBlock = document.createElement("div");
+
+        answerBlock.className = "short-text-response";
+
+        const name = document.createElement("strong");
+
+        name.textContent = answer.name ||  answer.username;
+
+        const value = document.createElement("p");
+
+        value.textContent = answer.value;
+
+        answerBlock.appendChild(name);
+        answerBlock.appendChild(value);
+
+        statusContainer.appendChild(answerBlock);
+    }
+}
+
 
 async function loadQuestions() {
   const container = document.getElementById("questions");
@@ -526,11 +586,9 @@ async function loadQuestions() {
       const clearAllButton = section.querySelector(".select-none-button");          
 
       if (shortTextInput && submitButton) {
-        shortTextInput.disabled =
-            !surveyAcceptingResponses;
+        shortTextInput.disabled = !surveyAcceptingResponses;
     
-        submitButton.disabled =
-            !surveyAcceptingResponses;
+        submitButton.disabled = !surveyAcceptingResponses;
     
         const answersResponse = await fetch(
             `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`
@@ -630,7 +688,17 @@ async function loadQuestions() {
                     "Response saved.",
                     "success"
                 );
+
+                await refreshShortTextStatus(
+                    question,
+                    section
+                );                
             }
+        );
+
+        await refreshShortTextStatus(
+            question,
+            section
         );
     }      
 

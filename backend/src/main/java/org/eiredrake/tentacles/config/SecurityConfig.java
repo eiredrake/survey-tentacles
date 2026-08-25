@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class SecurityConfig {
@@ -45,7 +46,42 @@ public class SecurityConfig {
                     "/oauth2/**",
                     "/login/**"
                 ).permitAll()
-                .requestMatchers("/api/surveys/*/status").hasRole("ADMIN")
+
+                // Survey administration
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/surveys"
+                ).hasRole("ADMIN")
+
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/surveys/*/title",
+                    "/api/surveys/*/status",
+                    "/api/surveys/*/participants",
+                    "/api/surveys/*/assignments",
+                    "/api/surveys/*/assignments/*/required"
+                ).hasRole("ADMIN")
+
+                .requestMatchers(
+                    HttpMethod.DELETE,
+                    "/api/surveys/*",
+                    "/api/surveys/*/assignments/*"
+                ).hasRole("ADMIN")
+
+                // Question administration
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/surveys/*/questions/scheduling",
+                    "/api/surveys/*/questions/short-text",
+                    "/api/surveys/*/questions/*/scheduling",
+                    "/api/surveys/*/questions/*/short-text"
+                ).hasRole("ADMIN")
+
+                .requestMatchers(
+                    HttpMethod.DELETE,
+                    "/api/surveys/*/questions/*"
+                ).hasRole("ADMIN")
+
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
