@@ -290,6 +290,8 @@ async function loadSurveys() {
 
                       statusSelect.hidden = true;
                       statusButton.hidden = false;
+                      
+                      await loadSurveys();
                   } else {
                       statusSelect.value =
                           previousStatus;
