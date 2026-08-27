@@ -142,28 +142,11 @@ public class SurveyController {
         boolean required =
           userRequired || hasRequiredQuestions;
 
-          boolean completed = survey
-            .getQuestions()
-            .stream()
-            .filter(Question::isRequired)
-            .allMatch(question ->
-              switch (question.getType()) {
-              case SCHEDULING ->
-                schedulingAnswerService.hasAnswered(
-                  question.getId(),
-                  currentUser.getId()
-                );
-
-              case SHORT_TEXT ->
-                shortTextAnswerService.hasAnswered(
-                  question.getId(),
-                  currentUser.getId()
-                );
-
-              case SINGLE_SELECT,
-                  MULTI_SELECT -> false;
-}
-            );
+        boolean completed =
+          isSurveyCompletedForUser(
+            survey,
+            currentUser
+          );
 
         boolean active = switch (survey.getStatus()) {
           case DEVELOPMENT, OPEN -> true;
@@ -709,7 +692,12 @@ public Map<String, Object> answerShortTextQuestion(
   }
 
   @GetMapping("/{surveyId}/assignments")
-  public List<Map<String, Object>> getAssignments(@PathVariable Long surveyId) {
+  public List<Map<String, Object>> getAssignments(
+    @PathVariable Long surveyId
+  ) {
+    Survey survey =
+      surveyService.findById(surveyId);
+
     return surveyAssignmentService
       .findBySurveyId(surveyId)
       .stream()
@@ -724,7 +712,12 @@ public Map<String, Object> answerShortTextQuestion(
           "name",
           assignment.getUser().getDisplayName(),
           "required",
-          assignment.isRequired()
+          assignment.isRequired(),
+          "completed",
+          isSurveyCompletedForUser(
+            survey,
+            assignment.getUser()
+          )
         )
       )
       .toList();
@@ -852,36 +845,36 @@ public Map<String, Object> answerShortTextQuestion(
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/short-text")
-public Map<String, Object> updateShortTextQuestion(
-  @PathVariable Long surveyId,
-  @PathVariable Long questionId,
-  @RequestBody Map<String, Object> request
-) {
-  ShortTextQuestion question =
-    (ShortTextQuestion) questionService.findById(questionId);
+  public Map<String, Object> updateShortTextQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId,
+    @RequestBody Map<String, Object> request
+  ) {
+    ShortTextQuestion question =
+      (ShortTextQuestion) questionService.findById(questionId);
 
-  if (!question.getSurvey().getId().equals(surveyId)) {
-    throw new IllegalArgumentException(
-      "Question does not belong to survey: " + surveyId
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
+    }
+
+    question.setPrompt((String) request.get("prompt"));
+    question.setRequired(
+      Boolean.TRUE.equals(request.get("required"))
+    );
+
+    questionService.save(question);
+
+    return Map.of(
+      "id",
+      question.getId(),
+      "prompt",
+      question.getPrompt(),
+      "required",
+      question.isRequired()
     );
   }
-
-  question.setPrompt((String) request.get("prompt"));
-  question.setRequired(
-    Boolean.TRUE.equals(request.get("required"))
-  );
-
-  questionService.save(question);
-
-  return Map.of(
-    "id",
-    question.getId(),
-    "prompt",
-    question.getPrompt(),
-    "required",
-    question.isRequired()
-  );
-}
 
   @PostMapping("/{surveyId}/questions/short-text")
 public Map<String, Object> createShortTextQuestion(
@@ -913,23 +906,52 @@ public Map<String, Object> createShortTextQuestion(
     );
   }
 
-@GetMapping("/{surveyId}/questions/{questionId}/answers/short-text")
-public List<Map<String, Object>> getShortTextAnswers(
-  @PathVariable Long surveyId,
-  @PathVariable Long questionId
-) {
-  return shortTextAnswerService
-    .findByQuestionId(questionId)
-    .stream()
-    .map(answer ->
-      Map.<String, Object>of(
-        "answerId", answer.getId(),
-        "userId", answer.getUser().getId(),
-        "username", answer.getUser().getUsername(),
-        "name", answer.getUser().getDisplayName(),
-        "value", answer.getValue()
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/short-text")
+  public List<Map<String, Object>> getShortTextAnswers(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId
+  ) {
+    return shortTextAnswerService
+      .findByQuestionId(questionId)
+      .stream()
+      .map(answer ->
+        Map.<String, Object>of(
+          "answerId", answer.getId(),
+          "userId", answer.getUser().getId(),
+          "username", answer.getUser().getUsername(),
+          "name", answer.getUser().getDisplayName(),
+          "value", answer.getValue()
+        )
       )
-    )
-    .toList();
-}  
+      .toList();
+  }  
+
+
+  private boolean isSurveyCompletedForUser(
+    Survey survey,
+    User user
+  ) {
+    return survey
+      .getQuestions()
+      .stream()
+      .filter(Question::isRequired)
+      .allMatch(question ->
+        switch (question.getType()) {
+          case SCHEDULING ->
+            schedulingAnswerService.hasAnswered(
+              question.getId(),
+              user.getId()
+            );
+
+          case SHORT_TEXT ->
+            shortTextAnswerService.hasAnswered(
+              question.getId(),
+              user.getId()
+            );
+
+          case SINGLE_SELECT,
+            MULTI_SELECT -> false;
+        }
+      );
+  }
 }

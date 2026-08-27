@@ -373,7 +373,8 @@ async function loadParticipants() {
 
   for (const headingText of [
       "Name",
-      "Required"
+      "Required",
+      "Status"
   ]) {
       const th =
           document.createElement("th");
@@ -401,8 +402,14 @@ async function loadParticipants() {
           participant.name ||
           participant.username;
 
-      const requiredCell =
-          document.createElement("td");
+      const requiredCell = document.createElement("td");
+
+      const statusCell = document.createElement("td");
+  
+      statusCell.textContent =
+          participant.completed
+              ? "Completed"
+              : "Incomplete";      
 
       if (participant.required) {
           requiredCell.innerHTML =
@@ -411,6 +418,7 @@ async function loadParticipants() {
 
       row.appendChild(nameCell);
       row.appendChild(requiredCell);
+      row.appendChild(statusCell);
 
       tbody.appendChild(row);
   }
