@@ -559,8 +559,11 @@ async function loadQuestions() {
       const fragment =
           template.content.cloneNode(true);
 
-      const section =
-          fragment.querySelector(".survey-question");
+      const section = fragment.querySelector(".survey-question");
+
+      if (question.required) {
+        section.classList.add("required-question-highlight");
+    }
 
       const heading =
           section.querySelector(".question-prompt");

@@ -81,11 +81,10 @@ async function loadSurveys() {
       const requiredCell = document.createElement("td");
 
       if (survey.required) {
-        requiredCell.innerHTML =
-            '<i class="fa-solid fa-check" title="Required"></i>';
+        requiredCell.innerHTML = '<i class="fa-solid fa-check" title="Required"></i>';
     
         if (!isAdmin && !survey.completed) {
-            item.classList.add("required-survey-incomplete");
+            item.classList.add("required-highlight");
         }
     }
 
