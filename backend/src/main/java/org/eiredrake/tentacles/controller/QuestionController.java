@@ -43,7 +43,9 @@ public class QuestionController {
           "editorTemplateId",
           question.getType().getEditorTemplateId(),
           "participantTemplateId",
-          question.getType().getParticipantTemplateId()
+          question.getType().getParticipantTemplateId(),
+          "viewTemplateId",
+          question.getType().getViewTemplateId()
         )
       )
       .toList();

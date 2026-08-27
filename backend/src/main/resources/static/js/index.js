@@ -108,6 +108,21 @@ async function loadSurveys() {
       item.appendChild(actionsCell);
 
       if (isAdmin) {
+        const viewLink = document.createElement("a");
+        viewLink.href =
+            `/survey-view.html?id=${survey.id}`;
+        viewLink.className = "icon-button";
+        viewLink.title = "View survey";
+        viewLink.setAttribute(
+            "aria-label",
+            "View survey"
+        );
+        viewLink.innerHTML =
+            '<i class="fa-solid fa-eye"></i>';
+        
+        actionsCell.appendChild(viewLink);
+
+
           const editLink = document.createElement("a");
           editLink.href =
               `/survey-edit.html?id=${survey.id}`;

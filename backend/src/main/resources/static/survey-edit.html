@@ -66,6 +66,25 @@
           </div>
 
       </section>
+
+      <section class="participants-view-section">
+        <button
+            id="participants-toggle"
+            class="section-toggle"
+            type="button"
+            aria-expanded="false"
+        >
+            <span>Participants</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    
+        <div
+            id="participants-view"
+            hidden
+        >
+        </div>
+    </section>
+    
         <template id="scheduling-question-template">
           <div class="question-editor-panel">
               <div class="question-editor-row">
@@ -191,6 +210,7 @@
     </main>
 
     <script src="/js/toast.js"></script>
+    <script src="/js/date-format.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="/js/survey-edit.js"></script>
     <script src="/js/logout.js"></script>

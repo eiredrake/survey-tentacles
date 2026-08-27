@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>View Survey - Tentacles</title>
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+    >
+
+    <link rel="stylesheet" href="/css/tentacles.css">
+    <link rel="stylesheet" href="/css/toast.css">
+</head>
+
+<body>
+    <main>
+        <a href="/">← Surveys</a>
+
+        <div class="editor-title">
+            <h1 id="survey-title">Survey</h1>
+
+            <a
+                id="edit-survey-link"
+                class="icon-button"
+                href="#"
+                title="Edit survey"
+                aria-label="Edit survey"
+            >
+                <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+        </div>
+
+        <section>
+          <h2>Questions</h2>
+      
+          <table class="survey-table">
+              <thead>
+                  <tr>
+                      <th>Question</th>
+                      <th>Type</th>
+                      <th>Required</th>
+                      <th class="actions-column">Actions</th>
+                  </tr>
+              </thead>
+      
+              <tbody id="question-list">
+              </tbody>
+          </table>
+      </section>
+
+      <section class="participants-view-section">
+        <button
+            id="participants-toggle"
+            class="section-toggle"
+            type="button"
+            aria-expanded="false"
+        >
+            <span>Participants</span>
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    
+        <div
+            id="participants-view"
+            hidden
+        >
+        </div>
+    </section>
+
+      <template id="scheduling-view-template">
+          <section class="survey-question">
+              <h2 class="question-prompt"></h2>
+      
+              <div class="question-meta"></div>
+      
+              <div class="scheduling-view-results"></div>
+          </section>
+      </template>
+      
+      <template id="short-text-view-template">
+          <section class="survey-question">
+              <h2 class="question-prompt"></h2>
+      
+              <div class="question-meta"></div>
+      
+              <div class="short-text-view-answers"></div>
+          </section>
+      </template>    
+
+    </main>
+
+    <script src="/js/toast.js"></script>
+    <script src="/js/date-format.js"></script>
+    <script src="/js/survey-view.js"></script>
+    <script src="/js/logout.js"></script>
+</body>
+</html>
