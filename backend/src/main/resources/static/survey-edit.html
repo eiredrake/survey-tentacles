@@ -67,24 +67,17 @@
 
       </section>
 
-      <section class="participants-view-section">
-        <button
-            id="participants-toggle"
-            class="section-toggle"
-            type="button"
-            aria-expanded="false"
-        >
-            <span>Participants</span>
-            <i class="fa-solid fa-chevron-right"></i>
-        </button>
+      <details class="survey-section inactive-surveys-section">
+        <summary class="section-heading inactive-surveys-summary">
+            <h2>Participants</h2>
     
-        <div
-            id="participants-view"
-            hidden
-        >
+            <i class="fa-solid fa-chevron-right inactive-surveys-chevron"></i>
+        </summary>
+    
+        <div id="participants-view">
         </div>
-    </section>
-    
+    </details>
+
         <template id="scheduling-question-template">
           <div class="question-editor-panel">
               <div class="question-editor-row">

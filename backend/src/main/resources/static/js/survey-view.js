@@ -341,34 +341,6 @@ async function renderShortTextAnswers(question, container) {
   }
 }
 
-function setupParticipantsToggle() {
-  const toggle =
-      document.getElementById("participants-toggle");
-
-  const participants =
-      document.getElementById("participants-view");
-
-  const icon =
-      toggle.querySelector("i");
-
-  toggle.addEventListener("click", () => {
-      const expanded =
-          toggle.getAttribute("aria-expanded") === "true";
-
-      toggle.setAttribute(
-          "aria-expanded",
-          String(!expanded)
-      );
-
-      participants.hidden = expanded;
-
-      icon.className =
-          expanded
-              ? "fa-solid fa-chevron-right"
-              : "fa-solid fa-chevron-down";
-  });
-}
-
 async function loadParticipants() {
   const container =
       document.getElementById("participants-view");
@@ -448,7 +420,6 @@ async function loadParticipants() {
 }
 
 async function initialize() {
-    setupParticipantsToggle();
 
     await loadSurvey();
     await loadQuestions();
