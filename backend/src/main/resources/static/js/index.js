@@ -189,72 +189,82 @@ async function loadSurveys() {
 
           actionsCell.appendChild(editLink);
 
-          const deleteButton =
-              document.createElement("button");
-
-          deleteButton.type = "button";
-          deleteButton.className = "icon-button";
-          deleteButton.innerHTML =
-              '<i class="fa-solid fa-xmark"></i>';
-
-          if (survey.everPublished) {
-              deleteButton.disabled = true;
-              deleteButton.title =
-                  "Published surveys cannot be deleted";
-
-              deleteButton.setAttribute(
-                  "aria-label",
-                  "Published surveys cannot be deleted"
-              );
-          } else {
-              deleteButton.title = "Delete survey";
-              deleteButton.setAttribute(
-                  "aria-label",
-                  "Delete survey"
-              );
-
-              deleteButton.addEventListener(
-                  "click",
-                  async () => {
-                      const confirmed = confirm(
-                          `Delete "${survey.title}"? This cannot be undone.`
-                      );
-
-                      if (!confirmed) {
-                          return;
-                      }
-
-                      const csrfResponse =
-                          await fetch("/csrf");
-
-                      const csrf =
-                          await csrfResponse.json();
-
-                      const deleteResponse = await fetch(
-                          `/api/surveys/${survey.id}`,
-                          {
-                              method: "DELETE",
-                              headers: {
-                                  [csrf.headerName]:
-                                      csrf.token
-                              }
-                          }
-                      );
-
-                      if (!deleteResponse.ok) {
-                          showToast(
-                              "Unable to delete survey.",
-                              "error"
-                          );
-                          return;
-                      }
-
-                      await loadSurveys();
-                  }
-              );
-          }
-
-          actionsCell.appendChild(deleteButton);
+          const deleteButton = document.createElement("button");
+      
+            deleteButton.type = "button";
+            deleteButton.className = "icon-button";
+            deleteButton.innerHTML =
+                '<i class="fa-solid fa-xmark"></i>';
+            
+            deleteButton.title = "Delete survey";
+            
+            deleteButton.setAttribute(
+                "aria-label",
+                "Delete survey"
+            );
+            
+            deleteButton.addEventListener(
+                "click",
+                async () => {
+            
+                    if (survey.everPublished) {
+                        const confirmation = prompt(
+                            `PERMANENTLY DELETE "${survey.title}"?\n\n` +
+                            "This survey has been published before and may contain real response data.\n\n" +
+                            "This cannot be undone.\n\n" +
+                            "Type DELETE to continue:"
+                        );
+            
+                        if (confirmation !== "DELETE") {
+                            return;
+                        }
+                    } else {
+                        const confirmed = confirm(
+                            `Delete "${survey.title}"? This cannot be undone.`
+                        );
+            
+                        if (!confirmed) {
+                            return;
+                        }
+                    }
+            
+                    const csrfResponse =
+                        await fetch("/csrf");
+            
+                    const csrf =
+                        await csrfResponse.json();
+            
+                    const deleteResponse = await fetch(
+                        `/api/surveys/${survey.id}`,
+                        {
+                            method: "DELETE",
+                            headers: {
+                                [csrf.headerName]:
+                                    csrf.token
+                            }
+                        }
+                    );
+            
+                    if (!deleteResponse.ok) {
+                        showToast(
+                            "Unable to delete survey.",
+                            "error"
+                        );
+                        return;
+                    }
+            
+                    showToast(
+                        "Survey deleted.",
+                        "success"
+                    );
+            
+                    await loadSurveys();
+                }
+            );
+            
+            actionsCell.appendChild(
+                deleteButton
+            );
 
           const statusSelect =
               document.createElement("select");

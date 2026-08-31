@@ -7,6 +7,7 @@ import org.eiredrake.tentacles.model.SurveyParticipant;
 import org.eiredrake.tentacles.model.User;
 import org.eiredrake.tentacles.repository.SurveyParticipantRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SurveyParticipantService {
@@ -35,4 +36,11 @@ public class SurveyParticipantService {
     public List<SurveyParticipant> findBySurveyId(Long surveyId) {
         return repository.findBySurveyId(surveyId);
     }
+
+    @Transactional
+    public void deleteBySurveyId(Long surveyId) {
+        repository.deleteBySurveyId(
+            surveyId
+        );
+    }    
 }

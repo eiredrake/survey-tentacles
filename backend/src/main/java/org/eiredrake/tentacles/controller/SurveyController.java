@@ -11,12 +11,15 @@ import org.eiredrake.tentacles.model.QuestionType;
 import org.eiredrake.tentacles.model.SchedulingAnswer;
 import org.eiredrake.tentacles.model.SchedulingOption;
 import org.eiredrake.tentacles.model.SchedulingQuestion;
+import org.eiredrake.tentacles.model.ShortTextAnswer;
+import org.eiredrake.tentacles.model.ShortTextQuestion;
 import org.eiredrake.tentacles.model.Survey;
 import org.eiredrake.tentacles.model.SurveyAssignment;
 import org.eiredrake.tentacles.model.SurveyStatus;
 import org.eiredrake.tentacles.model.User;
 import org.eiredrake.tentacles.service.QuestionService;
 import org.eiredrake.tentacles.service.SchedulingAnswerService;
+import org.eiredrake.tentacles.service.ShortTextAnswerService;
 import org.eiredrake.tentacles.service.SurveyAssignmentService;
 import org.eiredrake.tentacles.service.SurveyParticipantService;
 import org.eiredrake.tentacles.service.SurveyService;
@@ -24,6 +27,7 @@ import org.eiredrake.tentacles.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,9 +35,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.eiredrake.tentacles.model.ShortTextQuestion;
-import org.eiredrake.tentacles.model.ShortTextAnswer;
-import org.eiredrake.tentacles.service.ShortTextAnswerService;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -128,25 +129,19 @@ public class SurveyController {
         );
       })
       .map(survey -> {
-        boolean userRequired =
-          surveyAssignmentService.isRequired(
-            survey.getId(),
-            currentUser.getId()
-          );
+        boolean userRequired = surveyAssignmentService.isRequired(
+          survey.getId(),
+          currentUser.getId()
+        );
 
-        boolean hasRequiredQuestions =
-          survey.getQuestions()
-            .stream()
-            .anyMatch(Question::isRequired);
+        boolean hasRequiredQuestions = survey
+          .getQuestions()
+          .stream()
+          .anyMatch(Question::isRequired);
 
-        boolean required =
-          userRequired || hasRequiredQuestions;
+        boolean required = userRequired || hasRequiredQuestions;
 
-        boolean completed =
-          isSurveyCompletedForUser(
-            survey,
-            currentUser
-          );
+        boolean completed = isSurveyCompletedForUser(survey, currentUser);
 
         boolean active = switch (survey.getStatus()) {
           case DEVELOPMENT, OPEN -> true;
@@ -166,7 +161,10 @@ public class SurveyController {
         result.put("required", required);
         result.put("everPublished", survey.isEverPublished());
         result.put("completed", completed);
-        result.put("acceptingResponses",survey.getStatus().isAcceptingResponses());
+        result.put(
+          "acceptingResponses",
+          survey.getStatus().isAcceptingResponses()
+        );
 
         return result;
       })
@@ -174,116 +172,106 @@ public class SurveyController {
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/scheduling")
-public Map<String, Object> updateSchedulingQuestion(
-  @PathVariable Long surveyId,
-  @PathVariable Long questionId,
-  @RequestBody Map<String, Object> request
-) {
-  SchedulingQuestion question =
-    (SchedulingQuestion) questionService.findById(questionId);
-
-  if (!question.getSurvey().getId().equals(surveyId)) {
-    throw new IllegalArgumentException(
-      "Question does not belong to survey: " + surveyId
-    );
-  }
-
-  question.setPrompt((String) request.get("prompt"));
-  question.setRequired(
-    Boolean.TRUE.equals(request.get("required"))
-  );
-
-  @SuppressWarnings("unchecked")
-  List<Map<String, String>> selections =
-    (List<Map<String, String>>) request.get("selections");
-
-  List<String> existingValues = question
-    .getOptions()
-    .stream()
-    .map(option -> {
-      if (option.getDateTime() != null) {
-        return option.getDateTime().toString();
-      }
-
-      return option.getDate().toString();
-    })
-    .sorted()
-    .toList();
-
-  List<String> submittedValues = selections
-    .stream()
-    .map(selection -> {
-      String date = selection.get("date");
-      String time = selection.get("time");
-      String timeZone = selection.get("timeZone");
-
-      if (time == null || time.isBlank()) {
-        return LocalDate.parse(date).toString();
-      }
-
-      LocalDateTime localDateTime =
-        LocalDateTime.parse(date + "T" + time);
-
-      return localDateTime
-        .atZone(ZoneId.of(timeZone))
-        .toInstant()
-        .toString();
-    })
-    .sorted()
-    .toList();
-
-  boolean optionsChanged =
-    !existingValues.equals(submittedValues);
-
-  if (optionsChanged) {
-    schedulingAnswerService.deleteForQuestion(
-      question.getId()
+  public Map<String, Object> updateSchedulingQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId,
+    @RequestBody Map<String, Object> request
+  ) {
+    SchedulingQuestion question = (SchedulingQuestion) questionService.findById(
+      questionId
     );
 
-    question.getOptions().clear();
-
-    for (Map<String, String> selection : selections) {
-      SchedulingOption option = new SchedulingOption();
-      option.setQuestion(question);
-
-      String date = selection.get("date");
-      String time = selection.get("time");
-      String timeZone = selection.get("timeZone");
-
-      if (time == null || time.isBlank()) {
-        option.setDate(LocalDate.parse(date));
-        option.setDateTime(null);
-      } else {
-        LocalDateTime localDateTime =
-          LocalDateTime.parse(date + "T" + time);
-
-        option.setDate(null);
-        option.setDateTime(
-          localDateTime
-            .atZone(ZoneId.of(timeZone))
-            .toInstant()
-        );
-      }
-
-      question.getOptions().add(option);
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
     }
+
+    question.setPrompt((String) request.get("prompt"));
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, String>> selections = (List<
+      Map<String, String>
+    >) request.get("selections");
+
+    List<String> existingValues = question
+      .getOptions()
+      .stream()
+      .map(option -> {
+        if (option.getDateTime() != null) {
+          return option.getDateTime().toString();
+        }
+
+        return option.getDate().toString();
+      })
+      .sorted()
+      .toList();
+
+    List<String> submittedValues = selections
+      .stream()
+      .map(selection -> {
+        String date = selection.get("date");
+        String time = selection.get("time");
+        String timeZone = selection.get("timeZone");
+
+        if (time == null || time.isBlank()) {
+          return LocalDate.parse(date).toString();
+        }
+
+        LocalDateTime localDateTime = LocalDateTime.parse(date + "T" + time);
+
+        return localDateTime.atZone(ZoneId.of(timeZone)).toInstant().toString();
+      })
+      .sorted()
+      .toList();
+
+    boolean optionsChanged = !existingValues.equals(submittedValues);
+
+    if (optionsChanged) {
+      schedulingAnswerService.deleteForQuestion(question.getId());
+
+      question.getOptions().clear();
+
+      for (Map<String, String> selection : selections) {
+        SchedulingOption option = new SchedulingOption();
+        option.setQuestion(question);
+
+        String date = selection.get("date");
+        String time = selection.get("time");
+        String timeZone = selection.get("timeZone");
+
+        if (time == null || time.isBlank()) {
+          option.setDate(LocalDate.parse(date));
+          option.setDateTime(null);
+        } else {
+          LocalDateTime localDateTime = LocalDateTime.parse(date + "T" + time);
+
+          option.setDate(null);
+          option.setDateTime(
+            localDateTime.atZone(ZoneId.of(timeZone)).toInstant()
+          );
+        }
+
+        question.getOptions().add(option);
+      }
+    }
+
+    questionService.save(question);
+
+    return Map.of(
+      "id",
+      question.getId(),
+      "prompt",
+      question.getPrompt(),
+      "required",
+      question.isRequired(),
+      "optionCount",
+      question.getOptions().size(),
+      "responsesCleared",
+      optionsChanged
+    );
   }
-
-  questionService.save(question);
-
-  return Map.of(
-    "id",
-    question.getId(),
-    "prompt",
-    question.getPrompt(),
-    "required",
-    question.isRequired(),
-    "optionCount",
-    question.getOptions().size(),
-    "responsesCleared",
-    optionsChanged
-  );
-}
 
   @PostMapping("/{surveyId}/questions/scheduling")
   public Map<String, Object> createSchedulingQuestion(
@@ -343,128 +331,127 @@ public Map<String, Object> updateSchedulingQuestion(
   }
 
   @GetMapping("/{surveyId}/questions/{questionId}")
-public Map<String, Object> getQuestion(
-  @PathVariable Long surveyId,
-  @PathVariable Long questionId
-) {
-  Question question = questionService.findById(questionId);
+  public Map<String, Object> getQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId
+  ) {
+    Question question = questionService.findById(questionId);
 
-  if (!question.getSurvey().getId().equals(surveyId)) {
-    throw new IllegalArgumentException(
-      "Question does not belong to survey: " + surveyId
-    );
-  }
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
+    }
 
-  Map<String, Object> result = new HashMap<>();
+    Map<String, Object> result = new HashMap<>();
 
-  result.put("id", question.getId());
-  result.put("prompt", question.getPrompt());
-  result.put("displayOrder", question.getDisplayOrder());
-  result.put("required", question.isRequired());
-  result.put("type", question.getType().name());
+    result.put("id", question.getId());
+    result.put("prompt", question.getPrompt());
+    result.put("displayOrder", question.getDisplayOrder());
+    result.put("required", question.isRequired());
+    result.put("type", question.getType().name());
 
-  if (question instanceof SchedulingQuestion schedulingQuestion) {
-    List<Map<String, Object>> options =
-      schedulingQuestion
+    if (question instanceof SchedulingQuestion schedulingQuestion) {
+      List<Map<String, Object>> options = schedulingQuestion
         .getOptions()
         .stream()
         .map(option -> {
-          Map<String, Object> optionResult =
-            new HashMap<>();
+          Map<String, Object> optionResult = new HashMap<>();
 
           optionResult.put("id", option.getId());
           optionResult.put("date", option.getDate());
-          optionResult.put(
-            "dateTime",
-            option.getDateTime()
-          );
+          optionResult.put("dateTime", option.getDateTime());
 
           return optionResult;
         })
         .toList();
 
-    result.put("options", options);
+      result.put("options", options);
+    }
+
+    return result;
   }
 
-  return result;
-}
-
-@PostMapping("/{surveyId}/questions/{questionId}/answers/short-text")
-public Map<String, Object> answerShortTextQuestion(
-  @PathVariable Long surveyId,
-  @PathVariable Long questionId,
-  @AuthenticationPrincipal OidcUser oidcUser,
-  @RequestBody Map<String, String> request
-) {
-  ShortTextQuestion question =
-    (ShortTextQuestion) questionService.findById(questionId);
-
-  if (!question.getSurvey().getId().equals(surveyId)) {
-    throw new IllegalArgumentException(
-      "Question does not belong to survey: " + surveyId
+  @PostMapping("/{surveyId}/questions/{questionId}/answers/short-text")
+  public Map<String, Object> answerShortTextQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId,
+    @AuthenticationPrincipal OidcUser oidcUser,
+    @RequestBody Map<String, String> request
+  ) {
+    ShortTextQuestion question = (ShortTextQuestion) questionService.findById(
+      questionId
     );
-  }
 
-  Survey survey = surveyService.findById(surveyId);
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
+    }
 
-  if (survey.getStatus() != SurveyStatus.OPEN) {
-    throw new IllegalStateException(
-      "Survey is not open for responses."
+    Survey survey = surveyService.findById(surveyId);
+
+    if (survey.getStatus() != SurveyStatus.OPEN) {
+      throw new IllegalStateException("Survey is not open for responses.");
+    }
+
+    User user = userService.findOrCreate(oidcUser);
+
+    String value = request.get("value");
+
+    if (value == null) {
+      value = "";
+    }
+
+    value = value.trim();
+
+    if (question.isRequired() && value.isBlank()) {
+      throw new IllegalArgumentException("This question is required.");
+    }
+
+    if (value.length() > 500) {
+      throw new IllegalArgumentException(
+        "Answer cannot exceed 500 characters."
+      );
+    }
+
+    surveyParticipantService.add(survey, user);
+
+    shortTextAnswerService.deleteForUserAndQuestion(
+      question.getId(),
+      user.getId()
     );
-  }
 
-  User user = userService.findOrCreate(oidcUser);
+    if (!value.isBlank()) {
+      ShortTextAnswer answer = new ShortTextAnswer();
 
-  String value = request.get("value");
+      answer.setQuestion(question);
+      answer.setUser(user);
+      answer.setValue(value);
 
-  if (value == null) {
-    value = "";
-  }
+      answer = shortTextAnswerService.save(answer);
 
-  value = value.trim();
-
-  if (question.isRequired() && value.isBlank()) {
-    throw new IllegalArgumentException(
-      "This question is required."
-    );
-  }
-
-  if (value.length() > 500) {
-    throw new IllegalArgumentException(
-      "Answer cannot exceed 500 characters."
-    );
-  }
-
-  surveyParticipantService.add(survey, user);
-
-  shortTextAnswerService.deleteForUserAndQuestion(
-    question.getId(),
-    user.getId()
-  );
-
-  if (!value.isBlank()) {
-    ShortTextAnswer answer = new ShortTextAnswer();
-
-    answer.setQuestion(question);
-    answer.setUser(user);
-    answer.setValue(value);
-
-    answer = shortTextAnswerService.save(answer);
+      return Map.of(
+        "questionId",
+        question.getId(),
+        "userId",
+        user.getId(),
+        "answerId",
+        answer.getId(),
+        "value",
+        answer.getValue()
+      );
+    }
 
     return Map.of(
-      "questionId", question.getId(),
-      "userId", user.getId(),
-      "answerId", answer.getId(),
-      "value", answer.getValue()
+      "questionId",
+      question.getId(),
+      "userId",
+      user.getId(),
+      "value",
+      ""
     );
   }
-
-  return Map.of(
-    "questionId", question.getId(),
-    "userId", user.getId(),
-    "value", ""
-  );
-}
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
   public Map<String, Object> answerSchedulingQuestion(
@@ -494,13 +481,8 @@ public Map<String, Object> answerShortTextQuestion(
     @SuppressWarnings("unchecked")
     List<Integer> optionIds = (List<Integer>) request.get("optionIds");
 
-    if (
-      question.isRequired() &&
-      (optionIds == null || optionIds.isEmpty())
-    ) {
-      throw new IllegalArgumentException(
-        "This question is required."
-      );
+    if (question.isRequired() && (optionIds == null || optionIds.isEmpty())) {
+      throw new IllegalArgumentException("This question is required.");
     }
 
     int saved = 0;
@@ -534,8 +516,6 @@ public Map<String, Object> answerShortTextQuestion(
       saved
     );
   }
-
-
 
   @GetMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
   public List<Map<String, Object>> getSchedulingAnswers(
@@ -692,11 +672,8 @@ public Map<String, Object> answerShortTextQuestion(
   }
 
   @GetMapping("/{surveyId}/assignments")
-  public List<Map<String, Object>> getAssignments(
-    @PathVariable Long surveyId
-  ) {
-    Survey survey =
-      surveyService.findById(surveyId);
+  public List<Map<String, Object>> getAssignments(@PathVariable Long surveyId) {
+    Survey survey = surveyService.findById(surveyId);
 
     return surveyAssignmentService
       .findBySurveyId(surveyId)
@@ -714,10 +691,7 @@ public Map<String, Object> answerShortTextQuestion(
           "required",
           assignment.isRequired(),
           "completed",
-          isSurveyCompletedForUser(
-            survey,
-            assignment.getUser()
-          )
+          isSurveyCompletedForUser(survey, assignment.getUser())
         )
       )
       .toList();
@@ -743,142 +717,90 @@ public Map<String, Object> answerShortTextQuestion(
   }
 
   @PostMapping("/{surveyId}/copy")
-public Map<String, Object> copySurvey(
+  public Map<String, Object> copySurvey(
     @PathVariable Long surveyId,
     @AuthenticationPrincipal OidcUser oidcUser
-) {
-    Survey source =
-        surveyService.findById(surveyId);
+  ) {
+    Survey source = surveyService.findById(surveyId);
 
-    User currentUser =
-        userService.findOrCreate(oidcUser);
+    User currentUser = userService.findOrCreate(oidcUser);
 
-    Survey copy =
-        new Survey();
+    Survey copy = new Survey();
 
-    copy.setTitle(
-        "Copy of " + source.getTitle()
-    );
+    copy.setTitle("Copy of " + source.getTitle());
     copy.setCreator(currentUser);
     copy.setStatus(SurveyStatus.DEVELOPMENT);
     copy.setEverPublished(false);
 
-    copy =
-        surveyService.save(copy);
+    copy = surveyService.save(copy);
 
-    for (Question sourceQuestion :
-        source.getQuestions()) {
+    for (Question sourceQuestion : source.getQuestions()) {
+      Question copiedQuestion = switch (sourceQuestion.getType()) {
+        case SCHEDULING -> {
+          SchedulingQuestion sourceScheduling =
+            (SchedulingQuestion) sourceQuestion;
 
-    Question copiedQuestion =
-      switch (sourceQuestion.getType()) {
+          SchedulingQuestion targetScheduling = new SchedulingQuestion();
 
-          case SCHEDULING -> {
-              SchedulingQuestion sourceScheduling =
-                  (SchedulingQuestion) sourceQuestion;
+          copyQuestionFields(sourceScheduling, targetScheduling, copy);
 
-              SchedulingQuestion targetScheduling =
-                  new SchedulingQuestion();
+          for (SchedulingOption sourceOption : sourceScheduling.getOptions()) {
+            SchedulingOption targetOption = new SchedulingOption();
 
-              copyQuestionFields(
-                  sourceScheduling,
-                  targetScheduling,
-                  copy
-              );
+            targetOption.setQuestion(targetScheduling);
+            targetOption.setDate(sourceOption.getDate());
+            targetOption.setDateTime(sourceOption.getDateTime());
 
-              for (SchedulingOption sourceOption :
-                  sourceScheduling.getOptions()) {
-
-                  SchedulingOption targetOption =
-                      new SchedulingOption();
-
-                  targetOption.setQuestion(
-                      targetScheduling
-                  );
-                  targetOption.setDate(
-                      sourceOption.getDate()
-                  );
-                  targetOption.setDateTime(
-                      sourceOption.getDateTime()
-                  );
-
-                  targetScheduling
-                      .getOptions()
-                      .add(targetOption);
-              }
-
-              yield targetScheduling;
+            targetScheduling.getOptions().add(targetOption);
           }
 
-          case SHORT_TEXT -> {
-              ShortTextQuestion targetShortText =
-                  new ShortTextQuestion();
+          yield targetScheduling;
+        }
+        case SHORT_TEXT -> {
+          ShortTextQuestion targetShortText = new ShortTextQuestion();
 
-              copyQuestionFields(
-                  sourceQuestion,
-                  targetShortText,
-                  copy
-              );
+          copyQuestionFields(sourceQuestion, targetShortText, copy);
 
-              yield targetShortText;
-          }
-
-          case SINGLE_SELECT,
-              MULTI_SELECT ->
-              throw new UnsupportedOperationException(
-                  "Copy not implemented for question type: "
-                  + sourceQuestion.getType()
-              );
+          yield targetShortText;
+        }
+        case
+          SINGLE_SELECT,
+          MULTI_SELECT -> throw new UnsupportedOperationException(
+          "Copy not implemented for question type: " + sourceQuestion.getType()
+        );
       };
 
-      questionService.save(
-          copiedQuestion
-      );
+      questionService.save(copiedQuestion);
     }
 
-    for (SurveyAssignment sourceAssignment :
-        surveyAssignmentService.findBySurveyId(
-            source.getId()
-        )) {
+    for (SurveyAssignment sourceAssignment : surveyAssignmentService.findBySurveyId(
+      source.getId()
+    )) {
+      SurveyAssignment copiedAssignment = new SurveyAssignment();
 
-        SurveyAssignment copiedAssignment =
-            new SurveyAssignment();
+      copiedAssignment.setSurvey(copy);
 
-        copiedAssignment.setSurvey(copy);
+      copiedAssignment.setUser(sourceAssignment.getUser());
 
-        copiedAssignment.setUser(
-            sourceAssignment.getUser()
-        );
+      copiedAssignment.setRequired(sourceAssignment.isRequired());
 
-        copiedAssignment.setRequired(
-            sourceAssignment.isRequired()
-        );
+      surveyAssignmentService.save(copiedAssignment);
+    }
 
-        surveyAssignmentService.save(
-            copiedAssignment
-        );
-    }    
+    return Map.of("id", copy.getId(), "title", copy.getTitle());
+  }
 
-    return Map.of(
-        "id", copy.getId(),
-        "title", copy.getTitle()
-    );
-}
-
-private void copyQuestionFields(
+  private void copyQuestionFields(
     Question source,
     Question target,
     Survey survey
-) {
+  ) {
     target.setSurvey(survey);
     target.setPrompt(source.getPrompt());
-    target.setDisplayOrder(
-        source.getDisplayOrder()
-    );
+    target.setDisplayOrder(source.getDisplayOrder());
     target.setType(source.getType());
-    target.setRequired(
-        source.isRequired()
-    );
-}
+    target.setRequired(source.isRequired());
+  }
 
   @PostMapping("/{surveyId}/status")
   public Map<String, Object> updateStatus(
@@ -956,8 +878,27 @@ private void copyQuestionFields(
   }
 
   @DeleteMapping("/{surveyId}")
-  public Map<String, Object> deleteSurvey(@PathVariable Long surveyId) {
+  @Transactional
+  public Map<String, Object> deleteSurvey(
+    @PathVariable Long surveyId,
+    Authentication authentication
+  ) {
+    boolean isAdmin = authentication
+      .getAuthorities()
+      .stream()
+      .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+
+    if (!isAdmin) {
+      throw new IllegalStateException(
+        "Only administrators can delete surveys."
+      );
+    }
+
     Survey survey = surveyService.findById(surveyId);
+
+    surveyAssignmentService.deleteBySurveyId(surveyId);
+
+    surveyParticipantService.deleteBySurveyId(surveyId);
 
     surveyService.delete(survey);
 
@@ -988,8 +929,9 @@ private void copyQuestionFields(
     @PathVariable Long questionId,
     @RequestBody Map<String, Object> request
   ) {
-    ShortTextQuestion question =
-      (ShortTextQuestion) questionService.findById(questionId);
+    ShortTextQuestion question = (ShortTextQuestion) questionService.findById(
+      questionId
+    );
 
     if (!question.getSurvey().getId().equals(surveyId)) {
       throw new IllegalArgumentException(
@@ -998,9 +940,7 @@ private void copyQuestionFields(
     }
 
     question.setPrompt((String) request.get("prompt"));
-    question.setRequired(
-      Boolean.TRUE.equals(request.get("required"))
-    );
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
 
     questionService.save(question);
 
@@ -1015,9 +955,9 @@ private void copyQuestionFields(
   }
 
   @PostMapping("/{surveyId}/questions/short-text")
-public Map<String, Object> createShortTextQuestion(
-  @PathVariable Long surveyId,
-  @RequestBody Map<String, Object> request
+  public Map<String, Object> createShortTextQuestion(
+    @PathVariable Long surveyId,
+    @RequestBody Map<String, Object> request
   ) {
     Survey survey = surveyService.findById(surveyId);
 
@@ -1027,12 +967,9 @@ public Map<String, Object> createShortTextQuestion(
     question.setSurvey(survey);
     question.setPrompt((String) request.get("prompt"));
     question.setDisplayOrder((Integer) request.get("displayOrder"));
-    question.setRequired(
-      Boolean.TRUE.equals(request.get("required"))
-    );
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
 
-    question =
-      (ShortTextQuestion) questionService.save(question);
+    question = (ShortTextQuestion) questionService.save(question);
 
     return Map.of(
       "id",
@@ -1054,41 +991,37 @@ public Map<String, Object> createShortTextQuestion(
       .stream()
       .map(answer ->
         Map.<String, Object>of(
-          "answerId", answer.getId(),
-          "userId", answer.getUser().getId(),
-          "username", answer.getUser().getUsername(),
-          "name", answer.getUser().getDisplayName(),
-          "value", answer.getValue()
+          "answerId",
+          answer.getId(),
+          "userId",
+          answer.getUser().getId(),
+          "username",
+          answer.getUser().getUsername(),
+          "name",
+          answer.getUser().getDisplayName(),
+          "value",
+          answer.getValue()
         )
       )
       .toList();
-  }  
+  }
 
-
-  private boolean isSurveyCompletedForUser(
-    Survey survey,
-    User user
-  ) {
+  private boolean isSurveyCompletedForUser(Survey survey, User user) {
     return survey
       .getQuestions()
       .stream()
       .filter(Question::isRequired)
       .allMatch(question ->
         switch (question.getType()) {
-          case SCHEDULING ->
-            schedulingAnswerService.hasAnswered(
-              question.getId(),
-              user.getId()
-            );
-
-          case SHORT_TEXT ->
-            shortTextAnswerService.hasAnswered(
-              question.getId(),
-              user.getId()
-            );
-
-          case SINGLE_SELECT,
-            MULTI_SELECT -> false;
+          case SCHEDULING -> schedulingAnswerService.hasAnswered(
+            question.getId(),
+            user.getId()
+          );
+          case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
+            question.getId(),
+            user.getId()
+          );
+          case SINGLE_SELECT, MULTI_SELECT -> false;
         }
       );
   }

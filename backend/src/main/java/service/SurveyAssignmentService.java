@@ -45,7 +45,12 @@ public class SurveyAssignmentService {
   @Transactional
   public void delete(Long surveyId, Long userId) {
     surveyAssignmentRepository.deleteBySurveyIdAndUserId(surveyId, userId);
-  }
+  } 
 
- 
+@Transactional
+public void deleteBySurveyId(Long surveyId) {
+    surveyAssignmentRepository.deleteBySurveyId(
+        surveyId
+    );
+}  
 }

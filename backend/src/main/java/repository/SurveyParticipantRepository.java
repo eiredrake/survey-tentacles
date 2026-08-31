@@ -15,4 +15,6 @@ public interface SurveyParticipantRepository
         Long surveyId,
         Long userId
     );
+
+    void deleteBySurveyId(Long surveyId);
 }

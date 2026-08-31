@@ -12,4 +12,6 @@ public interface SurveyAssignmentRepository
   boolean existsBySurveyIdAndUserId(Long surveyId, Long userId);
 
   void deleteBySurveyIdAndUserId(Long surveyId, Long userId);
+
+  void deleteBySurveyId(Long surveyId);
 }
