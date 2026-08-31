@@ -46,391 +46,132 @@ async function loadSurveyStatus() {
 
 
 async function refreshSchedulingStatus(question, section) {
-    let statusContainer = section.querySelector(".scheduling-status");
+    let statusContainer =
+        section.querySelector(".scheduling-status");
 
     if (!statusContainer) {
-        statusContainer = document.createElement("div");
-        statusContainer.className = "scheduling-status";
-        section.appendChild(statusContainer);
+        statusContainer =
+            document.createElement("div");
+
+        statusContainer.className =
+            "scheduling-status";
+
+        section.appendChild(
+            statusContainer
+        );
     }
 
     statusContainer.innerHTML = "";
 
-    const resultsHeading = document.createElement("h3");
-    resultsHeading.textContent = "Results";
-    statusContainer.appendChild(resultsHeading);
+    const resultsHeading =
+        document.createElement("h3");
+
+    resultsHeading.textContent =
+        "Results";
+
+    statusContainer.appendChild(
+        resultsHeading
+    );
 
     const resultsResponse = await fetch(
         `/api/surveys/${surveyId}/questions/${question.id}/results`
     );
 
-    const results = await resultsResponse.json();
+    if (!resultsResponse.ok) {
+        showToast(
+            "Unable to load results.",
+            "error"
+        );
+        return;
+    }
+
+    const results =
+        await resultsResponse.json();
 
     const maxVotes = Math.max(
-      0,
-      ...results.map(result => result.votes)
-  );
-  
-  const resultsList = document.createElement("div");
-  resultsList.className = "scheduling-results";
-  
-  for (const result of results) {
-      const item = document.createElement("div");
-      item.className = "scheduling-result";
-  
-      if (maxVotes > 0 && result.votes === maxVotes) {
-          item.classList.add("scheduling-result-leading");
-      }
-  
-      const header = document.createElement("div");
-      header.className = "scheduling-result-header";
-  
-      const date = document.createElement("span");
-      date.textContent =
-          formatSchedulingDate(
-              result.date,
-              result.dateTime
-          );
-  
-      const votes = document.createElement("span");
-      votes.textContent =
-          `${result.votes} vote${result.votes === 1 ? "" : "s"}`;
-  
-      header.appendChild(date);
-      header.appendChild(votes);
-  
-      const barTrack = document.createElement("div");
-      barTrack.className = "scheduling-result-track";
-  
-      const bar = document.createElement("div");
-      bar.className = "scheduling-result-bar";
-  
-      const percentage =
-          maxVotes > 0
-              ? (result.votes / maxVotes) * 100
-              : 0;
-  
-      bar.style.width = `${percentage}%`;
-  
-      barTrack.appendChild(bar);
-  
-      item.appendChild(header);
-      item.appendChild(barTrack);
-  
-      resultsList.appendChild(item);
-  }
-  
-    statusContainer.appendChild(resultsList);
+        0,
+        ...results.map(
+            result => result.votes
+        )
+    );
 
-    if (currentUser?.authorities?.includes("ROLE_ADMIN")) {
-      const participationResponse = await fetch(
-          `/api/surveys/${surveyId}/questions/${question.id}/participation`
-      );
-  
-      if (!participationResponse.ok) {
-          showToast("Unable to load participants.", "error");
-          return;
-      }
-  
-      const participation = await participationResponse.json();
-  
-      const assignmentsResponse = await fetch(
-          `/api/surveys/${surveyId}/assignments`
-      );
-  
-      if (!assignmentsResponse.ok) {
-          showToast("Unable to load assignments.", "error");
-          return;
-      }
-  
-      const assignments = await assignmentsResponse.json();
-  
-      const participantsSection = document.createElement("div");
-      participantsSection.className = "participants-section";
-  
-      const heading = document.createElement("div");
-      heading.className = "section-heading";
-  
-      const headingText = document.createElement("h3");
-      headingText.textContent = "Participants";
-  
-      const addButton = document.createElement("button");
-      addButton.type = "button";
-      addButton.className = "icon-button";
-      addButton.title = "Add participant";
-      addButton.setAttribute("aria-label", "Add participant");
-  
-      const addIcon = document.createElement("i");
-      addIcon.className = "fa-solid fa-plus";
-  
-      addButton.appendChild(addIcon);
-  
-      heading.appendChild(headingText);
-      heading.appendChild(addButton);
-  
-      participantsSection.appendChild(heading);
-  
-      const addControls = document.createElement("div");
-      addControls.className = "participant-add-controls";
-      addControls.hidden = true;
-  
-      const usersResponse = await fetch("/api/users");
-  
-      if (!usersResponse.ok) {
-          showToast("Unable to load users.", "error");
-          return;
-      }
-  
-      const users = await usersResponse.json();
-  
-      const assignedUserIds = new Set(
-          assignments.map(assignment => assignment.userId)
-      );
-  
-      const userSelect = document.createElement("select");
-  
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = "Select user...";
-      userSelect.appendChild(placeholder);
-  
-      for (const user of users) {
-          if (assignedUserIds.has(user.userId)) {
-              continue;
-          }
-  
-          const option = document.createElement("option");
-          option.value = user.username;
-          option.textContent = user.name || user.username;
-  
-          userSelect.appendChild(option);
-      }
-  
-      addControls.appendChild(userSelect);
-      participantsSection.appendChild(addControls);
-  
-      addButton.addEventListener("click", event => {
-        event.stopPropagation();
-    
-        addControls.hidden = false;
-        userSelect.focus();
-    });
-    
-    addControls.addEventListener("click", event => {
-        event.stopPropagation();
-    });
-    
-    document.addEventListener("click", () => {
-        addControls.hidden = true;
-    });
+    const resultsList =
+        document.createElement("div");
 
-    userSelect.addEventListener("change", async () => {
-      if (!userSelect.value) {
-          return;
-      }
-  
-      const csrfResponse = await fetch("/csrf");
-      const csrf = await csrfResponse.json();
-  
-      const response = await fetch(
-          `/api/surveys/${surveyId}/assignments`,
-          {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-                  [csrf.headerName]: csrf.token
-              },
-              body: JSON.stringify({
-                  username: userSelect.value,
-                  required: true
-              })
-          }
-      );
-  
-      if (!response.ok) {
-          showToast(
-              "Unable to add participant.",
-              "error"
-          );
-          return;
-      }
-  
-      addControls.hidden = true;
-  
-      await refreshSchedulingStatus(
-          question,
-          section
-      );
-  
-      showToast(
-          "Participant added.",
-          "success"
-      );
-  });    
-  
+    resultsList.className =
+        "scheduling-results";
 
-    const participationByUserId = new Map(
-      participation.map(participant => [
-          participant.userId,
-          participant
-      ])
-  );
-  
-  const table = document.createElement("table");
-  table.className = "survey-table participants-table";
-  
-  const thead = document.createElement("thead");
-  const headerRow = document.createElement("tr");
-  
-  for (const headingText of [
-      "Name",
-      "Required",
-      "Status",
-      "Actions"
-  ]) {
-      const th = document.createElement("th");
-      th.textContent = headingText;
-      headerRow.appendChild(th);
-  }
-  
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-  
-  const tbody = document.createElement("tbody");
-  
-  for (const assignment of assignments) {
-      const participant =
-          participationByUserId.get(assignment.userId);
-  
-      const row = document.createElement("tr");
-  
-      const nameCell = document.createElement("td");
-      nameCell.textContent =
-          assignment.name || assignment.username;
-  
-      const requiredCell = document.createElement("td");
-  
-      const requiredToggle = document.createElement("input");
-      requiredToggle.type = "checkbox";
-      requiredToggle.checked = assignment.required;
+    for (const result of results) {
+        const item =
+            document.createElement("div");
 
-      requiredToggle.addEventListener("change", async () => {
-        const csrfResponse = await fetch("/csrf");
-        const csrf = await csrfResponse.json();
-    
-        const response = await fetch(
-            `/api/surveys/${surveyId}/assignments/${assignment.userId}/required`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    [csrf.headerName]: csrf.token
-                },
-                body: JSON.stringify({
-                    required: requiredToggle.checked
-                })
-            }
-        );
-    
-        if (!response.ok) {
-            requiredToggle.checked =
-                !requiredToggle.checked;
-    
-            showToast(
-                "Unable to update participant.",
-                "error"
+        item.className =
+            "scheduling-result";
+
+        if (
+            maxVotes > 0 &&
+            result.votes === maxVotes
+        ) {
+            item.classList.add(
+                "scheduling-result-leading"
             );
-    
-            return;
         }
-    
-        showToast(
-            "Participant updated.",
-            "success"
-        );
-    });      
-  
-      requiredCell.appendChild(requiredToggle);
-  
-      const statusCell = document.createElement("td");
-  
-      statusCell.textContent =
-          participant?.answered
-              ? "Answered"
-              : "Not answered";
-  
-      const actionsCell = document.createElement("td");
-      actionsCell.className = "actions-column";
-  
-      const removeButton = document.createElement("button");
-      removeButton.type = "button";
-      removeButton.className = "icon-button";
-      removeButton.title = "Remove participant";
-      removeButton.setAttribute(
-          "aria-label",
-          "Remove participant"
-      );
 
-      removeButton.addEventListener("click", async () => {
-        const confirmed = confirm(
-            `Remove ${assignment.name || assignment.username} from this survey?`
-        );
-    
-        if (!confirmed) {
-            return;
-        }
-    
-        const csrfResponse = await fetch("/csrf");
-        const csrf = await csrfResponse.json();
-    
-        const response = await fetch(
-            `/api/surveys/${surveyId}/assignments/${assignment.userId}`,
-            {
-                method: "DELETE",
-                headers: {
-                    [csrf.headerName]: csrf.token
-                }
-            }
-        );
-    
-        if (!response.ok) {
-            showToast(
-                "Unable to remove participant.",
-                "error"
+        const header =
+            document.createElement("div");
+
+        header.className =
+            "scheduling-result-header";
+
+        const date =
+            document.createElement("span");
+
+        date.textContent =
+            formatSchedulingDate(
+                result.date,
+                result.dateTime
             );
-            return;
-        }
-    
-        await refreshSchedulingStatus(
-            question,
-            section
-        );
-    
-        showToast(
-            "Participant removed.",
-            "success"
-        );
-    });      
-  
-      const removeIcon = document.createElement("i");
-      removeIcon.className = "fa-solid fa-xmark";
-  
-      removeButton.appendChild(removeIcon);
-      actionsCell.appendChild(removeButton);
-  
-      row.appendChild(nameCell);
-      row.appendChild(requiredCell);
-      row.appendChild(statusCell);
-      row.appendChild(actionsCell);
-  
-      tbody.appendChild(row);
-  }
-  
-  table.appendChild(tbody);
-  participantsSection.appendChild(table);
 
-      statusContainer.appendChild(participantsSection);
-  }
+        const votes =
+            document.createElement("span");
+
+        votes.textContent =
+            `${result.votes} vote${result.votes === 1 ? "" : "s"}`;
+
+        header.appendChild(date);
+        header.appendChild(votes);
+
+        const barTrack =
+            document.createElement("div");
+
+        barTrack.className =
+            "scheduling-result-track";
+
+        const bar =
+            document.createElement("div");
+
+        bar.className =
+            "scheduling-result-bar";
+
+        const percentage =
+            maxVotes > 0
+                ? (result.votes / maxVotes) * 100
+                : 0;
+
+        bar.style.width =
+            `${percentage}%`;
+
+        barTrack.appendChild(bar);
+
+        item.appendChild(header);
+        item.appendChild(barTrack);
+
+        resultsList.appendChild(item);
+    }
+
+    statusContainer.appendChild(
+        resultsList
+    );
 }
 
 async function refreshShortTextStatus(question, section) {
@@ -665,17 +406,17 @@ async function loadQuestions() {
                     "success"
                 );
 
-                await refreshShortTextStatus(
-                    question,
-                    section
-                );                
+               // await refreshShortTextStatus(
+               //     question,
+               //     section
+               // );                
             }
         );
 
-        await refreshShortTextStatus(
-            question,
-            section
-        );
+        //await refreshShortTextStatus(
+        //    question,
+        //    section
+        //);
     }      
 
       if (optionsContainer && submitButton) {
@@ -852,10 +593,10 @@ async function loadQuestions() {
                           "success"
                       );
 
-                      await refreshSchedulingStatus(
-                          question,
-                          section
-                      );
+                      //await refreshSchedulingStatus(
+                      //    question,
+                      //    section
+                      //);
                   } else {
                       showToast(
                           "Unable to save response.",
@@ -865,10 +606,10 @@ async function loadQuestions() {
               }
           );
 
-          await refreshSchedulingStatus(
-              question,
-              section
-          );
+          //await refreshSchedulingStatus(
+          //    question,
+          //    section
+          //);
       }
 
       container.appendChild(fragment);

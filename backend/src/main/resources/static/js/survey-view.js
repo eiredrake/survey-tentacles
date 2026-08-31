@@ -201,27 +201,7 @@ async function loadQuestions() {
                 fragment.querySelector(
                     ".survey-question"
                 );
-    
-            const heading =
-                section.querySelector(
-                    ".question-prompt"
-                );
-    
-            heading.textContent =
-                question.prompt;
-    
-            const meta =
-                section.querySelector(
-                    ".question-meta"
-                );
-    
-            if (meta) {
-                meta.textContent =
-                    question.required
-                        ? "Required"
-                        : "Optional";
-            }
-    
+        
             const resultsContainer = section.querySelector(".scheduling-view-results" );
     
             if (resultsContainer) {
