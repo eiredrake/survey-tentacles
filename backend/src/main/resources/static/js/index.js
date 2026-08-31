@@ -122,6 +122,58 @@ async function loadSurveys() {
         
         actionsCell.appendChild(viewLink);
 
+        const copyButton = document.createElement("button");
+
+        copyButton.type = "button";
+        copyButton.className = "icon-button";
+        copyButton.title = "Copy survey";
+
+        copyButton.setAttribute(
+            "aria-label",
+            "Copy survey"
+        );
+
+        copyButton.innerHTML =
+            '<i class="fa-solid fa-copy"></i>';
+
+        copyButton.addEventListener(
+            "click",
+            async () => {
+                const csrfResponse =
+                    await fetch("/csrf");
+
+                const csrf =
+                    await csrfResponse.json();
+
+                const copyResponse = await fetch(
+                    `/api/surveys/${survey.id}/copy`,
+                    {
+                        method: "POST",
+                        headers: {
+                            [csrf.headerName]:
+                                csrf.token
+                        }
+                    }
+                );
+
+                if (!copyResponse.ok) {
+                    showToast(
+                        "Unable to copy survey.",
+                        "error"
+                    );
+                    return;
+                }
+
+                const copiedSurvey =
+                    await copyResponse.json();
+
+                window.location.href =
+                    `/survey-edit.html?id=${copiedSurvey.id}`;
+            }
+        );
+
+        actionsCell.appendChild(copyButton);
+
 
           const editLink = document.createElement("a");
           editLink.href =

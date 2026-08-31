@@ -742,6 +742,144 @@ public Map<String, Object> answerShortTextQuestion(
     return Map.of("id", survey.getId(), "title", survey.getTitle());
   }
 
+  @PostMapping("/{surveyId}/copy")
+public Map<String, Object> copySurvey(
+    @PathVariable Long surveyId,
+    @AuthenticationPrincipal OidcUser oidcUser
+) {
+    Survey source =
+        surveyService.findById(surveyId);
+
+    User currentUser =
+        userService.findOrCreate(oidcUser);
+
+    Survey copy =
+        new Survey();
+
+    copy.setTitle(
+        "Copy of " + source.getTitle()
+    );
+    copy.setCreator(currentUser);
+    copy.setStatus(SurveyStatus.DEVELOPMENT);
+    copy.setEverPublished(false);
+
+    copy =
+        surveyService.save(copy);
+
+    for (Question sourceQuestion :
+        source.getQuestions()) {
+
+    Question copiedQuestion =
+      switch (sourceQuestion.getType()) {
+
+          case SCHEDULING -> {
+              SchedulingQuestion sourceScheduling =
+                  (SchedulingQuestion) sourceQuestion;
+
+              SchedulingQuestion targetScheduling =
+                  new SchedulingQuestion();
+
+              copyQuestionFields(
+                  sourceScheduling,
+                  targetScheduling,
+                  copy
+              );
+
+              for (SchedulingOption sourceOption :
+                  sourceScheduling.getOptions()) {
+
+                  SchedulingOption targetOption =
+                      new SchedulingOption();
+
+                  targetOption.setQuestion(
+                      targetScheduling
+                  );
+                  targetOption.setDate(
+                      sourceOption.getDate()
+                  );
+                  targetOption.setDateTime(
+                      sourceOption.getDateTime()
+                  );
+
+                  targetScheduling
+                      .getOptions()
+                      .add(targetOption);
+              }
+
+              yield targetScheduling;
+          }
+
+          case SHORT_TEXT -> {
+              ShortTextQuestion targetShortText =
+                  new ShortTextQuestion();
+
+              copyQuestionFields(
+                  sourceQuestion,
+                  targetShortText,
+                  copy
+              );
+
+              yield targetShortText;
+          }
+
+          case SINGLE_SELECT,
+              MULTI_SELECT ->
+              throw new UnsupportedOperationException(
+                  "Copy not implemented for question type: "
+                  + sourceQuestion.getType()
+              );
+      };
+
+      questionService.save(
+          copiedQuestion
+      );
+    }
+
+    for (SurveyAssignment sourceAssignment :
+        surveyAssignmentService.findBySurveyId(
+            source.getId()
+        )) {
+
+        SurveyAssignment copiedAssignment =
+            new SurveyAssignment();
+
+        copiedAssignment.setSurvey(copy);
+
+        copiedAssignment.setUser(
+            sourceAssignment.getUser()
+        );
+
+        copiedAssignment.setRequired(
+            sourceAssignment.isRequired()
+        );
+
+        surveyAssignmentService.save(
+            copiedAssignment
+        );
+    }    
+
+    return Map.of(
+        "id", copy.getId(),
+        "title", copy.getTitle()
+    );
+}
+
+private void copyQuestionFields(
+    Question source,
+    Question target,
+    Survey survey
+) {
+    target.setSurvey(survey);
+    target.setPrompt(source.getPrompt());
+    target.setDisplayOrder(
+        source.getDisplayOrder()
+    );
+    target.setType(source.getType());
+    target.setRequired(
+        source.isRequired()
+    );
+}
+
   @PostMapping("/{surveyId}/status")
   public Map<String, Object> updateStatus(
     @PathVariable Long surveyId,
