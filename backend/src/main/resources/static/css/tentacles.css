@@ -455,15 +455,6 @@ main {
   min-width: 0;
 }
 
-.relationship-score-heart {
-  color: #c62828;
-}
-
-.relationship-score-dagger {
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
 .relationship-score-value {
   margin-left: 0.25rem;
   font-variant-numeric: tabular-nums;
@@ -472,4 +463,20 @@ main {
 .relationship-score-button:disabled {
   cursor: default;
   opacity: 0.4;
+}
+
+.relationship-score-like-positive {
+  color: #c62828;
+}
+
+.relationship-score-like-negative {
+  color: #444;
+}
+
+.relationship-score-trust-positive {
+  color: #2e7d32;
+}
+
+.relationship-score-trust-negative {
+  color: #444;
 }

@@ -234,7 +234,7 @@ async function refreshShortTextStatus(question, section) {
     }
 }
 
-function createRelationshipScoreControl(className, subjectId) {
+function createRelationshipScoreControl(className, subjectId, scoreType) {
     const control = document.createElement("div");
 
     control.className = `relationship-score-control ${className}`;
@@ -247,8 +247,7 @@ function createRelationshipScoreControl(className, subjectId) {
     decreaseButton.className = "relationship-score-button";
     decreaseButton.title = "Decrease";
     decreaseButton.setAttribute("aria-label", "Decrease score");
-    decreaseButton.innerHTML =
-        '<i class="fa-solid fa-minus"></i>';
+    decreaseButton.innerHTML = '<i class="fa-solid fa-minus"></i>';
 
     const display = document.createElement("span");
     display.className = "relationship-score-display";
@@ -258,18 +257,19 @@ function createRelationshipScoreControl(className, subjectId) {
     increaseButton.className = "relationship-score-button";
     increaseButton.title = "Increase";
     increaseButton.setAttribute("aria-label", "Increase score");
-    increaseButton.innerHTML =
-        '<i class="fa-solid fa-plus"></i>';
+    increaseButton.innerHTML = '<i class="fa-solid fa-plus"></i>';
 
-    const updateDisplay = () => {
+    const updateDisplay = () => { 
         display.replaceChildren();
 
         if (score < 0) {
             for (let i = 0; i < Math.abs(score); i++) {
-                const icon = document.createElement("span");
+                const icon = document.createElement("i");
         
-                icon.className = "fa-solid fa-heart-crack relationship-score-dagger";
-                //icon.textContent = "🗡︎";
+                icon.className =
+                    scoreType === "trust"
+                        ? "fa-solid fa-shield-halved relationship-score-trust-negative"
+                        : "fa-solid fa-heart-crack relationship-score-like-negative";
         
                 display.appendChild(icon);
             }
@@ -282,15 +282,19 @@ function createRelationshipScoreControl(className, subjectId) {
         } else if (score > 0) {
             for (let i = 0; i < score; i++) {
                 const icon = document.createElement("i");
-                icon.className = "fa-solid fa-heart relationship-score-heart";
-
+        
+                icon.className =
+                    scoreType === "trust"
+                        ? "fa-solid fa-shield relationship-score-trust-positive"
+                        : "fa-solid fa-heart relationship-score-like-positive";
+        
                 display.appendChild(icon);
             }
-
+        
             const value = document.createElement("span");
             value.className = "relationship-score-value";
             value.textContent = `+${score}`;
-
+        
             display.appendChild(value);
         } else {
             display.textContent = "— No opinion";
@@ -477,17 +481,18 @@ async function loadQuestions() {
         
                 const likeInput = createRelationshipScoreControl(
                     "relationship-like",
-                    subject.id
+                    subject.id,
+                    "like"
                 );
         
-       
                 likeCell.appendChild(likeInput);
         
                 const trustCell = document.createElement("td");
         
                 const trustInput = createRelationshipScoreControl(
                     "relationship-trust",
-                    subject.id
+                    subject.id,
+                    "trust"
                 );
         
        
