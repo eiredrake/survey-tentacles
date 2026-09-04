@@ -4,10 +4,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.eiredrake.tentacles.model.Question;
 import org.eiredrake.tentacles.model.QuestionType;
+import org.eiredrake.tentacles.model.RelationshipAnswer;
+import org.eiredrake.tentacles.model.RelationshipQuestion;
+import org.eiredrake.tentacles.model.RelationshipSubject;
 import org.eiredrake.tentacles.model.SchedulingAnswer;
 import org.eiredrake.tentacles.model.SchedulingOption;
 import org.eiredrake.tentacles.model.SchedulingQuestion;
@@ -18,6 +22,7 @@ import org.eiredrake.tentacles.model.SurveyAssignment;
 import org.eiredrake.tentacles.model.SurveyStatus;
 import org.eiredrake.tentacles.model.User;
 import org.eiredrake.tentacles.service.QuestionService;
+import org.eiredrake.tentacles.service.RelationshipAnswerService;
 import org.eiredrake.tentacles.service.SchedulingAnswerService;
 import org.eiredrake.tentacles.service.ShortTextAnswerService;
 import org.eiredrake.tentacles.service.SurveyAssignmentService;
@@ -47,6 +52,7 @@ public class SurveyController {
   private final SurveyParticipantService surveyParticipantService;
   private final SurveyAssignmentService surveyAssignmentService;
   private final ShortTextAnswerService shortTextAnswerService;
+  private final RelationshipAnswerService relationshipAnswerService;
 
   public SurveyController(
     SurveyService surveyService,
@@ -55,7 +61,8 @@ public class SurveyController {
     SchedulingAnswerService schedulingAnswerService,
     SurveyParticipantService surveyParticipantService,
     SurveyAssignmentService surveyAssignmentService,
-    ShortTextAnswerService shortTextAnswerService
+    ShortTextAnswerService shortTextAnswerService,
+    RelationshipAnswerService relationshipAnswerService
   ) {
     this.surveyService = surveyService;
     this.userService = userService;
@@ -64,6 +71,7 @@ public class SurveyController {
     this.surveyParticipantService = surveyParticipantService;
     this.surveyAssignmentService = surveyAssignmentService;
     this.shortTextAnswerService = shortTextAnswerService;
+    this.relationshipAnswerService = relationshipAnswerService;
   }
 
   @PostMapping
@@ -273,6 +281,111 @@ public class SurveyController {
     );
   }
 
+  @PostMapping("/{surveyId}/questions/{questionId}/relationship")
+  public Map<String, Object> updateRelationshipQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId,
+    @RequestBody Map<String, Object> request
+  ) {
+    RelationshipQuestion question =
+      (RelationshipQuestion) questionService.findById(questionId);
+
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
+    }
+
+    question.setPrompt((String) request.get("prompt"));
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> subjects = (List<
+      Map<String, Object>
+    >) request.get("subjects");
+
+    if (subjects == null) {
+      subjects = List.of();
+    }
+
+    relationshipAnswerService.deleteForQuestion(question.getId());
+
+    question.getSubjects().clear();
+
+    for (int i = 0; i < subjects.size(); i++) {
+      Map<String, Object> subjectRequest = subjects.get(i);
+
+      RelationshipSubject subject = new RelationshipSubject();
+
+      subject.setQuestion(question);
+      subject.setName((String) subjectRequest.get("name"));
+      subject.setDescription((String) subjectRequest.get("description"));
+      subject.setDisplayOrder(i);
+
+      question.getSubjects().add(subject);
+    }
+
+    questionService.save(question);
+
+    return Map.of(
+      "id",
+      question.getId(),
+      "prompt",
+      question.getPrompt(),
+      "required",
+      question.isRequired(),
+      "subjectCount",
+      question.getSubjects().size()
+    );
+  }
+
+  @PostMapping("/{surveyId}/questions/relationship")
+  public Map<String, Object> createRelationshipQuestion(
+    @PathVariable Long surveyId,
+    @RequestBody Map<String, Object> request
+  ) {
+    Survey survey = surveyService.findById(surveyId);
+
+    RelationshipQuestion question = new RelationshipQuestion();
+
+    question.setType(QuestionType.RELATIONSHIP);
+    question.setSurvey(survey);
+    question.setPrompt((String) request.get("prompt"));
+    question.setDisplayOrder((Integer) request.get("displayOrder"));
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> subjects = (List<
+      Map<String, Object>
+    >) request.get("subjects");
+
+    if (subjects != null) {
+      for (int i = 0; i < subjects.size(); i++) {
+        Map<String, Object> subjectRequest = subjects.get(i);
+
+        RelationshipSubject subject = new RelationshipSubject();
+
+        subject.setQuestion(question);
+        subject.setName((String) subjectRequest.get("name"));
+        subject.setDescription((String) subjectRequest.get("description"));
+        subject.setDisplayOrder(i);
+
+        question.getSubjects().add(subject);
+      }
+    }
+
+    question = (RelationshipQuestion) questionService.save(question);
+
+    return Map.of(
+      "id",
+      question.getId(),
+      "prompt",
+      question.getPrompt(),
+      "subjectCount",
+      question.getSubjects().size()
+    );
+  }
+
   @PostMapping("/{surveyId}/questions/scheduling")
   public Map<String, Object> createSchedulingQuestion(
     @PathVariable Long surveyId,
@@ -369,6 +482,28 @@ public class SurveyController {
       result.put("options", options);
     }
 
+    if (question instanceof RelationshipQuestion relationshipQuestion) {
+      result.put(
+        "subjects",
+        relationshipQuestion
+          .getSubjects()
+          .stream()
+          .map(subject ->
+            Map.<String, Object>of(
+              "id",
+              subject.getId(),
+              "name",
+              subject.getName(),
+              "description",
+              subject.getDescription() == null ? "" : subject.getDescription(),
+              "displayOrder",
+              subject.getDisplayOrder()
+            )
+          )
+          .toList()
+      );
+    }
+
     return result;
   }
 
@@ -451,6 +586,48 @@ public class SurveyController {
       "value",
       ""
     );
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/relationship")
+  public List<Map<String, Object>> getRelationshipAnswers(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId
+  ) {
+    RelationshipQuestion question =
+      (RelationshipQuestion) questionService.findById(questionId);
+
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
+    }
+
+    return relationshipAnswerService
+      .findByQuestionId(questionId)
+      .stream()
+      .map(answer -> {
+        Map<String, Object> result = new HashMap<>();
+
+        result.put("userId", answer.getUser().getId());
+
+        result.put("name", answer.getUser().getDisplayName());
+
+        result.put("username", answer.getUser().getUsername());
+
+        result.put("subjectId", answer.getSubject().getId());
+
+        result.put("likeScore", answer.getLikeScore());
+
+        result.put("trustScore", answer.getTrustScore());
+
+        result.put(
+          "comment",
+          answer.getComment() == null ? "" : answer.getComment()
+        );
+
+        return result;
+      })
+      .toList();
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
@@ -763,6 +940,27 @@ public class SurveyController {
 
           yield targetShortText;
         }
+        case RELATIONSHIP -> {
+          RelationshipQuestion sourceRelationship =
+            (RelationshipQuestion) sourceQuestion;
+
+          RelationshipQuestion targetRelationship = new RelationshipQuestion();
+
+          copyQuestionFields(sourceRelationship, targetRelationship, copy);
+
+          for (RelationshipSubject sourceSubject : sourceRelationship.getSubjects()) {
+            RelationshipSubject targetSubject = new RelationshipSubject();
+
+            targetSubject.setQuestion(targetRelationship);
+            targetSubject.setName(sourceSubject.getName());
+            targetSubject.setDescription(sourceSubject.getDescription());
+            targetSubject.setDisplayOrder(sourceSubject.getDisplayOrder());
+
+            targetRelationship.getSubjects().add(targetSubject);
+          }
+
+          yield targetRelationship;
+        }
         case
           SINGLE_SELECT,
           MULTI_SELECT -> throw new UnsupportedOperationException(
@@ -1021,8 +1219,188 @@ public class SurveyController {
             question.getId(),
             user.getId()
           );
+          case RELATIONSHIP -> relationshipAnswerService
+            .findByQuestionIdAndUserId(question.getId(), user.getId())
+            .stream()
+            .anyMatch(
+              answer ->
+                answer.getLikeScore() != null || answer.getTrustScore() != null
+            );
           case SINGLE_SELECT, MULTI_SELECT -> false;
         }
       );
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/answers/relationship")
+  @Transactional
+  public Map<String, Object> answerRelationshipQuestion(
+    @PathVariable Long surveyId,
+    @PathVariable Long questionId,
+    @AuthenticationPrincipal OidcUser oidcUser,
+    @RequestBody Map<String, Object> request
+  ) {
+    RelationshipQuestion question =
+      (RelationshipQuestion) questionService.findById(questionId);
+
+    if (!question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException(
+        "Question does not belong to survey: " + surveyId
+      );
+    }
+
+    Survey survey = surveyService.findById(surveyId);
+
+    if (survey.getStatus() != SurveyStatus.OPEN) {
+      throw new IllegalStateException("Survey is not open for responses.");
+    }
+
+    User user = userService.findOrCreate(oidcUser);
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> responses = (List<
+      Map<String, Object>
+    >) request.get("responses");
+
+    if (responses == null) {
+      responses = List.of();
+    }
+
+    boolean hasRating = false;
+
+    // Validate the entire submission before deleting any existing answers.
+    for (Map<String, Object> response : responses) {
+      Object subjectIdValue = response.get("subjectId");
+
+      if (!(subjectIdValue instanceof Number subjectIdNumber)) {
+        throw new IllegalArgumentException(
+          "Relationship response is missing a valid subjectId."
+        );
+      }
+
+      Long subjectId = subjectIdNumber.longValue();
+
+      RelationshipSubject subject = relationshipAnswerService.findSubjectById(
+        subjectId
+      );
+
+      if (!subject.getQuestion().getId().equals(question.getId())) {
+        throw new IllegalArgumentException(
+          "Relationship subject does not belong to question: " + questionId
+        );
+      }
+
+      Integer likeScore = null;
+      Integer trustScore = null;
+
+      Object likeValue = response.get("likeScore");
+      Object trustValue = response.get("trustScore");
+
+      if (likeValue instanceof Number number) {
+        likeScore = number.intValue();
+      } else if (likeValue != null) {
+        throw new IllegalArgumentException(
+          "Like score must be a number between -10 and 10."
+        );
+      }
+
+      if (trustValue instanceof Number number) {
+        trustScore = number.intValue();
+      } else if (trustValue != null) {
+        throw new IllegalArgumentException(
+          "Trust score must be a number between -10 and 10."
+        );
+      }
+
+      if (likeScore != null && (likeScore < -10 || likeScore > 10)) {
+        throw new IllegalArgumentException(
+          "Like score must be between -10 and 10."
+        );
+      }
+
+      if (trustScore != null && (trustScore < -10 || trustScore > 10)) {
+        throw new IllegalArgumentException(
+          "Trust score must be between -10 and 10."
+        );
+      }
+
+      String comment = (String) response.get("comment");
+
+      if (comment != null && comment.length() > 500) {
+        throw new IllegalArgumentException(
+          "Comment cannot exceed 500 characters."
+        );
+      }
+
+      if (likeScore != null || trustScore != null) {
+        hasRating = true;
+      }
+    }
+
+    if (question.isRequired() && !hasRating) {
+      throw new IllegalArgumentException(
+        "This question requires at least one Like or Trust rating."
+      );
+    }
+
+    surveyParticipantService.add(survey, user);
+
+    relationshipAnswerService.deleteForUserAndQuestion(
+      question.getId(),
+      user.getId()
+    );
+
+    int saved = 0;
+
+    for (Map<String, Object> response : responses) {
+      Long subjectId = ((Number) response.get("subjectId")).longValue();
+
+      RelationshipSubject subject = relationshipAnswerService.findSubjectById(
+        subjectId
+      );
+
+      Integer likeScore =
+        response.get("likeScore") == null
+          ? null
+          : ((Number) response.get("likeScore")).intValue();
+
+      Integer trustScore =
+        response.get("trustScore") == null
+          ? null
+          : ((Number) response.get("trustScore")).intValue();
+
+      String comment = (String) response.get("comment");
+
+      if (comment == null) {
+        comment = "";
+      }
+
+      comment = comment.trim();
+
+      // Completely blank rows do not create answer records.
+      if (likeScore == null && trustScore == null && comment.isBlank()) {
+        continue;
+      }
+
+      RelationshipAnswer answer = new RelationshipAnswer();
+
+      answer.setQuestion(question);
+      answer.setUser(user);
+      answer.setSubject(subject);
+      answer.setLikeScore(likeScore);
+      answer.setTrustScore(trustScore);
+      answer.setComment(comment);
+
+      relationshipAnswerService.save(answer);
+      saved++;
+    }
+
+    return Map.of(
+      "questionId",
+      question.getId(),
+      "userId",
+      user.getId(),
+      "responseCount",
+      saved
+    );
   }
 }

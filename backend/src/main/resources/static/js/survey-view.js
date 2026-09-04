@@ -2,39 +2,223 @@ const params = new URLSearchParams(window.location.search);
 const surveyId = params.get("id");
 
 async function loadSurvey() {
-    const response = await fetch("/api/surveys");
+  const response = await fetch("/api/surveys");
 
-    if (!response.ok) {
-        showToast("Unable to load survey.", "error");
-        return;
+  if (!response.ok) {
+    showToast("Unable to load survey.", "error");
+    return;
+  }
+
+  const surveys = await response.json();
+
+  const survey = surveys.find(
+    (survey) => String(survey.id) === String(surveyId),
+  );
+
+  if (!survey) {
+    showToast("Survey not found.", "error");
+    return;
+  }
+
+  document.getElementById("survey-title").textContent = survey.title;
+
+  document.getElementById("edit-survey-link").href =
+    `/survey-edit.html?id=${survey.id}`;
+}
+
+async function renderRelationshipResults(question, container) {
+  const detailResponse = await fetch(
+    `/api/surveys/${surveyId}/questions/${question.id}`,
+  );
+
+  if (!detailResponse.ok) {
+    showToast("Unable to load relationship question.", "error");
+    return;
+  }
+
+  const detail = await detailResponse.json();
+
+  const answersResponse = await fetch(
+    `/api/surveys/${surveyId}/questions/${question.id}/answers/relationship`,
+  );
+
+  if (!answersResponse.ok) {
+    showToast("Unable to load relationship results.", "error");
+    return;
+  }
+
+  const answers = await answersResponse.json();
+
+  container.replaceChildren();
+
+  const average = (scores) => {
+    if (!scores.length) {
+      return null;
     }
 
-    const surveys = await response.json();
+    return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  };
 
-    const survey = surveys.find(
-        survey => String(survey.id) === String(surveyId)
+  const formatAverage = (value) => {
+    if (value === null) {
+      return "—";
+    }
+
+    const rounded = value.toFixed(1);
+
+    return value > 0 ? `+${rounded}` : rounded;
+  };
+
+  for (const subject of detail.subjects) {
+    const subjectAnswers = answers.filter(
+      (answer) => answer.subjectId === subject.id,
     );
 
-    if (!survey) {
-        showToast("Survey not found.", "error");
-        return;
+    const comments = subjectAnswers.filter(
+      (answer) => answer.comment && answer.comment.trim().length > 0,
+    );
+
+    const likeScores = subjectAnswers
+      .map((answer) => answer.likeScore)
+      .filter((score) => score !== null);
+
+    const trustScores = subjectAnswers
+      .map((answer) => answer.trustScore)
+      .filter((score) => score !== null);
+
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+
+    const nameText = document.createElement("span");
+
+    nameText.textContent = subject.name;
+
+    nameCell.appendChild(nameText);
+
+    if (comments.length > 0) {
+      const chevron = document.createElement("i");
+
+      chevron.className = "fa-solid fa-chevron-right";
+
+      chevron.style.marginLeft = "0.5rem";
+
+      nameCell.appendChild(chevron);
     }
 
-    document.getElementById("survey-title").textContent =
-        survey.title;
+    if (subject.description) {
+      nameCell.title = subject.description;
+    }
 
-    document.getElementById("edit-survey-link").href =
-        `/survey-edit.html?id=${survey.id}`;
+    const likeCell = document.createElement("td");
+
+    likeCell.textContent = formatAverage(average(likeScores));
+
+    const trustCell = document.createElement("td");
+
+    trustCell.textContent = formatAverage(average(trustScores));
+
+    const responsesCell = document.createElement("td");
+
+    responsesCell.textContent = subjectAnswers.length;
+
+    row.appendChild(nameCell);
+    row.appendChild(likeCell);
+    row.appendChild(trustCell);
+    row.appendChild(responsesCell);
+
+    container.appendChild(row);
+
+    if (comments.length === 0) {
+      continue;
+    }
+
+    row.classList.add("relationship-comment-toggle");
+
+    row.style.cursor = "pointer";
+
+    const detailRow = document.createElement("tr");
+
+    detailRow.hidden = true;
+
+    const detailCell = document.createElement("td");
+
+    detailCell.colSpan = 4;
+
+    const commentsTable = document.createElement("table");
+
+    commentsTable.className = "survey-table relationship-comments-table";
+
+    const commentsHead = document.createElement("thead");
+
+    const commentsHeaderRow = document.createElement("tr");
+
+    const participantHeading = document.createElement("th");
+
+    participantHeading.textContent = "Participant";
+
+    const commentHeading = document.createElement("th");
+
+    commentHeading.textContent = "Comment";
+
+    commentsHeaderRow.appendChild(participantHeading);
+
+    commentsHeaderRow.appendChild(commentHeading);
+
+    commentsHead.appendChild(commentsHeaderRow);
+
+    commentsTable.appendChild(commentsHead);
+
+    const commentsBody = document.createElement("tbody");
+
+    for (const answer of comments) {
+      const commentRow = document.createElement("tr");
+
+      const participantCell = document.createElement("td");
+
+      participantCell.textContent = answer.name || answer.username || "Unknown";
+
+      const commentCell = document.createElement("td");
+
+      commentCell.textContent = answer.comment;
+
+      commentRow.appendChild(participantCell);
+
+      commentRow.appendChild(commentCell);
+
+      commentsBody.appendChild(commentRow);
+    }
+
+    commentsTable.appendChild(commentsBody);
+
+    detailCell.appendChild(commentsTable);
+
+    detailRow.appendChild(detailCell);
+
+    container.appendChild(detailRow);
+
+    row.addEventListener("click", () => {
+      detailRow.hidden = !detailRow.hidden;
+
+      const chevron = nameCell.querySelector("i");
+
+      if (chevron) {
+        chevron.className = detailRow.hidden
+          ? "fa-solid fa-chevron-right"
+          : "fa-solid fa-chevron-down";
+      }
+    });
+  }
 }
 
 async function renderSchedulingResults(question, section) {
   const resultsResponse = await fetch(
-      `/api/surveys/${surveyId}/questions/${question.id}/results`
+    `/api/surveys/${surveyId}/questions/${question.id}/results`,
   );
 
   if (!resultsResponse.ok) {
-      showToast("Unable to load scheduling results.", "error");
-      return;
+    showToast("Unable to load scheduling results.", "error");
+    return;
   }
 
   const results = await resultsResponse.json();
@@ -44,240 +228,182 @@ async function renderSchedulingResults(question, section) {
 
   section.appendChild(resultsHeading);
 
-  const maxVotes = Math.max(
-      0,
-      ...results.map(result => result.votes)
-  );
+  const maxVotes = Math.max(0, ...results.map((result) => result.votes));
 
   const resultsList = document.createElement("div");
   resultsList.className = "scheduling-results";
 
   for (const result of results) {
-      const item = document.createElement("div");
-      item.className = "scheduling-result";
+    const item = document.createElement("div");
+    item.className = "scheduling-result";
 
-      if (maxVotes > 0 && result.votes === maxVotes) {
-          item.classList.add("scheduling-result-leading");
-      }
+    if (maxVotes > 0 && result.votes === maxVotes) {
+      item.classList.add("scheduling-result-leading");
+    }
 
-      const header = document.createElement("div");
-      header.className = "scheduling-result-header";
+    const header = document.createElement("div");
+    header.className = "scheduling-result-header";
 
-      const date = document.createElement("span");
-      date.textContent = formatSchedulingDate(
-          result.date,
-          result.dateTime
-      );
+    const date = document.createElement("span");
+    date.textContent = formatSchedulingDate(result.date, result.dateTime);
 
-      const votes = document.createElement("span");
-      votes.textContent =
-          `${result.votes} vote${result.votes === 1 ? "" : "s"}`;
+    const votes = document.createElement("span");
+    votes.textContent = `${result.votes} vote${result.votes === 1 ? "" : "s"}`;
 
-      header.appendChild(date);
-      header.appendChild(votes);
+    header.appendChild(date);
+    header.appendChild(votes);
 
-      const barTrack = document.createElement("div");
-      barTrack.className = "scheduling-result-track";
+    const barTrack = document.createElement("div");
+    barTrack.className = "scheduling-result-track";
 
-      const bar = document.createElement("div");
-      bar.className = "scheduling-result-bar";
+    const bar = document.createElement("div");
+    bar.className = "scheduling-result-bar";
 
-      const percentage =
-          maxVotes > 0
-              ? (result.votes / maxVotes) * 100
-              : 0;
+    const percentage = maxVotes > 0 ? (result.votes / maxVotes) * 100 : 0;
 
-      bar.style.width = `${percentage}%`;
+    bar.style.width = `${percentage}%`;
 
-      barTrack.appendChild(bar);
+    barTrack.appendChild(bar);
 
-      item.appendChild(header);
-      item.appendChild(barTrack);
+    item.appendChild(header);
+    item.appendChild(barTrack);
 
-      resultsList.appendChild(item);
+    resultsList.appendChild(item);
   }
 
   section.appendChild(resultsList);
 }
 
 async function loadQuestions() {
-  const questionList =
-      document.getElementById("question-list");
+  const questionList = document.getElementById("question-list");
 
   if (!surveyId) {
-      return;
+    return;
   }
 
-  const response = await fetch(
-      `/api/surveys/${surveyId}/questions`
-  );
+  const response = await fetch(`/api/surveys/${surveyId}/questions`);
 
   if (!response.ok) {
-      showToast(
-          "Unable to load questions.",
-          "error"
-      );
-      return;
+    showToast("Unable to load questions.", "error");
+    return;
   }
 
-  const questions =
-      await response.json();
+  const questions = await response.json();
 
   questionList.replaceChildren();
 
   for (const question of questions) {
-      const row =
-          document.createElement("tr");
+    const row = document.createElement("tr");
 
-      const questionCell =
-          document.createElement("td");
+    const questionCell = document.createElement("td");
 
-      questionCell.textContent =
-          question.prompt;
+    questionCell.textContent = question.prompt;
 
-      const typeCell =
-          document.createElement("td");
+    const typeCell = document.createElement("td");
 
-      typeCell.textContent =
-          question.type;
+    typeCell.textContent = question.type;
 
-      const requiredCell =
-          document.createElement("td");
+    const requiredCell = document.createElement("td");
 
-      if (question.required) {
-          requiredCell.innerHTML =
-              '<i class="fa-solid fa-check" title="Required"></i>';
+    if (question.required) {
+      requiredCell.innerHTML =
+        '<i class="fa-solid fa-check" title="Required"></i>';
+    }
+
+    const actionsCell = document.createElement("td");
+
+    actionsCell.className = "actions-column";
+
+    const viewButton = document.createElement("button");
+    viewButton.addEventListener("click", async () => {
+      const existingDetailRow = row.nextElementSibling;
+
+      if (existingDetailRow?.classList.contains("question-detail-row")) {
+        existingDetailRow.remove();
+        return;
       }
 
-      const actionsCell =
-          document.createElement("td");
+      const template = document.getElementById(question.viewTemplateId);
 
-      actionsCell.className =
-          "actions-column";
+      if (!template) {
+        showToast(
+          `View template not found for question ${question.id}.`,
+          "error",
+        );
+        return;
+      }
 
-      const viewButton = document.createElement("button");
-      viewButton.addEventListener(
-        "click",
-        async () => {
-            const existingDetailRow = row.nextElementSibling;
-    
-            if (
-                existingDetailRow?.classList.contains(
-                    "question-detail-row"
-                )
-            ) {
-                existingDetailRow.remove();
-                return;
-            }
-    
-            const template =
-                document.getElementById(
-                    question.viewTemplateId
-                );
-    
-            if (!template) {
-                showToast(
-                    `View template not found for question ${question.id}.`,
-                    "error"
-                );
-                return;
-            }
-    
-            const detailRow =
-                document.createElement("tr");
-    
-            detailRow.className =
-                "question-detail-row";
-    
-            const detailCell =
-                document.createElement("td");
-    
-            detailCell.colSpan = 4;
-    
-            const fragment =
-                template.content.cloneNode(true);
-    
-            const section =
-                fragment.querySelector(
-                    ".survey-question"
-                );
-        
-            const resultsContainer = section.querySelector(".scheduling-view-results" );
-    
-            if (resultsContainer) {
-                await renderSchedulingResults(
-                    question,
-                    resultsContainer
-                );
-            }
+      const detailRow = document.createElement("tr");
 
-            const answersContainer =
-            section.querySelector(
-                ".short-text-view-answers"
-            );
-        
-            if (answersContainer) {
-                await renderShortTextAnswers(
-                    question,
-                    answersContainer
-                );
-            }            
-    
-            detailCell.appendChild(fragment);
-            detailRow.appendChild(detailCell);
-    
-            row.after(detailRow);
-        }
-    );
+      detailRow.className = "question-detail-row";
 
-      viewButton.type = "button";
-      viewButton.className = "icon-button";
-      viewButton.title = "View question";
-      viewButton.setAttribute(
-          "aria-label",
-          "View question"
+      const detailCell = document.createElement("td");
+
+      detailCell.colSpan = 4;
+
+      const fragment = template.content.cloneNode(true);
+
+      const section = fragment.querySelector(".survey-question");
+
+      const resultsContainer = section.querySelector(
+        ".scheduling-view-results",
       );
 
-      viewButton.innerHTML =
-          '<i class="fa-solid fa-eye"></i>';
+      if (resultsContainer) {
+        await renderSchedulingResults(question, resultsContainer);
+      }
 
-      actionsCell.appendChild(
-          viewButton
+      const answersContainer = section.querySelector(
+        ".short-text-view-answers",
       );
 
-      row.appendChild(
-          questionCell
+      if (answersContainer) {
+        await renderShortTextAnswers(question, answersContainer);
+      }
+
+      const relationshipContainer = section.querySelector(
+        ".relationship-view-results",
       );
 
-      row.appendChild(
-          typeCell
-      );
+      if (relationshipContainer) {
+        await renderRelationshipResults(question, relationshipContainer);
+      }
 
-      row.appendChild(
-          requiredCell
-      );
+      detailCell.appendChild(fragment);
+      detailRow.appendChild(detailCell);
 
-      row.appendChild(
-          actionsCell
-      );
+      row.after(detailRow);
+    });
 
-      questionList.appendChild(
-          row
-      );
+    viewButton.type = "button";
+    viewButton.className = "icon-button";
+    viewButton.title = "View question";
+    viewButton.setAttribute("aria-label", "View question");
+
+    viewButton.innerHTML = '<i class="fa-solid fa-eye"></i>';
+
+    actionsCell.appendChild(viewButton);
+
+    row.appendChild(questionCell);
+
+    row.appendChild(typeCell);
+
+    row.appendChild(requiredCell);
+
+    row.appendChild(actionsCell);
+
+    questionList.appendChild(row);
   }
 }
 
 async function renderShortTextAnswers(question, container) {
   const response = await fetch(
-      `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`
+    `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`,
   );
 
   if (!response.ok) {
-      showToast(
-          "Unable to load short text answers.",
-          "error"
-      );
-      return;
+    showToast("Unable to load short text answers.", "error");
+    return;
   }
 
   const answers = await response.json();
@@ -288,119 +414,89 @@ async function renderShortTextAnswers(question, container) {
   container.appendChild(heading);
 
   if (!answers.length) {
-      const empty = document.createElement("p");
-      empty.textContent = "No answers yet.";
+    const empty = document.createElement("p");
+    empty.textContent = "No answers yet.";
 
-      container.appendChild(empty);
-      return;
+    container.appendChild(empty);
+    return;
   }
 
   for (const answer of answers) {
-      const answerBlock =
-          document.createElement("div");
+    const answerBlock = document.createElement("div");
 
-      answerBlock.className =
-          "short-text-response";
+    answerBlock.className = "short-text-response";
 
-      const name =
-          document.createElement("strong");
+    const name = document.createElement("strong");
 
-      name.textContent =
-          answer.name || answer.username;
+    name.textContent = answer.name || answer.username;
 
-      const value =
-          document.createElement("p");
+    const value = document.createElement("p");
 
-      value.textContent =
-          answer.value;
+    value.textContent = answer.value;
 
-      answerBlock.appendChild(name);
-      answerBlock.appendChild(value);
+    answerBlock.appendChild(name);
+    answerBlock.appendChild(value);
 
-      container.appendChild(answerBlock);
+    container.appendChild(answerBlock);
   }
 }
 
 async function loadParticipants() {
-  const container =
-      document.getElementById("participants-view");
+  const container = document.getElementById("participants-view");
 
-  const response = await fetch(
-      `/api/surveys/${surveyId}/assignments`
-  );
+  const response = await fetch(`/api/surveys/${surveyId}/assignments`);
 
   if (!response.ok) {
-      showToast(
-          "Unable to load participants.",
-          "error"
-      );
-      return;
+    showToast("Unable to load participants.", "error");
+    return;
   }
 
   const participants = await response.json();
 
-  const table =
-      document.createElement("table");
+  const table = document.createElement("table");
 
-  table.className =
-      "survey-table participants-table";
+  table.className = "survey-table participants-table";
 
-  const thead =
-      document.createElement("thead");
+  const thead = document.createElement("thead");
 
-  const headerRow =
-      document.createElement("tr");
+  const headerRow = document.createElement("tr");
 
-  for (const headingText of [
-      "Name",
-      "Required",
-      "Status"
-  ]) {
-      const th =
-          document.createElement("th");
+  for (const headingText of ["Name", "Required", "Status"]) {
+    const th = document.createElement("th");
 
-      th.textContent =
-          headingText;
+    th.textContent = headingText;
 
-      headerRow.appendChild(th);
+    headerRow.appendChild(th);
   }
 
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
-  const tbody =
-      document.createElement("tbody");
+  const tbody = document.createElement("tbody");
 
   for (const participant of participants) {
-      const row =
-          document.createElement("tr");
+    const row = document.createElement("tr");
 
-      const nameCell =
-          document.createElement("td");
+    const nameCell = document.createElement("td");
 
-      nameCell.textContent =
-          participant.name ||
-          participant.username;
+    nameCell.textContent = participant.name || participant.username;
 
-      const requiredCell = document.createElement("td");
+    const requiredCell = document.createElement("td");
 
-      const statusCell = document.createElement("td");
-  
-      statusCell.textContent =
-          participant.completed
-              ? "Completed"
-              : "Incomplete";      
+    const statusCell = document.createElement("td");
 
-      if (participant.required) {
-          requiredCell.innerHTML =
-              '<i class="fa-solid fa-check" title="Required"></i>';
-      }
+    statusCell.textContent = participant.completed ? "Completed" : "Incomplete";
 
-      row.appendChild(nameCell);
-      row.appendChild(requiredCell);
-      row.appendChild(statusCell);
+    if (participant.required) {
+      requiredCell.innerHTML =
+        '<i class="fa-solid fa-check" title="Required"></i>';
+    }
 
-      tbody.appendChild(row);
+    row.appendChild(nameCell);
+    row.appendChild(requiredCell);
+    row.appendChild(statusCell);
+
+    tbody.appendChild(row);
   }
 
   table.appendChild(tbody);
@@ -408,10 +504,9 @@ async function loadParticipants() {
 }
 
 async function initialize() {
-
-    await loadSurvey();
-    await loadQuestions();
-    await loadParticipants();
+  await loadSurvey();
+  await loadQuestions();
+  await loadParticipants();
 }
 
 initialize();

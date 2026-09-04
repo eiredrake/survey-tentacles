@@ -234,6 +234,34 @@ async function refreshShortTextStatus(question, section) {
     }
 }
 
+function createRelationshipScoreSelect(className, subjectId) {
+    const select = document.createElement("select");
+
+    select.className = className;
+    select.dataset.subjectId = subjectId;
+
+    const blankOption = document.createElement("option");
+
+    blankOption.value = "";
+    blankOption.textContent = "";
+
+    select.appendChild(blankOption);
+
+    for (let score = -10; score <= 10; score++) {
+        const option = document.createElement("option");
+
+        option.value = score;
+
+        option.textContent =
+            score > 0
+                ? `+${score}`
+                : String(score);
+
+        select.appendChild(option);
+    }
+
+    return select;
+}
 
 async function loadQuestions() {
   const container = document.getElementById("questions");
@@ -301,6 +329,214 @@ async function loadQuestions() {
       const selectAllButton = section.querySelector(".select-all-button");
       
       const clearAllButton = section.querySelector(".select-none-button");          
+
+      const relationshipSubjects =
+      section.querySelector(".relationship-subjects");
+  
+        if (relationshipSubjects && submitButton) {
+            const detailResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}`);
+        
+            if (!detailResponse.ok) {
+                showToast(
+                    "Unable to load relationship question.",
+                    "error"
+                );
+                continue;
+            }
+        
+            const detail = await detailResponse.json();
+
+            const answersResponse = await fetch(
+                `/api/surveys/${surveyId}/questions/${question.id}/answers/relationship`
+            );
+            
+            if (!answersResponse.ok) {
+                showToast(
+                    "Unable to load existing relationship answers.",
+                    "error"
+                );
+                continue;
+            }
+            
+            const answers = await answersResponse.json();
+            
+            const myAnswers = new Map(
+                answers
+                    .filter(
+                        answer => answer.userId === currentUser.id
+                    )
+                    .map(
+                        answer => [
+                            answer.subjectId,
+                            answer
+                        ]
+                    )
+            );
+        
+            relationshipSubjects.replaceChildren();
+        
+            for (const subject of detail.subjects) {
+                const row = document.createElement("tr");
+        
+                const nameCell = document.createElement("td");
+        
+                nameCell.textContent = subject.name;
+        
+                if (subject.description) {
+                    nameCell.title = subject.description;
+                }
+        
+                const likeCell = document.createElement("td");
+        
+                const likeInput =
+                createRelationshipScoreSelect(
+                    "relationship-like",
+                    subject.id
+                );
+        
+                likeInput.type = "number";
+                likeInput.min = "-10";
+                likeInput.max = "10";
+                likeInput.className = "relationship-like";
+                likeInput.dataset.subjectId = subject.id;
+        
+                likeCell.appendChild(likeInput);
+        
+                const trustCell = document.createElement("td");
+        
+                const trustInput =
+                createRelationshipScoreSelect(
+                    "relationship-trust",
+                    subject.id
+                );
+        
+                trustInput.type = "number";
+                trustInput.min = "-10";
+                trustInput.max = "10";
+                trustInput.className = "relationship-trust";
+                trustInput.dataset.subjectId = subject.id;
+        
+                trustCell.appendChild(trustInput);
+        
+                const commentCell = document.createElement("td");
+        
+                const commentInput = document.createElement("textarea");
+        
+                commentInput.maxLength = 500;
+                commentInput.rows = 2;
+                commentInput.className = "relationship-comment";
+                commentInput.dataset.subjectId = subject.id;
+        
+                commentCell.appendChild(commentInput);
+        
+                row.appendChild(nameCell);
+                row.appendChild(likeCell);
+                row.appendChild(trustCell);
+                row.appendChild(commentCell);
+        
+                relationshipSubjects.appendChild(row);
+            }
+        
+            submitButton.disabled = !surveyAcceptingResponses;
+
+            submitButton.addEventListener(
+                "click",
+                async () => {
+                    const rows = [
+                        ...relationshipSubjects.querySelectorAll("tr")
+                    ];
+            
+                    const responses = rows.map(row => {
+                        const likeSelect =
+                            row.querySelector(".relationship-like");
+            
+                        const trustSelect =
+                            row.querySelector(".relationship-trust");
+            
+                        const commentInput =
+                            row.querySelector(".relationship-comment");
+            
+                        return {
+                            subjectId:
+                                Number(likeSelect.dataset.subjectId),
+            
+                            likeScore:
+                                likeSelect.value === ""
+                                    ? null
+                                    : Number(likeSelect.value),
+            
+                            trustScore:
+                                trustSelect.value === ""
+                                    ? null
+                                    : Number(trustSelect.value),
+            
+                            comment:
+                                commentInput.value.trim()
+                        };
+                    });
+            
+                    const hasRating = responses.some(
+                        response =>
+                            response.likeScore !== null ||
+                            response.trustScore !== null
+                    );
+            
+                    if (question.required && !hasRating) {
+                        section.classList.add(
+                            "question-required-error"
+                        );
+            
+                        showToast(
+                            "This question is required. Please provide at least one Like or Trust rating.",
+                            "error"
+                        );
+            
+                        setTimeout(() => {
+                            section.classList.remove(
+                                "question-required-error"
+                            );
+                        }, 1200);
+            
+                        return;
+                    }
+            
+                    const csrfResponse =
+                        await fetch("/csrf");
+            
+                    const csrf =
+                        await csrfResponse.json();
+            
+                    const saveResponse = await fetch(
+                        `/api/surveys/${surveyId}/questions/${question.id}/answers/relationship`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                [csrf.headerName]:
+                                    csrf.token
+                            },
+                            body: JSON.stringify({
+                                responses: responses
+                            })
+                        }
+                    );
+            
+                    if (!saveResponse.ok) {
+                        showToast(
+                            "Unable to save response.",
+                            "error"
+                        );
+                        return;
+                    }
+            
+                    showToast(
+                        "Response saved.",
+                        "success"
+                    );
+                }
+            );            
+        }
 
       if (shortTextInput && submitButton) {
         shortTextInput.disabled = !surveyAcceptingResponses;

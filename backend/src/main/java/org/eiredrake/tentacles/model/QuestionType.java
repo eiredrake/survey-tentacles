@@ -20,6 +20,11 @@ public enum QuestionType {
         "short-text-question-template",
         "short-text-participant-template",
         "short-text-view-template"
+    ),
+    RELATIONSHIP(
+        "relationship-question-template",
+        "relationship-participant-template",
+        "relationship-view-template"
     );
 
     private final String editorTemplateId;

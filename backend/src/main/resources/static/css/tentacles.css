@@ -196,6 +196,40 @@ main {
   border-top: 1px solid #ddd;
 }
 
+.relationship-question-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.relationship-question-row #relationship-editor-prompt {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.relationship-required {
+  white-space: nowrap;
+}
+
+.relationship-subject-editor {
+  display: grid;
+  grid-template-columns: auto 12rem auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.relationship-subject-editor[hidden] {
+  display: none;
+}
+
+.relationship-subject-editor #relationship-editor-name,
+.relationship-subject-editor #relationship-editor-description {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 @media (max-width: 600px) {
   main {
     padding: 12px;

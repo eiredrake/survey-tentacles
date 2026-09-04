@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Survey - Tentacles</title>
-    <link rel="stylesheet"href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/css/tentacles.css">
     <link rel="stylesheet" href="/css/toast.css">
 </head>
@@ -15,191 +16,212 @@
         <a href="/">← Surveys</a>
 
         <div class="editor-title">
-          <h1 id="survey-title">Edit Survey</h1>
-      
-          <button
-              id="edit-title-button"
-              class="icon-button"
-              type="button"
-              title="Edit survey title"
-              aria-label="Edit survey title"
-          >
-              <i class="fa-solid fa-pen-to-square"></i>
-          </button>
+            <h1 id="survey-title">Edit Survey</h1>
+
+            <button id="edit-title-button" class="icon-button" type="button" title="Edit survey title"
+                aria-label="Edit survey title">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
         </div>
 
         <div id="survey-editor">
-          Loading survey...
+            Loading survey...
         </div>
-      
+
         <section id="question-editor">
-          <div class="section-heading">
-              <h2>Questions</h2>
-      
-              <select id="question-type-select" hidden>
-              </select>
-      
-              <button
-                  id="add-question-button"
-                  class="icon-button"
-                  type="button"
-                  title="Add question"
-                  aria-label="Add question"
-              >
-                  <i class="fa-solid fa-plus"></i>
-              </button>
-          </div>
-      
-          <table class="survey-table">
-              <thead>
-                  <tr>
-                      <th>Question</th>
-                      <th>Type</th>
-                      <th class="actions-column">Actions</th>
-                  </tr>
-              </thead>
-              <tbody id="question-list">
-              </tbody>
-          </table>
+            <div class="section-heading">
+                <h2>Questions</h2>
 
-          <div id="question-form-container" hidden>
-          </div>
+                <select id="question-type-select" hidden>
+                </select>
 
-      </section>
+                <button id="add-question-button" class="icon-button" type="button" title="Add question"
+                    aria-label="Add question">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
 
-      <details class="survey-section inactive-surveys-section">
-        <summary class="section-heading inactive-surveys-summary">
-            <h2>Participants</h2>
-    
-            <i class="fa-solid fa-chevron-right inactive-surveys-chevron"></i>
-        </summary>
-    
-        <div id="participants-view">
-        </div>
-    </details>
+            <table class="survey-table">
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Type</th>
+                        <th class="actions-column">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="question-list">
+                </tbody>
+            </table>
+
+            <div id="question-form-container" hidden>
+            </div>
+
+        </section>
+
+        <details class="survey-section inactive-surveys-section">
+            <summary class="section-heading inactive-surveys-summary">
+                <h2>Participants</h2>
+
+                <i class="fa-solid fa-chevron-right inactive-surveys-chevron"></i>
+            </summary>
+
+            <div id="participants-view">
+            </div>
+        </details>
 
         <template id="scheduling-question-template">
-          <div class="question-editor-panel">
-              <div class="question-editor-row">
-                  <label for="scheduling-editor-prompt">Question:</label>
-                  <input
-                      id="scheduling-editor-prompt"
-                      type="text"
-                  >
-                  <label>
-                    <input
-                        type="checkbox"
-                        class="question-required"
-                    >
-                    Required
-                </label>
-              </div>
-      
-              <div class="question-editor-row">
-                  <label class="question-editor-checkbox">
-                      <input
-                          id="scheduling-editor-include-time"
-                          type="checkbox"
-                      >
-                      Include time in selection
-                  </label>
-              </div>
-      
-              <div class="question-editor-layout">
-                  <div class="question-editor-picker">
-                      <label for="scheduling-editor-date">Date:</label>
+            <div class="question-editor-panel">
+                <div class="question-editor-row">
+                    <label for="scheduling-editor-prompt">Question:</label>
+                    <input id="scheduling-editor-prompt" type="text">
+                    <label>
+                        <input type="checkbox" class="question-required">
+                        Required
+                    </label>
+                </div>
 
-                      <input
-                          id="scheduling-editor-date"
-                          type="date"
-                      >
+                <div class="question-editor-row">
+                    <label class="question-editor-checkbox">
+                        <input id="scheduling-editor-include-time" type="checkbox">
+                        Include time in selection
+                    </label>
+                </div>
 
-                      <div id="scheduling-editor-time-container" hidden>
-                          <label for="scheduling-editor-time">Time:</label>
+                <div class="question-editor-layout">
+                    <div class="question-editor-picker">
+                        <label for="scheduling-editor-date">Date:</label>
 
-                          <input
-                              id="scheduling-editor-time"
-                              type="time"
-                          >
-                      </div>
-                  </div>
-      
-                  <div class="question-editor-selections">
-                      <h3>Selections</h3>
-      
-                      <div id="scheduling-editor-selection-list">
-                          No dates selected.
-                      </div>
-                  </div>
-              </div>
-      
-              <div class="question-editor-actions">
-                  <button
-                      id="cancel-question-button"
-                      class="icon-button"
-                      type="button"
-                      title="Cancel"
-                      aria-label="Cancel"
-                  >
-                      <i class="fa-solid fa-xmark"></i>
-                  </button>
-      
-                  <button
-                      id="save-question-button"
-                      class="icon-button"
-                      type="button"
-                      title="Save question"
-                      aria-label="Save question"
-                  >
-                      <i class="fa-solid fa-floppy-disk"></i>
-                  </button>
-              </div>
-          </div>
-      </template>      
-      <template id="short-text-question-template">
-          <div class="question-editor-panel">
-              <div class="question-editor-row">
-                  <label for="short-text-editor-prompt">
-                      Question:
-                  </label>
-      
-                  <input
-                      id="short-text-editor-prompt"
-                      type="text"
-                  >
-      
-                  <label>
-                      <input
-                          type="checkbox"
-                          class="question-required"
-                      >
-                      Required
-                  </label>
-              </div>
-      
-              <div class="question-editor-actions">
-                  <button
-                      id="cancel-question-button"
-                      class="icon-button"
-                      type="button"
-                      title="Cancel"
-                      aria-label="Cancel"
-                  >
-                      <i class="fa-solid fa-xmark"></i>
-                  </button>
-      
-                  <button
-                      id="save-question-button"
-                      class="icon-button"
-                      type="button"
-                      title="Save question"
-                      aria-label="Save question"
-                  >
-                      <i class="fa-solid fa-floppy-disk"></i>
-                  </button>
-              </div>
-          </div>
-      </template>      
+                        <input id="scheduling-editor-date" type="date">
+
+                        <div id="scheduling-editor-time-container" hidden>
+                            <label for="scheduling-editor-time">Time:</label>
+
+                            <input id="scheduling-editor-time" type="time">
+                        </div>
+                    </div>
+
+                    <div class="question-editor-selections">
+                        <h3>Selections</h3>
+
+                        <div id="scheduling-editor-selection-list">
+                            No dates selected.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="question-editor-actions">
+                    <button id="cancel-question-button" class="icon-button" type="button" title="Cancel"
+                        aria-label="Cancel">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <button id="save-question-button" class="icon-button" type="button" title="Save question"
+                        aria-label="Save question">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                </div>
+            </div>
+        </template>
+        <template id="short-text-question-template">
+            <div class="question-editor-panel">
+                <div class="question-editor-row">
+                    <label for="short-text-editor-prompt">
+                        Question:
+                    </label>
+
+                    <input id="short-text-editor-prompt" type="text">
+
+                    <label>
+                        <input type="checkbox" class="question-required">
+                        Required
+                    </label>
+                </div>
+
+                <div class="question-editor-actions">
+                    <button id="cancel-question-button" class="icon-button" type="button" title="Cancel"
+                        aria-label="Cancel">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <button id="save-question-button" class="icon-button" type="button" title="Save question"
+                        aria-label="Save question">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <template id="relationship-question-template">
+            <div class="question-editor-panel">
+
+                <div class="relationship-question-row">
+                    <label for="relationship-editor-prompt">
+                        Question:
+                    </label>
+
+                    <input id="relationship-editor-prompt" type="text">
+
+                    <label class="relationship-required">
+                        <input type="checkbox" class="question-required">
+                        Required
+                    </label>
+                </div>
+
+                <div class="section-heading">
+                    <h3>Characters</h3>
+
+                    <button id="show-relationship-subject-editor-button" class="icon-button" type="button"
+                        title="Add character" aria-label="Add character">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                <div id="relationship-subject-editor" class="relationship-subject-editor" hidden>
+                    <label for="relationship-editor-name">
+                        Character:
+                    </label>
+
+                    <input id="relationship-editor-name" type="text" maxlength="255">
+
+                    <label for="relationship-editor-description">
+                        Description:
+                    </label>
+
+                    <input id="relationship-editor-description" type="text" maxlength="255">
+
+                    <button id="add-relationship-subject-button" class="icon-button" type="button"
+                        title="Save character" aria-label="Save character">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                </div>
+
+                <table class="survey-table relationship-editor-table">
+                    <thead>
+                        <tr>
+                            <th>Character</th>
+                            <th>Description</th>
+                            <th class="actions-column">Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="relationship-editor-subject-list">
+                    </tbody>
+                </table>
+
+                <div class="question-editor-actions">
+                    <button id="cancel-question-button" class="icon-button" type="button" title="Cancel"
+                        aria-label="Cancel">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <button id="save-question-button" class="icon-button" type="button" title="Save question"
+                        aria-label="Save question">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                </div>
+
+            </div>
+        </template>
     </main>
 
     <script src="/js/toast.js"></script>
@@ -208,4 +230,5 @@
     <script src="/js/survey-edit.js"></script>
     <script src="/js/logout.js"></script>
 </body>
+
 </html>

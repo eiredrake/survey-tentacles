@@ -1,84 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>View Survey - Tentacles</title>
+  <title>View Survey - Tentacles</title>
 
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
-    >
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <link rel="stylesheet" href="/css/tentacles.css">
-    <link rel="stylesheet" href="/css/toast.css">
+  <link rel="stylesheet" href="/css/tentacles.css">
+  <link rel="stylesheet" href="/css/toast.css">
 </head>
 
 <body>
-    <main>
-        <a href="/">← Surveys</a>
+  <main>
+    <a href="/">← Surveys</a>
 
-        <div class="editor-title">
-            <h1 id="survey-title">Survey</h1>
+    <div class="editor-title">
+      <h1 id="survey-title">Survey</h1>
 
-            <a
-                id="edit-survey-link"
-                class="icon-button"
-                href="#"
-                title="Edit survey"
-                aria-label="Edit survey"
-            >
-                <i class="fa-solid fa-pen-to-square"></i>
-            </a>
-        </div>
+      <a id="edit-survey-link" class="icon-button" href="#" title="Edit survey" aria-label="Edit survey">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </a>
+    </div>
 
-        <section>
-          <h2>Questions</h2>
-      
-          <table class="survey-table">
-              <thead>
-                  <tr>
-                      <th>Question</th>
-                      <th>Type</th>
-                      <th>Required</th>
-                      <th class="actions-column">Actions</th>
-                  </tr>
-              </thead>
-      
-              <tbody id="question-list">
-              </tbody>
-          </table>
-      </section>
+    <section>
+      <h2>Questions</h2>
 
-      <details class="survey-section inactive-surveys-section">
-        <summary class="section-heading inactive-surveys-summary">
-            <h2>Participants</h2>
-    
-            <i class="fa-solid fa-chevron-right inactive-surveys-chevron"></i>
-        </summary>
-    
-        <div id="participants-view">
-        </div>
+      <table class="survey-table">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th class="actions-column">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody id="question-list">
+        </tbody>
+      </table>
+    </section>
+
+    <details class="survey-section inactive-surveys-section">
+      <summary class="section-heading inactive-surveys-summary">
+        <h2>Participants</h2>
+
+        <i class="fa-solid fa-chevron-right inactive-surveys-chevron"></i>
+      </summary>
+
+      <div id="participants-view">
+      </div>
     </details>
 
-      <template id="scheduling-view-template">
-          <section class="survey-question">     
-              <div class="scheduling-view-results"></div>
-          </section>
-      </template>
-      
-      <template id="short-text-view-template">
-          <section class="survey-question">     
-              <div class="short-text-view-answers"></div>
-          </section>
-      </template>    
+    <template id="scheduling-view-template">
+      <section class="survey-question">
+        <div class="scheduling-view-results"></div>
+      </section>
+    </template>
 
-    </main>
+    <template id="short-text-view-template">
+      <section class="survey-question">
+        <div class="short-text-view-answers"></div>
+      </section>
+    </template>
 
-    <script src="/js/toast.js"></script>
-    <script src="/js/date-format.js"></script>
-    <script src="/js/survey-view.js"></script>
-    <script src="/js/logout.js"></script>
+    <template id="relationship-view-template">
+      <section class="survey-question">
+        <table class="survey-table relationship-results-table">
+          <thead>
+            <tr>
+              <th>Character</th>
+              <th>Average Like</th>
+              <th>Average Trust</th>
+              <th>Responses</th>
+            </tr>
+          </thead>
+
+          <tbody class="relationship-view-results">
+          </tbody>
+        </table>
+      </section>
+    </template>
+
+  </main>
+
+  <script src="/js/toast.js"></script>
+  <script src="/js/date-format.js"></script>
+  <script src="/js/survey-view.js"></script>
+  <script src="/js/logout.js"></script>
 </body>
+
 </html>
