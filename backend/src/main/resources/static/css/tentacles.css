@@ -428,3 +428,48 @@ main {
       background-position: -200% -200%;
   }
 }
+
+.relationship-score-control {
+  display: inline-grid;
+  grid-template-columns: 2rem 7.5rem 2rem;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.relationship-score-button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.relationship-score-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.relationship-score-heart {
+  color: #c62828;
+}
+
+.relationship-score-dagger {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.relationship-score-value {
+  margin-left: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.relationship-score-button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}

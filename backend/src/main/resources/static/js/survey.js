@@ -234,30 +234,120 @@ async function refreshShortTextStatus(question, section) {
     }
 }
 
-function createRelationshipScoreSelect(className, subjectId) {
-    const select = document.createElement("select");
+function createRelationshipScoreControl(className, subjectId) {
+    const control = document.createElement("div");
 
-    select.className = className;
-    select.dataset.subjectId = subjectId;
+    control.className = `relationship-score-control ${className}`;
+    control.dataset.subjectId = subjectId;
 
-    for (let score = -5; score <= 5; score++) {
-        const option = document.createElement("option");
+    let score = 0;
 
-        option.value = score;
+    const decreaseButton = document.createElement("button");
+    decreaseButton.type = "button";
+    decreaseButton.className = "relationship-score-button";
+    decreaseButton.title = "Decrease";
+    decreaseButton.setAttribute("aria-label", "Decrease score");
+    decreaseButton.innerHTML =
+        '<i class="fa-solid fa-minus"></i>';
 
-        option.textContent =
-        score === 0
-            ? "0 — No opinion"
-            : score > 0
-                ? `${"♥".repeat(score)}  +${score}`
-                : `${"🗡".repeat(Math.abs(score))}  ${score}`;
+    const display = document.createElement("span");
+    display.className = "relationship-score-display";
 
-        select.appendChild(option);
-    }
+    const increaseButton = document.createElement("button");
+    increaseButton.type = "button";
+    increaseButton.className = "relationship-score-button";
+    increaseButton.title = "Increase";
+    increaseButton.setAttribute("aria-label", "Increase score");
+    increaseButton.innerHTML =
+        '<i class="fa-solid fa-plus"></i>';
 
-    select.value = "0";
+    const updateDisplay = () => {
+        display.replaceChildren();
 
-    return select;
+        if (score < 0) {
+            for (let i = 0; i < Math.abs(score); i++) {
+                const icon = document.createElement("span");
+        
+                icon.className = "fa-solid fa-heart-crack relationship-score-dagger";
+                //icon.textContent = "🗡︎";
+        
+                display.appendChild(icon);
+            }
+        
+            const value = document.createElement("span");
+            value.className = "relationship-score-value";
+            value.textContent = String(score);
+        
+            display.appendChild(value);
+        } else if (score > 0) {
+            for (let i = 0; i < score; i++) {
+                const icon = document.createElement("i");
+                icon.className = "fa-solid fa-heart relationship-score-heart";
+
+                display.appendChild(icon);
+            }
+
+            const value = document.createElement("span");
+            value.className = "relationship-score-value";
+            value.textContent = `+${score}`;
+
+            display.appendChild(value);
+        } else {
+            display.textContent = "— No opinion";
+        }
+
+        decreaseButton.disabled = score <= -5;
+        increaseButton.disabled = score >= 5;
+
+        display.setAttribute(
+            "aria-label",
+            score === 0
+                ? "No opinion"
+                : `Score ${score}`
+        );
+    };
+
+    /*
+     * Preserve the old .value interface so the existing
+     * Relationship save/reload code can continue using it.
+     */
+    Object.defineProperty(control, "value", {
+        get() {
+            return String(score);
+        },
+
+        set(value) {
+            const parsed = Number(value);
+
+            score = Number.isFinite(parsed)
+                ? Math.max(-5, Math.min(5, parsed))
+                : 0;
+
+            updateDisplay();
+        }
+    });
+
+    decreaseButton.addEventListener("click", () => {
+        if (score > -5) {
+            score--;
+            updateDisplay();
+        }
+    });
+
+    increaseButton.addEventListener("click", () => {
+        if (score < 5) {
+            score++;
+            updateDisplay();
+        }
+    });
+
+    control.appendChild(decreaseButton);
+    control.appendChild(display);
+    control.appendChild(increaseButton);
+
+    updateDisplay();
+
+    return control;
 }
 
 async function loadQuestions() {
@@ -385,32 +475,22 @@ async function loadQuestions() {
         
                 const likeCell = document.createElement("td");
         
-                const likeInput = createRelationshipScoreSelect(
+                const likeInput = createRelationshipScoreControl(
                     "relationship-like",
                     subject.id
                 );
         
-                likeInput.type = "number";
-                likeInput.min = "-5";
-                likeInput.max = "5";
-                likeInput.className = "relationship-like";
-                likeInput.dataset.subjectId = subject.id;
-        
+       
                 likeCell.appendChild(likeInput);
         
                 const trustCell = document.createElement("td");
         
-                const trustInput = createRelationshipScoreSelect(
+                const trustInput = createRelationshipScoreControl(
                     "relationship-trust",
                     subject.id
                 );
         
-                trustInput.type = "number";
-                trustInput.min = "-5";
-                trustInput.max = "5";
-                trustInput.className = "relationship-trust";
-                trustInput.dataset.subjectId = subject.id;
-        
+       
                 trustCell.appendChild(trustInput);
                 
         
