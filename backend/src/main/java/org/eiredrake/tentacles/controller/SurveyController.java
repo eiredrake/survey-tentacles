@@ -1205,31 +1205,79 @@ public class SurveyController {
   }
 
   private boolean isSurveyCompletedForUser(Survey survey, User user) {
-    return survey
-      .getQuestions()
-      .stream()
-      .filter(Question::isRequired)
-      .allMatch(question ->
-        switch (question.getType()) {
-          case SCHEDULING -> schedulingAnswerService.hasAnswered(
-            question.getId(),
-            user.getId()
-          );
-          case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
-            question.getId(),
-            user.getId()
-          );
-          case RELATIONSHIP -> relationshipAnswerService
-            .findByQuestionIdAndUserId(question.getId(), user.getId())
+    List<Question> requiredQuestions = survey
+        .getQuestions()
+        .stream()
+        .filter(Question::isRequired)
+        .toList();
+
+    if (!requiredQuestions.isEmpty()) {
+        return requiredQuestions
             .stream()
-            .anyMatch(
-              answer ->
-                answer.getLikeScore() != null || answer.getTrustScore() != null
+            .allMatch(question ->
+                switch (question.getType()) {
+                    case SCHEDULING -> schedulingAnswerService.hasAnswered(
+                        question.getId(),
+                        user.getId()
+                    );
+
+                    case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
+                        question.getId(),
+                        user.getId()
+                    );
+
+                    case RELATIONSHIP -> relationshipAnswerService
+                        .findByQuestionIdAndUserId(
+                            question.getId(),
+                            user.getId()
+                        )
+                        .stream()
+                        .anyMatch(answer ->
+                            (answer.getLikeScore() != null &&
+                             answer.getLikeScore() != 0) ||
+                            (answer.getTrustScore() != null &&
+                             answer.getTrustScore() != 0)
+                        );
+
+                    case SINGLE_SELECT, MULTI_SELECT -> false;
+                }
             );
-          case SINGLE_SELECT, MULTI_SELECT -> false;
-        }
-      );
-  }
+    }
+
+    return survey
+        .getQuestions()
+        .stream()
+        .anyMatch(question ->
+            switch (question.getType()) {
+                case SCHEDULING -> schedulingAnswerService.hasAnswered(
+                    question.getId(),
+                    user.getId()
+                );
+
+                case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
+                    question.getId(),
+                    user.getId()
+                );
+
+                case RELATIONSHIP -> relationshipAnswerService
+                    .findByQuestionIdAndUserId(
+                        question.getId(),
+                        user.getId()
+                    )
+                    .stream()
+                    .anyMatch(answer ->
+                        (answer.getLikeScore() != null &&
+                         answer.getLikeScore() != 0) ||
+                        (answer.getTrustScore() != null &&
+                         answer.getTrustScore() != 0) ||
+                        (answer.getComment() != null &&
+                         !answer.getComment().isBlank())
+                    );
+
+                case SINGLE_SELECT, MULTI_SELECT -> false;
+            }
+        );
+}
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/relationship")
   @Transactional
@@ -1299,7 +1347,7 @@ public class SurveyController {
         likeScore = number.intValue();
       } else if (likeValue != null) {
         throw new IllegalArgumentException(
-          "Like score must be a number between -10 and 10."
+          "Like score must be a number between -5 and 5."
         );
       }
 
@@ -1307,19 +1355,19 @@ public class SurveyController {
         trustScore = number.intValue();
       } else if (trustValue != null) {
         throw new IllegalArgumentException(
-          "Trust score must be a number between -10 and 10."
+          "Trust score must be a number between -5 and 5."
         );
       }
 
-      if (likeScore != null && (likeScore < -10 || likeScore > 10)) {
+      if (likeScore != null && (likeScore < -5 || likeScore > 5)) {
         throw new IllegalArgumentException(
-          "Like score must be between -10 and 10."
+          "Like score must be between -5 and 5."
         );
       }
 
-      if (trustScore != null && (trustScore < -10 || trustScore > 10)) {
+      if (trustScore != null && (trustScore < -5 || trustScore > 5)) {
         throw new IllegalArgumentException(
-          "Trust score must be between -10 and 10."
+          "Trust score must be between -5 and 5."
         );
       }
 
@@ -1331,7 +1379,10 @@ public class SurveyController {
         );
       }
 
-      if (likeScore != null || trustScore != null) {
+      if (
+        (likeScore != null && likeScore != 0) ||
+        (trustScore != null && trustScore != 0)
+      ) {
         hasRating = true;
       }
     }
@@ -1377,7 +1428,10 @@ public class SurveyController {
       comment = comment.trim();
 
       // Completely blank rows do not create answer records.
-      if (likeScore == null && trustScore == null && comment.isBlank()) {
+      // Zero means "No opinion". Rows with no rating and no comment are not stored.
+      if ( (likeScore == null || likeScore == 0) && (trustScore == null || trustScore == 0) &&
+        comment.isBlank()
+      ) {
         continue;
       }
 

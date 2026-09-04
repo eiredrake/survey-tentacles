@@ -240,25 +240,22 @@ function createRelationshipScoreSelect(className, subjectId) {
     select.className = className;
     select.dataset.subjectId = subjectId;
 
-    const blankOption = document.createElement("option");
-
-    blankOption.value = "";
-    blankOption.textContent = "";
-
-    select.appendChild(blankOption);
-
-    for (let score = -10; score <= 10; score++) {
+    for (let score = -5; score <= 5; score++) {
         const option = document.createElement("option");
 
         option.value = score;
 
         option.textContent =
-            score > 0
-                ? `+${score}`
-                : String(score);
+            score === 0
+                ? "0 — No opinion"
+                : score > 0
+                    ? `+${score}`
+                    : String(score);
 
         select.appendChild(option);
     }
+
+    select.value = "0";
 
     return select;
 }
@@ -388,15 +385,14 @@ async function loadQuestions() {
         
                 const likeCell = document.createElement("td");
         
-                const likeInput =
-                createRelationshipScoreSelect(
+                const likeInput = createRelationshipScoreSelect(
                     "relationship-like",
                     subject.id
                 );
         
                 likeInput.type = "number";
-                likeInput.min = "-10";
-                likeInput.max = "10";
+                likeInput.min = "-5";
+                likeInput.max = "5";
                 likeInput.className = "relationship-like";
                 likeInput.dataset.subjectId = subject.id;
         
@@ -404,19 +400,19 @@ async function loadQuestions() {
         
                 const trustCell = document.createElement("td");
         
-                const trustInput =
-                createRelationshipScoreSelect(
+                const trustInput = createRelationshipScoreSelect(
                     "relationship-trust",
                     subject.id
                 );
         
                 trustInput.type = "number";
-                trustInput.min = "-10";
-                trustInput.max = "10";
+                trustInput.min = "-5";
+                trustInput.max = "5";
                 trustInput.className = "relationship-trust";
                 trustInput.dataset.subjectId = subject.id;
         
                 trustCell.appendChild(trustInput);
+                
         
                 const commentCell = document.createElement("td");
         
@@ -426,6 +422,14 @@ async function loadQuestions() {
                 commentInput.rows = 2;
                 commentInput.className = "relationship-comment";
                 commentInput.dataset.subjectId = subject.id;
+
+                const existingAnswer = myAnswers.get(subject.id);
+
+                if (existingAnswer) {
+                    likeInput.value = String(existingAnswer.likeScore ?? 0);
+                    trustInput.value = String(existingAnswer.trustScore ?? 0);
+                    commentInput.value = existingAnswer.comment ?? "";
+                }                
         
                 commentCell.appendChild(commentInput);
         
@@ -477,8 +481,8 @@ async function loadQuestions() {
             
                     const hasRating = responses.some(
                         response =>
-                            response.likeScore !== null ||
-                            response.trustScore !== null
+                            response.likeScore !== 0 ||
+                            response.trustScore !== 0
                     );
             
                     if (question.required && !hasRating) {

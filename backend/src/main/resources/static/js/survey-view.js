@@ -79,12 +79,12 @@ async function renderRelationshipResults(question, container) {
     );
 
     const likeScores = subjectAnswers
-      .map((answer) => answer.likeScore)
-      .filter((score) => score !== null);
+    .map((answer) => answer.likeScore)
+    .filter((score) => score !== null && score !== 0);
 
     const trustScores = subjectAnswers
-      .map((answer) => answer.trustScore)
-      .filter((score) => score !== null);
+    .map((answer) => answer.trustScore)
+    .filter((score) => score !== null && score !== 0);
 
     const row = document.createElement("tr");
 
