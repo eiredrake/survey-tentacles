@@ -246,11 +246,11 @@ function createRelationshipScoreSelect(className, subjectId) {
         option.value = score;
 
         option.textContent =
-            score === 0
-                ? "0 — No opinion"
-                : score > 0
-                    ? `+${score}`
-                    : String(score);
+        score === 0
+            ? "0 — No opinion"
+            : score > 0
+                ? `${"♥".repeat(score)}  +${score}`
+                : `${"🗡".repeat(Math.abs(score))}  ${score}`;
 
         select.appendChild(option);
     }
