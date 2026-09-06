@@ -108,6 +108,46 @@ async function loadSurveys() {
       item.appendChild(actionsCell);
 
       if (isAdmin) {
+        const shareButton = document.createElement("button");
+
+        shareButton.type = "button";
+        shareButton.className = "icon-button";
+        shareButton.title = "Copy survey link";
+        
+        shareButton.setAttribute(
+            "aria-label",
+            "Copy survey link"
+        );
+        
+        shareButton.innerHTML =
+            '<i class="fa-solid fa-share-nodes"></i>';
+        
+        shareButton.addEventListener(
+            "click",
+            async () => {
+                const shareUrl =
+                    `${window.location.origin}/s/${survey.id}`;
+        
+                try {
+                    await navigator.clipboard.writeText(
+                        shareUrl
+                    );
+        
+                    showToast(
+                        "Survey link copied.",
+                        "success"
+                    );
+                } catch {
+                    showToast(
+                        "Unable to copy survey link.",
+                        "error"
+                    );
+                }
+            }
+        );
+        
+        actionsCell.appendChild(shareButton);
+
         const viewLink = document.createElement("a");
         viewLink.href =
             `/survey-view.html?id=${survey.id}`;
