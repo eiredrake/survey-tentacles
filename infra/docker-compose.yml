@@ -32,9 +32,13 @@ services:
       AUTHENTIK_ISSUER_URI: ${AUTHENTIK_ISSUER_URI}
 
       TENTACLES_PUBLIC_BASE_URL: ${TENTACLES_PUBLIC_BASE_URL}
-
+      TENTACLES_UPLOAD_DIR: ${TENTACLES_UPLOAD_DIR}
     ports:
       - "8080:8080"
 
+    volumes:
+      - tentacles-upload-data:/app/uploads      
+
 volumes:
   tentacles-postgres-data:
+  tentacles-upload-data:  

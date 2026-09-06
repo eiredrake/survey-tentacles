@@ -55,6 +55,11 @@ public class SecurityConfig {
                 ).hasRole("ADMIN")
 
                 .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/surveys/{surveyId}/image"
+                ).permitAll()            
+
+                .requestMatchers(
                     HttpMethod.POST,
                     "/api/surveys/*/title",
                     "/api/surveys/*/status",

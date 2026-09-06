@@ -480,3 +480,26 @@ main {
 .relationship-score-trust-negative {
   color: #444;
 }
+
+.survey-image-editor {
+  margin-bottom: 1rem;
+}
+
+#survey-image-preview {
+  margin: 0.75rem 0;
+}
+
+#survey-image {
+  display: block;
+  max-width: 300px;
+  max-height: 180px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.survey-image-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}

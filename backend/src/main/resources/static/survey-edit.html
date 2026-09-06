@@ -28,6 +28,47 @@
             Loading survey...
         </div>
 
+        <section class="survey-image-editor">
+            <div class="section-heading">
+                <h2>Survey Image</h2>
+            </div>
+        
+            <div id="survey-image-preview" hidden>
+                <img
+                    id="survey-image"
+                    alt="Survey image"
+                >
+            </div>
+        
+            <div class="survey-image-controls">
+                <input
+                    id="survey-image-file"
+                    title="survey_image"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                >
+        
+                <button
+                    id="upload-survey-image-button"
+                    class="icon-button"
+                    type="button"
+                    title="Upload survey image"
+                    aria-label="Upload survey image"
+                >
+                    <i class="fa-solid fa-upload"></i>
+                </button>
+                <button
+                    id="remove-survey-image-button"
+                    class="icon-button"
+                    type="button"
+                    title="Remove survey image"
+                    aria-label="Remove survey image"
+                >
+                    <i class="fa-solid fa-trash"></i>
+                </button>                
+            </div>
+        </section>        
+
         <section id="question-editor">
             <div class="section-heading">
                 <h2>Questions</h2>

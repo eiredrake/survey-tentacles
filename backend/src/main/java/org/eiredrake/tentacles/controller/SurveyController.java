@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.eiredrake.tentacles.model.Question;
@@ -40,6 +39,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.io.IOException;
+import org.eiredrake.tentacles.service.SurveyImageService;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -53,6 +63,7 @@ public class SurveyController {
   private final SurveyAssignmentService surveyAssignmentService;
   private final ShortTextAnswerService shortTextAnswerService;
   private final RelationshipAnswerService relationshipAnswerService;
+  private final SurveyImageService surveyImageService;
 
   public SurveyController(
     SurveyService surveyService,
@@ -62,7 +73,8 @@ public class SurveyController {
     SurveyParticipantService surveyParticipantService,
     SurveyAssignmentService surveyAssignmentService,
     ShortTextAnswerService shortTextAnswerService,
-    RelationshipAnswerService relationshipAnswerService
+    RelationshipAnswerService relationshipAnswerService,
+    SurveyImageService surveyImageService
   ) {
     this.surveyService = surveyService;
     this.userService = userService;
@@ -72,6 +84,7 @@ public class SurveyController {
     this.surveyAssignmentService = surveyAssignmentService;
     this.shortTextAnswerService = shortTextAnswerService;
     this.relationshipAnswerService = relationshipAnswerService;
+    this.surveyImageService = surveyImageService;
   }
 
   @PostMapping
@@ -96,6 +109,44 @@ public class SurveyController {
       creator.getId()
     );
   }
+
+  @GetMapping("/{surveyId}/image")
+public ResponseEntity<Resource> getSurveyImage(
+    @PathVariable Long surveyId
+) throws IOException {
+    Survey survey = surveyService.findById(surveyId);
+
+    String filename = survey.getImageFilename();
+
+    if (filename == null || filename.isBlank()) {
+        return ResponseEntity.notFound().build();
+    }
+
+    Path path = surveyImageService.getPath(filename);
+
+    if (
+        path == null ||
+        !Files.exists(path)
+    ) {
+        return ResponseEntity.notFound().build();
+    }
+
+    String contentType =
+        Files.probeContentType(path);
+
+    MediaType mediaType =
+        contentType != null
+            ? MediaType.parseMediaType(contentType)
+            : MediaType.APPLICATION_OCTET_STREAM;
+
+    Resource resource =
+        new FileSystemResource(path);
+
+    return ResponseEntity
+        .ok()
+        .contentType(mediaType)
+        .body(resource);
+}
 
   @GetMapping
   public Object listSurveys(
@@ -168,6 +219,7 @@ public class SurveyController {
         result.put("statusIcon", survey.getStatus().getIcon());
         result.put("required", required);
         result.put("everPublished", survey.isEverPublished());
+        result.put("imageFilename", survey.getImageFilename());
         result.put("completed", completed);
         result.put(
           "acceptingResponses",
@@ -892,6 +944,54 @@ public class SurveyController {
 
     return Map.of("id", survey.getId(), "title", survey.getTitle());
   }
+
+@PostMapping("/{surveyId}/image")
+public Map<String, Object> uploadSurveyImage(
+    @PathVariable Long surveyId,
+    @RequestParam("file") MultipartFile file
+) throws IOException {
+    Survey survey = surveyService.findById(surveyId);
+
+    String oldFilename = survey.getImageFilename();
+
+    String newFilename =
+        surveyImageService.save(file);
+
+    survey.setImageFilename(newFilename);
+    surveyService.save(survey);
+
+    if (
+        oldFilename != null &&
+        !oldFilename.isBlank()
+    ) {
+        surveyImageService.delete(oldFilename);
+    }
+
+    return Map.of(
+        "id",
+        survey.getId(),
+        "imageFilename",
+        newFilename
+    );
+}  
+
+@DeleteMapping("/{surveyId}/image")
+public ResponseEntity<Void> deleteSurveyImage(
+    @PathVariable Long surveyId
+) throws IOException {
+    Survey survey = surveyService.findById(surveyId);
+
+    String filename = survey.getImageFilename();
+
+    if (filename != null && !filename.isBlank()) {
+        surveyImageService.delete(filename);
+
+        survey.setImageFilename(null);
+        surveyService.save(survey);
+    }
+
+    return ResponseEntity.noContent().build();
+}
 
   @PostMapping("/{surveyId}/copy")
   public Map<String, Object> copySurvey(

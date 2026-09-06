@@ -241,6 +241,27 @@ async function loadSurvey() {
   ).textContent =
     `Edit: ${survey.title}`;
 
+    const preview =
+    document.getElementById(
+      "survey-image-preview"
+    );
+  
+  const image =
+    document.getElementById(
+      "survey-image"
+    );
+  
+  if (
+    preview &&
+    image &&
+    survey.imageFilename
+  ) {
+    image.src =
+      `/api/surveys/${surveyId}/image`;
+  
+    preview.hidden = false;
+  }    
+
   container.textContent = "";
 }
 
@@ -1828,10 +1849,150 @@ async function initialize() {
   await loadQuestionTypes();
 
   setupTitleEditor();
+  setupSurveyImageUpload();
   setupQuestionTypePicker();
 
   await loadQuestions();
   await loadParticipants();
+}
+
+function setupSurveyImageUpload() {
+  const fileInput =
+    document.getElementById(
+      "survey-image-file"
+    );
+
+  const uploadButton =
+    document.getElementById(
+      "upload-survey-image-button"
+    );
+
+  const preview =
+    document.getElementById(
+      "survey-image-preview"
+    );
+
+  const removeButton =
+    document.getElementById(
+      "remove-survey-image-button"
+    );    
+
+  const image =
+    document.getElementById(
+      "survey-image"
+    );
+
+  if (
+    !fileInput ||
+    !uploadButton ||
+    !removeButton ||
+    !preview ||
+    !image
+  ) {
+    return;
+  }
+
+  uploadButton.addEventListener(
+    "click",
+    async () => {
+      const file =
+        fileInput.files[0];
+
+      if (!file) {
+        showToast(
+          "Choose an image first.",
+          "error"
+        );
+        return;
+      }
+
+      const csrfResponse =
+        await fetch("/csrf");
+
+      const csrf =
+        await csrfResponse.json();
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        file
+      );
+
+      const response =
+        await fetch(
+          `/api/surveys/${surveyId}/image`,
+          {
+            method: "POST",
+            headers: {
+              [csrf.headerName]:
+                csrf.token
+            },
+            body: formData
+          }
+        );
+
+      if (!response.ok) {
+        showToast(
+          "Unable to upload survey image.",
+          "error"
+        );
+        return;
+      }
+
+      image.src =
+        `/api/surveys/${surveyId}/image?t=${Date.now()}`;
+
+      preview.hidden = false;
+      fileInput.value = "";
+
+      showToast(
+        "Survey image uploaded.",
+        "success"
+      );
+    }
+  );
+
+  removeButton.addEventListener(
+    "click",
+    async () => {
+      const csrfResponse =
+        await fetch("/csrf");
+  
+      const csrf =
+        await csrfResponse.json();
+  
+      const response =
+        await fetch(
+          `/api/surveys/${surveyId}/image`,
+          {
+            method: "DELETE",
+            headers: {
+              [csrf.headerName]:
+                csrf.token
+            }
+          }
+        );
+  
+      if (!response.ok) {
+        showToast(
+          "Unable to remove survey image.",
+          "error"
+        );
+        return;
+      }
+  
+      image.removeAttribute("src");
+      preview.hidden = true;
+      fileInput.value = "";
+  
+      showToast(
+        "Survey image removed.",
+        "success"
+      );
+    }
+  );
 }
 
 initialize();

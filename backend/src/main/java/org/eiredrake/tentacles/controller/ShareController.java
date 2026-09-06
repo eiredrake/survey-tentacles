@@ -31,16 +31,51 @@ public class ShareController {
     public ResponseEntity<String> shareSurvey(
         @PathVariable Long surveyId
     ) {
-        Survey survey = surveyService.findById(surveyId);
+        Survey survey =
+            surveyService.findById(surveyId);
 
         String title =
-            HtmlUtils.htmlEscape(survey.getTitle());
+            HtmlUtils.htmlEscape(
+                survey.getTitle()
+            );
 
         String description =
             "Respond to this survey in Tentacles.";
 
         String shareUrl =
-            publicBaseUrl + "/s/" + surveyId;
+            publicBaseUrl +
+            "/s/" +
+            surveyId;
+
+        String imageMeta = "";
+
+        System.out.println(
+            "SHARE survey " +
+            surveyId +
+            " image = " +
+            survey.getImageFilename()
+        );
+
+        if (
+            survey.getImageFilename() != null &&
+            !survey.getImageFilename().isBlank()
+        ) {
+            String imageUrl =
+                publicBaseUrl +
+                "/api/surveys/" +
+                surveyId +
+                "/image";
+
+            imageMeta = """
+                <meta property="og:image"
+                      content="%s">
+                <meta name="twitter:image"
+                      content="%s">
+                """.formatted(
+                    imageUrl,
+                    imageUrl
+                );
+        }
 
         String surveyUrl =
             publicBaseUrl +
@@ -57,17 +92,15 @@ public class ShareController {
 
                 <title>%s - Tentacles</title>
 
-                <meta property="og:type"
-                      content="website">
-                <meta property="og:title"
-                      content="%s">
-                <meta property="og:description"
-                      content="%s">
-                <meta property="og:url"
-                      content="%s">
+                <meta property="og:type" content="website">
+                <meta property="og:title" content="%s">
+                <meta property="og:description" content="%s">
+                <meta property="og:url" content="%s">
+
+                %s
 
                 <meta name="twitter:card"
-                      content="summary">
+                      content="summary_large_image">
                 <meta name="twitter:title"
                       content="%s">
                 <meta name="twitter:description"
@@ -89,6 +122,7 @@ public class ShareController {
                 title,
                 description,
                 shareUrl,
+                imageMeta,
                 title,
                 description,
                 surveyUrl

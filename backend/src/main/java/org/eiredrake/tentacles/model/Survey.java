@@ -27,6 +27,9 @@ public class Survey {
     @Column(nullable = false)
     private boolean everPublished = false;
 
+    @Column(name = "image_filename")
+    private String imageFilename;    
+
     public Long getId() {
         return id;
     }
@@ -73,5 +76,13 @@ public class Survey {
     
     public void setEverPublished(boolean everPublished) {
         this.everPublished = everPublished;
+    }    
+
+    public String getImageFilename() {
+        return imageFilename;
+    }
+
+    public void setImageFilename(String imageFilename) {
+        this.imageFilename = imageFilename;
     }    
 }
