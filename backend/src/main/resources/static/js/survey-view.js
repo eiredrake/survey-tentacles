@@ -22,8 +22,28 @@ async function loadSurvey() {
 
   document.getElementById("survey-title").textContent = survey.title;
 
-  document.getElementById("edit-survey-link").href =
-    `/survey-edit.html?id=${survey.id}`;
+  document.getElementById("edit-survey-link").href = `/survey-edit.html?id=${survey.id}`;
+
+      const preview =
+      document.getElementById(
+        "survey-image-preview"
+      );
+    
+    const image =
+      document.getElementById(
+        "survey-image"
+      );
+    
+    if (
+      preview &&
+      image &&
+      survey.imageFilename
+    ) {
+      image.src =
+        `/api/surveys/${surveyId}/image`;
+    
+      preview.hidden = false;
+    }    
 }
 
 async function renderRelationshipResults(question, container) {

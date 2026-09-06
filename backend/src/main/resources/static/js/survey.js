@@ -37,9 +37,35 @@ async function loadSurveyStatus() {
     );
 
     if (survey) {
-      surveyStatus = survey.status;
-      surveyAcceptingResponses = survey.acceptingResponses;
-      document.getElementById("survey-title").textContent = survey.title;
+        surveyStatus = survey.status;
+    
+        surveyAcceptingResponses =
+            survey.acceptingResponses;
+    
+        document.getElementById(
+            "survey-title"
+        ).textContent = survey.title;
+    
+        const preview =
+            document.getElementById(
+                "survey-image-preview"
+            );
+    
+        const image =
+            document.getElementById(
+                "survey-image"
+            );
+    
+        if (
+            preview &&
+            image &&
+            survey.imageFilename
+        ) {
+            image.src =
+                `/api/surveys/${surveyId}/image`;
+    
+            preview.hidden = false;
+        }
     }
 }        
 
