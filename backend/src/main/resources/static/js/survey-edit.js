@@ -1201,7 +1201,17 @@ function populateRelationshipSubjects(
 
   subjectList.replaceChildren();
 
-  for (const subject of subjects) {
+  const sortedSubjects =
+    [...subjects].sort(
+      (a, b) =>
+        a.name.localeCompare(
+          b.name,
+          undefined,
+          { sensitivity: "base" }
+        )
+    );
+
+  for (const subject of sortedSubjects) {
     const row =
       createRelationshipSubjectRow(
         subject.name,
@@ -1210,6 +1220,125 @@ function populateRelationshipSubjects(
 
     subjectList.appendChild(row);
   }
+
+  setupRelationshipSubjectSorting();
+}
+
+function setupRelationshipSubjectSorting() {
+  const subjectList =
+    document.getElementById(
+      "relationship-editor-subject-list"
+    );
+
+  const table =
+    subjectList?.closest(
+      ".relationship-editor-table"
+    );
+
+  if (!subjectList || !table) {
+    return;
+  }
+
+  const sortHeaders = [
+    ...table.querySelectorAll(
+      "[data-sort-key]"
+    )
+  ];
+
+  for (const header of sortHeaders) {
+    header.classList.add(
+      "sortable-header"
+    );
+  }
+
+  let currentSortKey =
+    "character";
+
+  let currentSortAscending =
+    true;
+
+  const updateSortIndicators = () => {
+    for (const header of sortHeaders) {
+      header.classList.remove(
+        "sort-ascending",
+        "sort-descending"
+      );
+
+      if (
+        header.dataset.sortKey ===
+        currentSortKey
+      ) {
+        header.classList.add(
+          currentSortAscending
+            ? "sort-ascending"
+            : "sort-descending"
+        );
+      }
+    }
+  };
+
+  const sortRows = () => {
+    const rows = [
+      ...subjectList.querySelectorAll(
+        ".relationship-subject"
+      )
+    ];
+
+    rows.sort((a, b) => {
+      const aValue =
+        currentSortKey === "description"
+          ? a.dataset.description || ""
+          : a.dataset.name || "";
+
+      const bValue =
+        currentSortKey === "description"
+          ? b.dataset.description || ""
+          : b.dataset.name || "";
+
+      const comparison =
+        aValue.localeCompare(
+          bValue,
+          undefined,
+          { sensitivity: "base" }
+        );
+
+      return currentSortAscending
+        ? comparison
+        : -comparison;
+    });
+
+    for (const row of rows) {
+      subjectList.appendChild(row);
+    }
+  };
+
+  for (const header of sortHeaders) {
+    header.addEventListener(
+      "click",
+      () => {
+        const sortKey =
+          header.dataset.sortKey;
+
+        if (
+          sortKey === currentSortKey
+        ) {
+          currentSortAscending =
+            !currentSortAscending;
+        } else {
+          currentSortKey =
+            sortKey;
+
+          currentSortAscending =
+            true;
+        }
+
+        sortRows();
+        updateSortIndicators();
+      }
+    );
+  }
+
+  updateSortIndicators();
 }
 
 function populateSchedulingSelections(

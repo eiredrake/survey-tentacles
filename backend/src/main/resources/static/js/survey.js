@@ -6,23 +6,22 @@ let currentUser = null;
 let surveyAcceptingResponses = false;
 
 async function loadCurrentUser() {
-  const response = await fetch("/me");
+    const response = await fetch("/me");
 
-  if (!response.ok) {
-      return;
-  }
+    if (!response.ok) {
+        return;
+    }
 
-  currentUser = await response.json();
+    currentUser = await response.json();
 
-  const userElement =
-      document.getElementById("user");
+    const userElement =
+        document.getElementById("user");
 
-  if (userElement) {
-      userElement.textContent =
-          currentUser.name;
-  }
+    if (userElement) {
+        userElement.textContent =
+            currentUser.name;
+    }
 }
-      
 
 async function loadSurveyStatus() {
     const response = await fetch("/api/surveys");
@@ -32,30 +31,33 @@ async function loadSurveyStatus() {
     }
 
     const surveys = await response.json();
+
     const survey = surveys.find(
-        survey => String(survey.id) === String(surveyId)
+        survey =>
+            String(survey.id) ===
+            String(surveyId)
     );
 
     if (survey) {
         surveyStatus = survey.status;
-    
+
         surveyAcceptingResponses =
             survey.acceptingResponses;
-    
+
         document.getElementById(
             "survey-title"
         ).textContent = survey.title;
-    
+
         const preview =
             document.getElementById(
                 "survey-image-preview"
             );
-    
+
         const image =
             document.getElementById(
                 "survey-image"
             );
-    
+
         if (
             preview &&
             image &&
@@ -63,17 +65,20 @@ async function loadSurveyStatus() {
         ) {
             image.src =
                 `/api/surveys/${surveyId}/image`;
-    
+
             preview.hidden = false;
         }
     }
-}        
+}
 
-
-
-async function refreshSchedulingStatus(question, section) {
+async function refreshSchedulingStatus(
+    question,
+    section
+) {
     let statusContainer =
-        section.querySelector(".scheduling-status");
+        section.querySelector(
+            ".scheduling-status"
+        );
 
     if (!statusContainer) {
         statusContainer =
@@ -181,7 +186,10 @@ async function refreshSchedulingStatus(question, section) {
 
         const percentage =
             maxVotes > 0
-                ? (result.votes / maxVotes) * 100
+                ? (
+                    result.votes /
+                    maxVotes
+                ) * 100
                 : 0;
 
         bar.style.width =
@@ -200,12 +208,22 @@ async function refreshSchedulingStatus(question, section) {
     );
 }
 
-async function refreshShortTextStatus(question, section) {
-    if (!currentUser?.authorities?.includes("ROLE_ADMIN")) {
+async function refreshShortTextStatus(
+    question,
+    section
+) {
+    if (
+        !currentUser?.authorities?.includes(
+            "ROLE_ADMIN"
+        )
+    ) {
         return;
     }
 
-    const statusContainer = section.querySelector(".short-text-status");
+    const statusContainer =
+        section.querySelector(
+            ".short-text-status"
+        );
 
     if (!statusContainer) {
         return;
@@ -223,111 +241,201 @@ async function refreshShortTextStatus(question, section) {
         return;
     }
 
-    const answers = await response.json();
+    const answers =
+        await response.json();
 
     statusContainer.replaceChildren();
 
-    const heading = document.createElement("h3");
-    heading.textContent = "Answers";
+    const heading =
+        document.createElement("h3");
 
-    statusContainer.appendChild(heading);
+    heading.textContent =
+        "Answers";
+
+    statusContainer.appendChild(
+        heading
+    );
 
     if (!answers.length) {
-        const empty = document.createElement("p");
-        empty.textContent = "No answers yet.";
+        const empty =
+            document.createElement("p");
 
-        statusContainer.appendChild(empty);
+        empty.textContent =
+            "No answers yet.";
+
+        statusContainer.appendChild(
+            empty
+        );
+
         return;
     }
 
     for (const answer of answers) {
-        const answerBlock = document.createElement("div");
+        const answerBlock =
+            document.createElement("div");
 
-        answerBlock.className = "short-text-response";
+        answerBlock.className =
+            "short-text-response";
 
-        const name = document.createElement("strong");
+        const name =
+            document.createElement("strong");
 
-        name.textContent = answer.name ||  answer.username;
+        name.textContent =
+            answer.name ||
+            answer.username;
 
-        const value = document.createElement("p");
+        const value =
+            document.createElement("p");
 
-        value.textContent = answer.value;
+        value.textContent =
+            answer.value;
 
         answerBlock.appendChild(name);
         answerBlock.appendChild(value);
 
-        statusContainer.appendChild(answerBlock);
+        statusContainer.appendChild(
+            answerBlock
+        );
     }
 }
 
-function createRelationshipScoreControl(className, subjectId, scoreType) {
-    const control = document.createElement("div");
+function createRelationshipScoreControl(
+    className,
+    subjectId,
+    scoreType
+) {
+    const control =
+        document.createElement("div");
 
-    control.className = `relationship-score-control ${className}`;
-    control.dataset.subjectId = subjectId;
+    control.className =
+        `relationship-score-control ${className}`;
+
+    control.dataset.subjectId =
+        subjectId;
 
     let score = 0;
 
-    const decreaseButton = document.createElement("button");
-    decreaseButton.type = "button";
-    decreaseButton.className = "relationship-score-button";
-    decreaseButton.title = "Decrease";
-    decreaseButton.setAttribute("aria-label", "Decrease score");
-    decreaseButton.innerHTML = '<i class="fa-solid fa-minus"></i>';
+    const decreaseButton =
+        document.createElement("button");
 
-    const display = document.createElement("span");
-    display.className = "relationship-score-display";
+    decreaseButton.type =
+        "button";
 
-    const increaseButton = document.createElement("button");
-    increaseButton.type = "button";
-    increaseButton.className = "relationship-score-button";
-    increaseButton.title = "Increase";
-    increaseButton.setAttribute("aria-label", "Increase score");
-    increaseButton.innerHTML = '<i class="fa-solid fa-plus"></i>';
+    decreaseButton.className =
+        "relationship-score-button";
 
-    const updateDisplay = () => { 
+    decreaseButton.title =
+        "Decrease";
+
+    decreaseButton.setAttribute(
+        "aria-label",
+        "Decrease score"
+    );
+
+    decreaseButton.innerHTML =
+        '<i class="fa-solid fa-minus"></i>';
+
+    const display =
+        document.createElement("span");
+
+    display.className =
+        "relationship-score-display";
+
+    const increaseButton =
+        document.createElement("button");
+
+    increaseButton.type =
+        "button";
+
+    increaseButton.className =
+        "relationship-score-button";
+
+    increaseButton.title =
+        "Increase";
+
+    increaseButton.setAttribute(
+        "aria-label",
+        "Increase score"
+    );
+
+    increaseButton.innerHTML =
+        '<i class="fa-solid fa-plus"></i>';
+
+    const updateDisplay = () => {
         display.replaceChildren();
 
         if (score < 0) {
-            for (let i = 0; i < Math.abs(score); i++) {
-                const icon = document.createElement("i");
-        
+            for (
+                let i = 0;
+                i < Math.abs(score);
+                i++
+            ) {
+                const icon =
+                    document.createElement(
+                        "i"
+                    );
+
                 icon.className =
                     scoreType === "trust"
                         ? "fa-solid fa-shield-halved relationship-score-trust-negative"
                         : "fa-solid fa-heart-crack relationship-score-like-negative";
-        
+
                 display.appendChild(icon);
             }
-        
-            const value = document.createElement("span");
-            value.className = "relationship-score-value";
-            value.textContent = String(score);
-        
+
+            const value =
+                document.createElement(
+                    "span"
+                );
+
+            value.className =
+                "relationship-score-value";
+
+            value.textContent =
+                String(score);
+
             display.appendChild(value);
         } else if (score > 0) {
-            for (let i = 0; i < score; i++) {
-                const icon = document.createElement("i");
-        
+            for (
+                let i = 0;
+                i < score;
+                i++
+            ) {
+                const icon =
+                    document.createElement(
+                        "i"
+                    );
+
                 icon.className =
                     scoreType === "trust"
                         ? "fa-solid fa-shield relationship-score-trust-positive"
                         : "fa-solid fa-heart relationship-score-like-positive";
-        
+
                 display.appendChild(icon);
             }
-        
-            const value = document.createElement("span");
-            value.className = "relationship-score-value";
-            value.textContent = `+${score}`;
-        
+
+            const value =
+                document.createElement(
+                    "span"
+                );
+
+            value.className =
+                "relationship-score-value";
+
+            value.textContent =
+                `+${score}`;
+
             display.appendChild(value);
         } else {
-            display.textContent = "— No opinion";
+            display.textContent =
+                "— No opinion";
         }
 
-        decreaseButton.disabled = score <= -5;
-        increaseButton.disabled = score >= 5;
+        decreaseButton.disabled =
+            score <= -5;
+
+        increaseButton.disabled =
+            score >= 5;
 
         display.setAttribute(
             "aria-label",
@@ -338,42 +446,69 @@ function createRelationshipScoreControl(className, subjectId, scoreType) {
     };
 
     /*
-     * Preserve the old .value interface so the existing
-     * Relationship save/reload code can continue using it.
+     * Preserve the old .value interface so the
+     * existing Relationship save/reload code can
+     * continue using it.
      */
-    Object.defineProperty(control, "value", {
-        get() {
-            return String(score);
-        },
+    Object.defineProperty(
+        control,
+        "value",
+        {
+            get() {
+                return String(score);
+            },
 
-        set(value) {
-            const parsed = Number(value);
+            set(value) {
+                const parsed =
+                    Number(value);
 
-            score = Number.isFinite(parsed)
-                ? Math.max(-5, Math.min(5, parsed))
-                : 0;
+                score =
+                    Number.isFinite(parsed)
+                        ? Math.max(
+                            -5,
+                            Math.min(
+                                5,
+                                parsed
+                            )
+                        )
+                        : 0;
 
-            updateDisplay();
+                updateDisplay();
+            }
         }
-    });
+    );
 
-    decreaseButton.addEventListener("click", () => {
-        if (score > -5) {
-            score--;
-            updateDisplay();
+    decreaseButton.addEventListener(
+        "click",
+        () => {
+            if (score > -5) {
+                score--;
+                updateDisplay();
+            }
         }
-    });
+    );
 
-    increaseButton.addEventListener("click", () => {
-        if (score < 5) {
-            score++;
-            updateDisplay();
+    increaseButton.addEventListener(
+        "click",
+        () => {
+            if (score < 5) {
+                score++;
+                updateDisplay();
+            }
         }
-    });
+    );
 
-    control.appendChild(decreaseButton);
-    control.appendChild(display);
-    control.appendChild(increaseButton);
+    control.appendChild(
+        decreaseButton
+    );
+
+    control.appendChild(
+        display
+    );
+
+    control.appendChild(
+        increaseButton
+    );
 
     updateDisplay();
 
@@ -381,590 +516,1111 @@ function createRelationshipScoreControl(className, subjectId, scoreType) {
 }
 
 async function loadQuestions() {
-  const container = document.getElementById("questions");
+    const container =
+        document.getElementById(
+            "questions"
+        );
 
-  if (!surveyId) {
-      container.textContent = "No survey ID supplied.";
-      return;
-  }
+    if (!surveyId) {
+        container.textContent =
+            "No survey ID supplied.";
 
-  const response = await fetch(
-      `/api/surveys/${surveyId}/questions`
-  );
-
-  if (!response.ok) {
-      container.textContent = "Unable to load questions.";
-      return;
-  }
-
-  const questions = await response.json();
-
-  container.replaceChildren();
-
-  for (const question of questions) {
-      const template =
-          document.getElementById(
-              question.participantTemplateId
-          );
-
-      if (!template) {
-          showToast(
-              `Participant template not found for question ${question.id}.`,
-              "error"
-          );
-          continue;
-      }
-
-      const fragment =
-          template.content.cloneNode(true);
-
-      const section = fragment.querySelector(".survey-question");
-
-      if (question.required) {
-        section.classList.add("required-question-highlight");
+        return;
     }
 
-      const heading =
-          section.querySelector(".question-prompt");
+    const response = await fetch(
+        `/api/surveys/${surveyId}/questions`
+    );
 
-      heading.textContent = question.prompt;
+    if (!response.ok) {
+        container.textContent =
+            "Unable to load questions.";
 
-      /*
-       * The scheduling template contains these controls.
-       * This lets the HTML template determine which behavior
-       * is appropriate instead of comparing against a
-       * hard-coded Java enum value.
-       */
-      const optionsContainer = section.querySelector(".scheduling-options");
+        return;
+    }
 
-      const submitButton = section.querySelector(".submit-answer-button");
+    const questions =
+        await response.json();
 
-      const shortTextInput = section.querySelector(".short-text-input");
-  
-      const shortTextCharacterCount = section.querySelector(".short-text-character-count");
+    container.replaceChildren();
 
-      const selectAllButton = section.querySelector(".select-all-button");
-      
-      const clearAllButton = section.querySelector(".select-none-button");          
+    for (const question of questions) {
+        const template =
+            document.getElementById(
+                question.participantTemplateId
+            );
 
-      const relationshipSubjects =
-      section.querySelector(".relationship-subjects");
-  
-        if (relationshipSubjects && submitButton) {
-            const detailResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}`);
-        
+        if (!template) {
+            showToast(
+                `Participant template not found for question ${question.id}.`,
+                "error"
+            );
+
+            continue;
+        }
+
+        const fragment =
+            template.content.cloneNode(
+                true
+            );
+
+        const section =
+            fragment.querySelector(
+                ".survey-question"
+            );
+
+        if (question.required) {
+            section.classList.add(
+                "required-question-highlight"
+            );
+        }
+
+        const heading =
+            section.querySelector(
+                ".question-prompt"
+            );
+
+        heading.textContent =
+            question.prompt;
+
+        /*
+         * The scheduling template contains these
+         * controls. This lets the HTML template
+         * determine which behavior is appropriate
+         * instead of comparing against a hard-coded
+         * Java enum value.
+         */
+        const optionsContainer =
+            section.querySelector(
+                ".scheduling-options"
+            );
+
+        const submitButton =
+            section.querySelector(
+                ".submit-answer-button"
+            );
+
+        const shortTextInput =
+            section.querySelector(
+                ".short-text-input"
+            );
+
+        const shortTextCharacterCount =
+            section.querySelector(
+                ".short-text-character-count"
+            );
+
+        const selectAllButton =
+            section.querySelector(
+                ".select-all-button"
+            );
+
+        const clearAllButton =
+            section.querySelector(
+                ".select-none-button"
+            );
+
+        const relationshipSubjects =
+            section.querySelector(
+                ".relationship-subjects"
+            );
+
+        if (
+            relationshipSubjects &&
+            submitButton
+        ) {
+            const detailResponse =
+                await fetch(
+                    `/api/surveys/${surveyId}/questions/${question.id}`
+                );
+
             if (!detailResponse.ok) {
                 showToast(
                     "Unable to load relationship question.",
                     "error"
                 );
+
                 continue;
             }
-        
-            const detail = await detailResponse.json();
 
-            const answersResponse = await fetch(
-                `/api/surveys/${surveyId}/questions/${question.id}/answers/relationship`
-            );
-            
+            const detail =
+                await detailResponse.json();
+
+            const answersResponse =
+                await fetch(
+                    `/api/surveys/${surveyId}/questions/${question.id}/answers/relationship`
+                );
+
             if (!answersResponse.ok) {
                 showToast(
                     "Unable to load existing relationship answers.",
                     "error"
                 );
+
                 continue;
             }
-            
-            const answers = await answersResponse.json();
-            
-            const myAnswers = new Map(
-                answers
-                    .filter(
-                        answer => answer.userId === currentUser.id
-                    )
-                    .map(
-                        answer => [
-                            answer.subjectId,
-                            answer
-                        ]
-                    )
-            );
-        
-            relationshipSubjects.replaceChildren();
-        
-            for (const subject of detail.subjects) {
-                const row = document.createElement("tr");
-        
-                const nameCell = document.createElement("td");
-        
-                nameCell.textContent = subject.name;
-        
-                if (subject.description) {
-                    nameCell.title = subject.description;
-                }
-        
-                const likeCell = document.createElement("td");
-        
-                const likeInput = createRelationshipScoreControl(
-                    "relationship-like",
-                    subject.id,
-                    "like"
-                );
-        
-                likeCell.appendChild(likeInput);
-        
-                const trustCell = document.createElement("td");
-        
-                const trustInput = createRelationshipScoreControl(
-                    "relationship-trust",
-                    subject.id,
-                    "trust"
-                );
-        
-       
-                trustCell.appendChild(trustInput);
-                
-        
-                const commentCell = document.createElement("td");
-        
-                const commentInput = document.createElement("textarea");
-        
-                commentInput.maxLength = 500;
-                commentInput.rows = 2;
-                commentInput.className = "relationship-comment";
-                commentInput.dataset.subjectId = subject.id;
 
-                const existingAnswer = myAnswers.get(subject.id);
+            const answers =
+                await answersResponse.json();
+
+            const myAnswers =
+                new Map(
+                    answers
+                        .filter(
+                            answer =>
+                                answer.userId ===
+                                currentUser.id
+                        )
+                        .map(
+                            answer => [
+                                answer.subjectId,
+                                answer
+                            ]
+                        )
+                );
+
+            relationshipSubjects.replaceChildren();
+
+            /*
+             * Relationship questions default to
+             * character name ascending.
+             */
+            const sortedSubjects =
+                [...detail.subjects].sort(
+                    (a, b) =>
+                        a.name.localeCompare(
+                            b.name,
+                            undefined,
+                            {
+                                sensitivity:
+                                    "base"
+                            }
+                        )
+                );
+
+            for (
+                const subject of sortedSubjects
+            ) {
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+                const nameCell =
+                    document.createElement(
+                        "td"
+                    );
+
+                nameCell.textContent =
+                    subject.name;
+
+                if (subject.description) {
+                    nameCell.title =
+                        subject.description;
+                }
+
+                const likeCell =
+                    document.createElement(
+                        "td"
+                    );
+
+                const likeInput =
+                    createRelationshipScoreControl(
+                        "relationship-like",
+                        subject.id,
+                        "like"
+                    );
+
+                likeCell.appendChild(
+                    likeInput
+                );
+
+                const trustCell =
+                    document.createElement(
+                        "td"
+                    );
+
+                const trustInput =
+                    createRelationshipScoreControl(
+                        "relationship-trust",
+                        subject.id,
+                        "trust"
+                    );
+
+                trustCell.appendChild(
+                    trustInput
+                );
+
+                const commentCell =
+                    document.createElement(
+                        "td"
+                    );
+
+                const commentInput =
+                    document.createElement(
+                        "textarea"
+                    );
+
+                commentInput.maxLength =
+                    500;
+
+                commentInput.rows =
+                    2;
+
+                commentInput.className =
+                    "relationship-comment";
+
+                commentInput.dataset.subjectId =
+                    subject.id;
+
+                const existingAnswer =
+                    myAnswers.get(
+                        subject.id
+                    );
 
                 if (existingAnswer) {
-                    likeInput.value = String(existingAnswer.likeScore ?? 0);
-                    trustInput.value = String(existingAnswer.trustScore ?? 0);
-                    commentInput.value = existingAnswer.comment ?? "";
-                }                
-        
-                commentCell.appendChild(commentInput);
-        
-                row.appendChild(nameCell);
-                row.appendChild(likeCell);
-                row.appendChild(trustCell);
-                row.appendChild(commentCell);
-        
-                relationshipSubjects.appendChild(row);
+                    likeInput.value =
+                        String(
+                            existingAnswer.likeScore ??
+                            0
+                        );
+
+                    trustInput.value =
+                        String(
+                            existingAnswer.trustScore ??
+                            0
+                        );
+
+                    commentInput.value =
+                        existingAnswer.comment ??
+                        "";
+                }
+
+                commentCell.appendChild(
+                    commentInput
+                );
+
+                row.appendChild(
+                    nameCell
+                );
+
+                row.appendChild(
+                    likeCell
+                );
+
+                row.appendChild(
+                    trustCell
+                );
+
+                row.appendChild(
+                    commentCell
+                );
+
+                relationshipSubjects.appendChild(
+                    row
+                );
             }
-        
-            submitButton.disabled = !surveyAcceptingResponses;
+
+            /*
+             * Allow the Relationship table headers
+             * to sort the existing rows without
+             * rebuilding them.
+             *
+             * survey.html supplies:
+             *
+             * data-sort-key="character"
+             * data-sort-key="like"
+             * data-sort-key="trust"
+             * data-sort-key="comments"
+             */
+
+            const sortHeaders = [
+                ...section.querySelectorAll(
+                    "[data-sort-key]"
+                )
+            ];
+            
+            for (const header of sortHeaders) {
+                header.classList.add(
+                    "sortable-header"
+                );
+            }
+            
+            let currentSortKey =
+                "character";
+            
+            let currentSortAscending =
+                true;
+            
+            const updateSortIndicators = () => {
+                for (const header of sortHeaders) {
+                    header.classList.remove(
+                        "sort-ascending",
+                        "sort-descending"
+                    );
+            
+                    if (
+                        header.dataset.sortKey ===
+                        currentSortKey
+                    ) {
+                        header.classList.add(
+                            currentSortAscending
+                                ? "sort-ascending"
+                                : "sort-descending"
+                        );
+                    }
+                }
+            };
+            
+            updateSortIndicators();
+
+            const sortRelationshipRows = (
+                sortKey,
+                ascending
+            ) => {
+                const rows = [
+                    ...relationshipSubjects
+                        .querySelectorAll(
+                            "tr"
+                        )
+                ];
+
+                rows.sort(
+                    (a, b) => {
+                        let comparison = 0;
+
+                        if (
+                            sortKey ===
+                            "character"
+                        ) {
+                            const aValue =
+                                a.cells[0]
+                                    .textContent
+                                    .trim();
+
+                            const bValue =
+                                b.cells[0]
+                                    .textContent
+                                    .trim();
+
+                            comparison =
+                                aValue.localeCompare(
+                                    bValue,
+                                    undefined,
+                                    {
+                                        sensitivity:
+                                            "base"
+                                    }
+                                );
+                        } else if (
+                            sortKey ===
+                            "like"
+                        ) {
+                            const aValue =
+                                Number(
+                                    a.querySelector(
+                                        ".relationship-like"
+                                    ).value
+                                );
+
+                            const bValue =
+                                Number(
+                                    b.querySelector(
+                                        ".relationship-like"
+                                    ).value
+                                );
+
+                            comparison =
+                                aValue -
+                                bValue;
+                        } else if (
+                            sortKey ===
+                            "trust"
+                        ) {
+                            const aValue =
+                                Number(
+                                    a.querySelector(
+                                        ".relationship-trust"
+                                    ).value
+                                );
+
+                            const bValue =
+                                Number(
+                                    b.querySelector(
+                                        ".relationship-trust"
+                                    ).value
+                                );
+
+                            comparison =
+                                aValue -
+                                bValue;
+                        } else if (
+                            sortKey ===
+                            "comments"
+                        ) {
+                            const aValue =
+                                a.querySelector(
+                                    ".relationship-comment"
+                                )
+                                    .value
+                                    .trim();
+
+                            const bValue =
+                                b.querySelector(
+                                    ".relationship-comment"
+                                )
+                                    .value
+                                    .trim();
+
+                            comparison =
+                                aValue.localeCompare(
+                                    bValue,
+                                    undefined,
+                                    {
+                                        sensitivity:
+                                            "base"
+                                    }
+                                );
+                        }
+
+                        return ascending
+                            ? comparison
+                            : -comparison;
+                    }
+                );
+
+                /*
+                 * appendChild() moves existing rows.
+                 * It does not clone them, so current
+                 * Like/Trust/comment values remain.
+                 */
+                for (const row of rows) {
+                    relationshipSubjects.appendChild(
+                        row
+                    );
+                }
+            };
+
+            for (
+                const header of sortHeaders
+            ) {
+                header.addEventListener(
+                    "click",
+                    () => {
+                        const sortKey =
+                            header.dataset.sortKey;
+
+                        if (
+                            sortKey ===
+                            currentSortKey
+                        ) {
+                            currentSortAscending =
+                                !currentSortAscending;
+                        } else {
+                            currentSortKey =
+                                sortKey;
+
+                            currentSortAscending =
+                                true;
+                        }
+
+                        sortRelationshipRows(
+                            currentSortKey,
+                            currentSortAscending
+                        );
+
+                        updateSortIndicators();
+                    }
+                );
+            }
+
+            submitButton.disabled =
+                !surveyAcceptingResponses;
 
             submitButton.addEventListener(
                 "click",
                 async () => {
                     const rows = [
-                        ...relationshipSubjects.querySelectorAll("tr")
+                        ...relationshipSubjects
+                            .querySelectorAll(
+                                "tr"
+                            )
                     ];
-            
-                    const responses = rows.map(row => {
-                        const likeSelect =
-                            row.querySelector(".relationship-like");
-            
-                        const trustSelect =
-                            row.querySelector(".relationship-trust");
-            
-                        const commentInput =
-                            row.querySelector(".relationship-comment");
-            
-                        return {
-                            subjectId:
-                                Number(likeSelect.dataset.subjectId),
-            
-                            likeScore:
-                                likeSelect.value === ""
-                                    ? null
-                                    : Number(likeSelect.value),
-            
-                            trustScore:
-                                trustSelect.value === ""
-                                    ? null
-                                    : Number(trustSelect.value),
-            
-                            comment:
-                                commentInput.value.trim()
-                        };
-                    });
-            
-                    const hasRating = responses.some(
-                        response =>
-                            response.likeScore !== 0 ||
-                            response.trustScore !== 0
-                    );
-            
-                    if (question.required && !hasRating) {
+
+                    const responses =
+                        rows.map(
+                            row => {
+                                const likeSelect =
+                                    row.querySelector(
+                                        ".relationship-like"
+                                    );
+
+                                const trustSelect =
+                                    row.querySelector(
+                                        ".relationship-trust"
+                                    );
+
+                                const commentInput =
+                                    row.querySelector(
+                                        ".relationship-comment"
+                                    );
+
+                                return {
+                                    subjectId:
+                                        Number(
+                                            likeSelect
+                                                .dataset
+                                                .subjectId
+                                        ),
+
+                                    likeScore:
+                                        likeSelect.value ===
+                                        ""
+                                            ? null
+                                            : Number(
+                                                likeSelect.value
+                                            ),
+
+                                    trustScore:
+                                        trustSelect.value ===
+                                        ""
+                                            ? null
+                                            : Number(
+                                                trustSelect.value
+                                            ),
+
+                                    comment:
+                                        commentInput
+                                            .value
+                                            .trim()
+                                };
+                            }
+                        );
+
+                    const hasRating =
+                        responses.some(
+                            response =>
+                                response.likeScore !==
+                                    0 ||
+                                response.trustScore !==
+                                    0
+                        );
+
+                    if (
+                        question.required &&
+                        !hasRating
+                    ) {
                         section.classList.add(
                             "question-required-error"
                         );
-            
+
                         showToast(
                             "This question is required. Please provide at least one Like or Trust rating.",
                             "error"
                         );
-            
-                        setTimeout(() => {
-                            section.classList.remove(
-                                "question-required-error"
-                            );
-                        }, 1200);
-            
+
+                        setTimeout(
+                            () => {
+                                section.classList.remove(
+                                    "question-required-error"
+                                );
+                            },
+                            1200
+                        );
+
                         return;
                     }
-            
+
                     const csrfResponse =
-                        await fetch("/csrf");
-            
+                        await fetch(
+                            "/csrf"
+                        );
+
                     const csrf =
                         await csrfResponse.json();
-            
-                    const saveResponse = await fetch(
-                        `/api/surveys/${surveyId}/questions/${question.id}/answers/relationship`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type":
-                                    "application/json",
-                                [csrf.headerName]:
-                                    csrf.token
-                            },
-                            body: JSON.stringify({
-                                responses: responses
-                            })
-                        }
-                    );
-            
-                    if (!saveResponse.ok) {
+
+                    const saveResponse =
+                        await fetch(
+                            `/api/surveys/${surveyId}/questions/${question.id}/answers/relationship`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+
+                                    [csrf.headerName]:
+                                        csrf.token
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        {
+                                            responses:
+                                                responses
+                                        }
+                                    )
+                            }
+                        );
+
+                    if (
+                        !saveResponse.ok
+                    ) {
                         showToast(
                             "Unable to save response.",
                             "error"
                         );
+
                         return;
                     }
-            
+
                     showToast(
                         "Response saved.",
                         "success"
                     );
                 }
-            );            
+            );
         }
 
-      if (shortTextInput && submitButton) {
-        shortTextInput.disabled = !surveyAcceptingResponses;
-    
-        submitButton.disabled = !surveyAcceptingResponses;
-    
-        const answersResponse = await fetch(
-            `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`
-        );
-    
-        if (!answersResponse.ok) {
-            showToast(
-                "Unable to load existing answer.",
-                "error"
+        if (
+            shortTextInput &&
+            submitButton
+        ) {
+            shortTextInput.disabled =
+                !surveyAcceptingResponses;
+
+            submitButton.disabled =
+                !surveyAcceptingResponses;
+
+            const answersResponse =
+                await fetch(
+                    `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`
+                );
+
+            if (!answersResponse.ok) {
+                showToast(
+                    "Unable to load existing answer.",
+                    "error"
+                );
+
+                continue;
+            }
+
+            const answers =
+                await answersResponse.json();
+
+            const existingAnswer =
+                answers.find(
+                    answer =>
+                        answer.userId ===
+                        currentUser.id
+                );
+
+            if (existingAnswer) {
+                shortTextInput.value =
+                    existingAnswer.value;
+            }
+
+            const updateCharacterCount =
+                () => {
+                    shortTextCharacterCount.textContent =
+                        `${shortTextInput.value.length} / 500`;
+                };
+
+            updateCharacterCount();
+
+            shortTextInput.addEventListener(
+                "input",
+                updateCharacterCount
             );
-            continue;
-        }
-    
-        const answers =
-            await answersResponse.json();
-    
-        const existingAnswer = answers.find(
-            answer => answer.userId === currentUser.id
-        );
-    
-        if (existingAnswer) {
-            shortTextInput.value =
-                existingAnswer.value;
-        }
-    
-        const updateCharacterCount = () => {
-            shortTextCharacterCount.textContent =
-                `${shortTextInput.value.length} / 500`;
-        };
-    
-        updateCharacterCount();
-    
-        shortTextInput.addEventListener(
-            "input",
-            updateCharacterCount
-        );
-    
-        submitButton.addEventListener(
-            "click",
-            async () => {
-                const value =
-                    shortTextInput.value.trim();
-    
-                if (
-                    question.required &&
-                    value.length === 0
-                ) {
-                    section.classList.add(
-                        "question-required-error"
-                    );
-    
-                    showToast(
-                        "This question is required. Please enter a response.",
-                        "error"
-                    );
-    
-                    setTimeout(() => {
-                        section.classList.remove(
+
+            submitButton.addEventListener(
+                "click",
+                async () => {
+                    const value =
+                        shortTextInput
+                            .value
+                            .trim();
+
+                    if (
+                        question.required &&
+                        value.length === 0
+                    ) {
+                        section.classList.add(
                             "question-required-error"
                         );
-                    }, 1200);
-    
-                    return;
-                }
-    
-                const csrfResponse =
-                    await fetch("/csrf");
-    
-                const csrf =
-                    await csrfResponse.json();
-    
-                const saveResponse = await fetch(
-                    `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type":
-                                "application/json",
-                            [csrf.headerName]:
-                                csrf.token
-                        },
-                        body: JSON.stringify({
-                            value: value
-                        })
+
+                        showToast(
+                            "This question is required. Please enter a response.",
+                            "error"
+                        );
+
+                        setTimeout(
+                            () => {
+                                section.classList.remove(
+                                    "question-required-error"
+                                );
+                            },
+                            1200
+                        );
+
+                        return;
                     }
-                );
-    
-                if (!saveResponse.ok) {
+
+                    const csrfResponse =
+                        await fetch(
+                            "/csrf"
+                        );
+
+                    const csrf =
+                        await csrfResponse.json();
+
+                    const saveResponse =
+                        await fetch(
+                            `/api/surveys/${surveyId}/questions/${question.id}/answers/short-text`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+
+                                    [csrf.headerName]:
+                                        csrf.token
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        {
+                                            value:
+                                                value
+                                        }
+                                    )
+                            }
+                        );
+
+                    if (
+                        !saveResponse.ok
+                    ) {
+                        showToast(
+                            "Unable to save response.",
+                            "error"
+                        );
+
+                        return;
+                    }
+
                     showToast(
-                        "Unable to save response.",
-                        "error"
+                        "Response saved.",
+                        "success"
                     );
-                    return;
+
+                    // await refreshShortTextStatus(
+                    //     question,
+                    //     section
+                    // );
                 }
-    
-                showToast(
-                    "Response saved.",
-                    "success"
+            );
+
+            // await refreshShortTextStatus(
+            //     question,
+            //     section
+            // );
+        }
+
+        if (
+            optionsContainer &&
+            submitButton
+        ) {
+            selectAllButton?.addEventListener(
+                "click",
+                () => {
+                    optionsContainer
+                        .querySelectorAll(
+                            'input[type="checkbox"]:not(:disabled)'
+                        )
+                        .forEach(
+                            checkbox => {
+                                checkbox.checked =
+                                    true;
+                            }
+                        );
+                }
+            );
+
+            clearAllButton?.addEventListener(
+                "click",
+                () => {
+                    optionsContainer
+                        .querySelectorAll(
+                            'input[type="checkbox"]:not(:disabled)'
+                        )
+                        .forEach(
+                            checkbox => {
+                                checkbox.checked =
+                                    false;
+                            }
+                        );
+                }
+            );
+
+            const detailResponse =
+                await fetch(
+                    `/api/surveys/${surveyId}/questions/${question.id}`
                 );
 
-               // await refreshShortTextStatus(
-               //     question,
-               //     section
-               // );                
+            if (!detailResponse.ok) {
+                showToast(
+                    "Unable to load question details.",
+                    "error"
+                );
+
+                continue;
             }
-        );
 
-        //await refreshShortTextStatus(
-        //    question,
-        //    section
-        //);
-    }      
+            const detail =
+                await detailResponse.json();
 
-      if (optionsContainer && submitButton) {
-          selectAllButton?.addEventListener("click", () => {
-            optionsContainer
-                .querySelectorAll('input[type="checkbox"]:not(:disabled)')
-                .forEach(checkbox => {
-                    checkbox.checked = true;
-                });
-        });
-        
-        clearAllButton?.addEventListener("click", () => {
-            optionsContainer
-                .querySelectorAll('input[type="checkbox"]:not(:disabled)')
-                .forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-        });
+            const answersResponse =
+                await fetch(
+                    `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`
+                );
 
+            if (!answersResponse.ok) {
+                showToast(
+                    "Unable to load existing answers.",
+                    "error"
+                );
 
+                continue;
+            }
 
+            const answers =
+                await answersResponse.json();
 
-          const detailResponse = await fetch(
-              `/api/surveys/${surveyId}/questions/${question.id}`
-          );
+            const mySelectedOptionIds =
+                new Set(
+                    answers
+                        .filter(
+                            answer =>
+                                answer.userId ===
+                                currentUser.id
+                        )
+                        .map(
+                            answer =>
+                                answer.optionId
+                        )
+                );
 
-          if (!detailResponse.ok) {
-              showToast(
-                  "Unable to load question details.",
-                  "error"
-              );
-              continue;
-          }
-
-          const detail =
-              await detailResponse.json();
-
-          const answersResponse = await fetch(
-              `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`
-          );
-
-          if (!answersResponse.ok) {
-              showToast(
-                  "Unable to load existing answers.",
-                  "error"
-              );
-              continue;
-          }
-
-          const answers =
-              await answersResponse.json();
-
-          const mySelectedOptionIds =
-              new Set(
-                  answers
-                      .filter(
-                          answer =>
-                              answer.userId === currentUser.id
-                      )
-                      .map(
-                          answer => answer.optionId
-                      )
-              );
-
-          for (const option of detail.options) {
-              const label =
-                  document.createElement("label");
-
-              const checkbox =
-                  document.createElement("input");
-
-              checkbox.type = "checkbox";
-              checkbox.value = option.id;
-
-              checkbox.checked =
-                  mySelectedOptionIds.has(option.id);
-
-              checkbox.disabled = !surveyAcceptingResponses;
-
-              const text =
-                  document.createElement("span");
-
-              if (option.dateTime) {
-                  const localDateTime =
-                      new Date(option.dateTime);
-
-                  text.textContent =
-                      localDateTime.toLocaleString(
-                          undefined,
-                          {
-                              weekday: "long",
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit"
-                          }
-                      );
-              } else {
-                  text.textContent =
-                      formatDate(option.date);
-              }
-
-              label.appendChild(checkbox);
-              label.append(" ");
-              label.appendChild(text);
-
-              optionsContainer.appendChild(label);
-              optionsContainer.appendChild(
-                  document.createElement("br")
-              );
-          }
-
-          submitButton.disabled = !surveyAcceptingResponses;
-          if (selectAllButton) {
-              selectAllButton.disabled = !surveyAcceptingResponses;
-          }
-          
-          if (clearAllButton) {
-              clearAllButton.disabled = !surveyAcceptingResponses;
-          }
-
-
-          submitButton.addEventListener(
-              "click",
-              async () => {
-                  const selected = [
-                      ...optionsContainer.querySelectorAll(
-                          'input[type="checkbox"]:checked'
-                      )
-                  ].map(
-                      checkbox =>
-                          Number(checkbox.value)
-                  );
-
-                  if (question.required && selected.length === 0) {
-                    section.classList.add("question-required-error");
-                
-                    showToast(
-                        "This question is required. Please select at least one option.",
-                        "error"
+            for (
+                const option of detail.options
+            ) {
+                const label =
+                    document.createElement(
+                        "label"
                     );
-                
-                    setTimeout(() => {
-                        section.classList.remove("question-required-error");
-                    }, 1200);
-                
-                    return;
-                }                  
 
-                  const csrfResponse = await fetch("/csrf");
+                const checkbox =
+                    document.createElement(
+                        "input"
+                    );
 
-                  const csrf = await csrfResponse.json();
+                checkbox.type =
+                    "checkbox";
 
-                  const saveResponse = await fetch(
-                      `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`,
-                      {
-                          method: "POST",
-                          headers: {
-                              "Content-Type":
-                                  "application/json",
-                              [csrf.headerName]:
-                                  csrf.token
-                          },
-                          body: JSON.stringify({
-                              optionIds: selected
-                          })
-                      }
-                  );
+                checkbox.value =
+                    option.id;
 
-                  if (saveResponse.ok) {
-                      showToast(
-                          "Response saved.",
-                          "success"
-                      );
+                checkbox.checked =
+                    mySelectedOptionIds.has(
+                        option.id
+                    );
 
-                      //await refreshSchedulingStatus(
-                      //    question,
-                      //    section
-                      //);
-                  } else {
-                      showToast(
-                          "Unable to save response.",
-                          "error"
-                      );
-                  }
-              }
-          );
+                checkbox.disabled =
+                    !surveyAcceptingResponses;
 
-          //await refreshSchedulingStatus(
-          //    question,
-          //    section
-          //);
-      }
+                const text =
+                    document.createElement(
+                        "span"
+                    );
 
-      container.appendChild(fragment);
-  }
+                if (option.dateTime) {
+                    const localDateTime =
+                        new Date(
+                            option.dateTime
+                        );
+
+                    text.textContent =
+                        localDateTime
+                            .toLocaleString(
+                                undefined,
+                                {
+                                    weekday:
+                                        "long",
+
+                                    year:
+                                        "numeric",
+
+                                    month:
+                                        "long",
+
+                                    day:
+                                        "numeric",
+
+                                    hour:
+                                        "numeric",
+
+                                    minute:
+                                        "2-digit"
+                                }
+                            );
+                } else {
+                    text.textContent =
+                        formatDate(
+                            option.date
+                        );
+                }
+
+                label.appendChild(
+                    checkbox
+                );
+
+                label.append(" ");
+
+                label.appendChild(
+                    text
+                );
+
+                optionsContainer.appendChild(
+                    label
+                );
+
+                optionsContainer.appendChild(
+                    document.createElement(
+                        "br"
+                    )
+                );
+            }
+
+            submitButton.disabled =
+                !surveyAcceptingResponses;
+
+            if (selectAllButton) {
+                selectAllButton.disabled =
+                    !surveyAcceptingResponses;
+            }
+
+            if (clearAllButton) {
+                clearAllButton.disabled =
+                    !surveyAcceptingResponses;
+            }
+
+            submitButton.addEventListener(
+                "click",
+                async () => {
+                    const selected = [
+                        ...optionsContainer
+                            .querySelectorAll(
+                                'input[type="checkbox"]:checked'
+                            )
+                    ].map(
+                        checkbox =>
+                            Number(
+                                checkbox.value
+                            )
+                    );
+
+                    if (
+                        question.required &&
+                        selected.length === 0
+                    ) {
+                        section.classList.add(
+                            "question-required-error"
+                        );
+
+                        showToast(
+                            "This question is required. Please select at least one option.",
+                            "error"
+                        );
+
+                        setTimeout(
+                            () => {
+                                section.classList.remove(
+                                    "question-required-error"
+                                );
+                            },
+                            1200
+                        );
+
+                        return;
+                    }
+
+                    const csrfResponse =
+                        await fetch(
+                            "/csrf"
+                        );
+
+                    const csrf =
+                        await csrfResponse.json();
+
+                    const saveResponse =
+                        await fetch(
+                            `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling`,
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+
+                                    [csrf.headerName]:
+                                        csrf.token
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        {
+                                            optionIds:
+                                                selected
+                                        }
+                                    )
+                            }
+                        );
+
+                    if (
+                        saveResponse.ok
+                    ) {
+                        showToast(
+                            "Response saved.",
+                            "success"
+                        );
+
+                        // await refreshSchedulingStatus(
+                        //     question,
+                        //     section
+                        // );
+                    } else {
+                        showToast(
+                            "Unable to save response.",
+                            "error"
+                        );
+                    }
+                }
+            );
+
+            // await refreshSchedulingStatus(
+            //     question,
+            //     section
+            // );
+        }
+
+        container.appendChild(
+            fragment
+        );
+    }
 }
 
 async function initialize() {

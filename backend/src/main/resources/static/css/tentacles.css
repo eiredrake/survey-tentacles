@@ -503,3 +503,26 @@ main {
   align-items: center;
   gap: 0.75rem;
 }
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-header::after {
+  display: inline-block;
+  width: 1em;
+  margin-left: 0.35rem;
+  content: "";
+}
+
+.sortable-header.sort-ascending::after {
+  content: "▲";
+  font-size: 0.75em;
+}
+
+.sortable-header.sort-descending::after {
+  content: "▼";
+  font-size: 0.75em;
+}

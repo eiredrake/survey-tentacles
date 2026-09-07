@@ -89,24 +89,58 @@ async function renderRelationshipResults(question, container) {
     return value > 0 ? `+${rounded}` : rounded;
   };
 
-  for (const subject of detail.subjects) {
-    const subjectAnswers = answers.filter(
-      (answer) => answer.subjectId === subject.id,
+  const subjects = [...detail.subjects]
+    .map((subject) => {
+      const subjectAnswers = answers.filter(
+        (answer) => answer.subjectId === subject.id,
+      );
+
+      const comments = subjectAnswers.filter(
+        (answer) => answer.comment && answer.comment.trim().length > 0,
+      );
+
+      const likeScores = subjectAnswers
+        .map((answer) => answer.likeScore)
+        .filter((score) => score !== null && score !== 0);
+
+      const trustScores = subjectAnswers
+        .map((answer) => answer.trustScore)
+        .filter((score) => score !== null && score !== 0);
+
+      return {
+        subject,
+        subjectAnswers,
+        comments,
+        averageLike: average(likeScores),
+        averageTrust: average(trustScores),
+      };
+    })
+    .sort((a, b) =>
+      a.subject.name.localeCompare(
+        b.subject.name,
+        undefined,
+        { sensitivity: "base" },
+      ),
     );
 
-    const comments = subjectAnswers.filter(
-      (answer) => answer.comment && answer.comment.trim().length > 0,
-    );
-
-    const likeScores = subjectAnswers
-    .map((answer) => answer.likeScore)
-    .filter((score) => score !== null && score !== 0);
-
-    const trustScores = subjectAnswers
-    .map((answer) => answer.trustScore)
-    .filter((score) => score !== null && score !== 0);
+  for (const result of subjects) {
+    const {
+      subject,
+      subjectAnswers,
+      comments,
+      averageLike,
+      averageTrust,
+    } = result;
 
     const row = document.createElement("tr");
+
+    row.dataset.character = subject.name;
+    row.dataset.like =
+      averageLike === null ? "" : String(averageLike);
+    row.dataset.trust =
+      averageTrust === null ? "" : String(averageTrust);
+    row.dataset.responses =
+      String(subjectAnswers.length);
 
     const nameCell = document.createElement("td");
 
@@ -120,7 +154,6 @@ async function renderRelationshipResults(question, container) {
       const chevron = document.createElement("i");
 
       chevron.className = "fa-solid fa-chevron-right";
-
       chevron.style.marginLeft = "0.5rem";
 
       nameCell.appendChild(chevron);
@@ -132,11 +165,11 @@ async function renderRelationshipResults(question, container) {
 
     const likeCell = document.createElement("td");
 
-    likeCell.textContent = formatAverage(average(likeScores));
+    likeCell.textContent = formatAverage(averageLike);
 
     const trustCell = document.createElement("td");
 
-    trustCell.textContent = formatAverage(average(trustScores));
+    trustCell.textContent = formatAverage(averageTrust);
 
     const responsesCell = document.createElement("td");
 
@@ -149,86 +182,229 @@ async function renderRelationshipResults(question, container) {
 
     container.appendChild(row);
 
-    if (comments.length === 0) {
-      continue;
-    }
+    let detailRow = null;
 
-    row.classList.add("relationship-comment-toggle");
+    if (comments.length > 0) {
+      row.classList.add("relationship-comment-toggle");
+      row.style.cursor = "pointer";
 
-    row.style.cursor = "pointer";
+      detailRow = document.createElement("tr");
 
-    const detailRow = document.createElement("tr");
+      detailRow.hidden = true;
 
-    detailRow.hidden = true;
+      const detailCell = document.createElement("td");
 
-    const detailCell = document.createElement("td");
+      detailCell.colSpan = 4;
 
-    detailCell.colSpan = 4;
+      const commentsTable = document.createElement("table");
 
-    const commentsTable = document.createElement("table");
+      commentsTable.className =
+        "survey-table relationship-comments-table";
 
-    commentsTable.className = "survey-table relationship-comments-table";
+      const commentsHead = document.createElement("thead");
 
-    const commentsHead = document.createElement("thead");
+      const commentsHeaderRow = document.createElement("tr");
 
-    const commentsHeaderRow = document.createElement("tr");
+      const participantHeading = document.createElement("th");
 
-    const participantHeading = document.createElement("th");
+      participantHeading.textContent = "Participant";
 
-    participantHeading.textContent = "Participant";
+      const commentHeading = document.createElement("th");
 
-    const commentHeading = document.createElement("th");
+      commentHeading.textContent = "Comment";
 
-    commentHeading.textContent = "Comment";
+      commentsHeaderRow.appendChild(participantHeading);
+      commentsHeaderRow.appendChild(commentHeading);
 
-    commentsHeaderRow.appendChild(participantHeading);
+      commentsHead.appendChild(commentsHeaderRow);
 
-    commentsHeaderRow.appendChild(commentHeading);
+      commentsTable.appendChild(commentsHead);
 
-    commentsHead.appendChild(commentsHeaderRow);
+      const commentsBody = document.createElement("tbody");
 
-    commentsTable.appendChild(commentsHead);
+      for (const answer of comments) {
+        const commentRow = document.createElement("tr");
 
-    const commentsBody = document.createElement("tbody");
+        const participantCell = document.createElement("td");
 
-    for (const answer of comments) {
-      const commentRow = document.createElement("tr");
+        participantCell.textContent =
+          answer.name ||
+          answer.username ||
+          "Unknown";
 
-      const participantCell = document.createElement("td");
+        const commentCell = document.createElement("td");
 
-      participantCell.textContent = answer.name || answer.username || "Unknown";
+        commentCell.textContent = answer.comment;
 
-      const commentCell = document.createElement("td");
+        commentRow.appendChild(participantCell);
+        commentRow.appendChild(commentCell);
 
-      commentCell.textContent = answer.comment;
-
-      commentRow.appendChild(participantCell);
-
-      commentRow.appendChild(commentCell);
-
-      commentsBody.appendChild(commentRow);
-    }
-
-    commentsTable.appendChild(commentsBody);
-
-    detailCell.appendChild(commentsTable);
-
-    detailRow.appendChild(detailCell);
-
-    container.appendChild(detailRow);
-
-    row.addEventListener("click", () => {
-      detailRow.hidden = !detailRow.hidden;
-
-      const chevron = nameCell.querySelector("i");
-
-      if (chevron) {
-        chevron.className = detailRow.hidden
-          ? "fa-solid fa-chevron-right"
-          : "fa-solid fa-chevron-down";
+        commentsBody.appendChild(commentRow);
       }
-    });
+
+      commentsTable.appendChild(commentsBody);
+
+      detailCell.appendChild(commentsTable);
+      detailRow.appendChild(detailCell);
+
+      container.appendChild(detailRow);
+
+      row.addEventListener("click", () => {
+        detailRow.hidden = !detailRow.hidden;
+
+        const chevron = nameCell.querySelector("i");
+
+        if (chevron) {
+          chevron.className = detailRow.hidden
+            ? "fa-solid fa-chevron-right"
+            : "fa-solid fa-chevron-down";
+        }
+      });
+    }
+
+    row._relationshipDetailRow = detailRow;
   }
+
+  const section = container.closest(".survey-question");
+
+  const sortHeaders = [
+    ...section.querySelectorAll("[data-sort-key]"),
+  ];
+
+  for (const header of sortHeaders) {
+    header.classList.add("sortable-header");
+  }
+
+  let currentSortKey = "character";
+  let currentSortAscending = true;
+
+  const updateSortIndicators = () => {
+    for (const header of sortHeaders) {
+      header.classList.remove(
+        "sort-ascending",
+        "sort-descending",
+      );
+
+      if (
+        header.dataset.sortKey ===
+        currentSortKey
+      ) {
+        header.classList.add(
+          currentSortAscending
+            ? "sort-ascending"
+            : "sort-descending",
+        );
+      }
+    }
+  };
+
+  const sortRelationshipRows = (
+    sortKey,
+    ascending,
+  ) => {
+    const rows = [
+      ...container.querySelectorAll(
+        ":scope > tr:not([hidden])",
+      ),
+    ].filter(
+      (row) =>
+        !row.classList.contains(
+          "relationship-comment-toggle",
+        ) ||
+        row.dataset.character,
+    );
+
+    /*
+     * Only sort the actual subject rows.
+     * Detail/comment rows stay attached to
+     * their subject row.
+     */
+    const subjectRows = rows.filter(
+      (row) => row.dataset.character !== undefined,
+    );
+
+    subjectRows.sort((a, b) => {
+      let comparison = 0;
+
+      if (sortKey === "character") {
+        comparison =
+          a.dataset.character.localeCompare(
+            b.dataset.character,
+            undefined,
+            { sensitivity: "base" },
+          );
+      } else if (sortKey === "like") {
+        const aValue =
+          a.dataset.like === ""
+            ? Number.NEGATIVE_INFINITY
+            : Number(a.dataset.like);
+
+        const bValue =
+          b.dataset.like === ""
+            ? Number.NEGATIVE_INFINITY
+            : Number(b.dataset.like);
+
+        comparison = aValue - bValue;
+      } else if (sortKey === "trust") {
+        const aValue =
+          a.dataset.trust === ""
+            ? Number.NEGATIVE_INFINITY
+            : Number(a.dataset.trust);
+
+        const bValue =
+          b.dataset.trust === ""
+            ? Number.NEGATIVE_INFINITY
+            : Number(b.dataset.trust);
+
+        comparison = aValue - bValue;
+      } else if (sortKey === "responses") {
+        comparison =
+          Number(a.dataset.responses) -
+          Number(b.dataset.responses);
+      }
+
+      return ascending
+        ? comparison
+        : -comparison;
+    });
+
+    for (const row of subjectRows) {
+      container.appendChild(row);
+
+      if (row._relationshipDetailRow) {
+        container.appendChild(
+          row._relationshipDetailRow,
+        );
+      }
+    }
+  };
+
+  for (const header of sortHeaders) {
+    header.addEventListener(
+      "click",
+      () => {
+        const sortKey =
+          header.dataset.sortKey;
+
+        if (sortKey === currentSortKey) {
+          currentSortAscending =
+            !currentSortAscending;
+        } else {
+          currentSortKey = sortKey;
+          currentSortAscending = true;
+        }
+
+        sortRelationshipRows(
+          currentSortKey,
+          currentSortAscending,
+        );
+
+        updateSortIndicators();
+      },
+    );
+  }
+
+  updateSortIndicators();
 }
 
 async function renderSchedulingResults(question, section) {
