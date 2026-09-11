@@ -2,6 +2,28 @@ const params = new URLSearchParams(window.location.search);
 const surveyId = params.get("id");
 let editingQuestionId = null;
 
+const dirtySources = new Set();
+
+function markDirty(source) {
+  dirtySources.add(source);
+}
+
+function clearDirty(source) {
+  dirtySources.delete(source);
+}
+
+function hasUnsavedChanges() {
+  return dirtySources.size > 0;
+}
+
+window.addEventListener("beforeunload", event => {
+  if (!hasUnsavedChanges()) {
+    return;
+  }
+
+  event.preventDefault();
+});
+
 function showQuestionEditor(templateId) {
   const container =
     document.getElementById("question-form-container");
@@ -22,6 +44,14 @@ function showQuestionEditor(templateId) {
   );
 
   container.hidden = false;
+
+  container.addEventListener("input", () => {
+    markDirty("question");
+  });
+  
+  container.addEventListener("change", () => {
+    markDirty("question");
+  });  
 
   setupQuestionEditorButtons();
   setupSchedulingEditor();
@@ -175,13 +205,14 @@ function setupQuestionEditorButtons() {
     );
 
   if (cancelButton) {
-    cancelButton.addEventListener(
-      "click",
-      () => {
-        container.replaceChildren();
-        container.hidden = true;
-      }
-    );
+    cancelButton.addEventListener("click", () => {
+      clearDirty("question");
+  
+      container.replaceChildren();
+      container.hidden = true;
+  
+      editingQuestionId = null;
+    });
   }
 }
 
@@ -231,34 +262,24 @@ async function loadSurvey() {
   );
 
   if (!survey) {
-    container.textContent =
-      "Survey not found.";
+    container.textContent = "Survey not found.";
     return;
   }
 
-  document.getElementById(
-    "survey-title"
-  ).textContent =
-    `Edit: ${survey.title}`;
+  const developmentBanner = document.getElementById("development-mode-banner");
 
-    const preview =
-    document.getElementById(
-      "survey-image-preview"
-    );
+  if (developmentBanner && survey.status === "DEVELOPMENT") {
+      developmentBanner.hidden = false;
+  }  
+
+  document.getElementById("survey-title").textContent =`Edit: ${survey.title}`;
+
+  const preview = document.getElementById("survey-image-preview");
   
-  const image =
-    document.getElementById(
-      "survey-image"
-    );
+  const image = document.getElementById("survey-image");
   
-  if (
-    preview &&
-    image &&
-    survey.imageFilename
-  ) {
-    image.src =
-      `/api/surveys/${surveyId}/image`;
-  
+  if (preview && image && survey.imageFilename) {
+    image.src =`/api/surveys/${surveyId}/image`;
     preview.hidden = false;
   }    
 
@@ -464,10 +485,10 @@ function setupSchedulingQuestionSave() {
         return;
       }
 
-      const wasEditing =
-        editingQuestionId !== null;
+      const wasEditing = editingQuestionId !== null;
 
       editingQuestionId = null;
+      clearDirty("question");      
 
       const container =
         document.getElementById(
@@ -565,6 +586,7 @@ function setupShortTextQuestionSave() {
         editingQuestionId !== null;
 
       editingQuestionId = null;
+      clearDirty("question");      
 
       const container =
         document.getElementById(
@@ -692,10 +714,10 @@ function setupRelationshipQuestionSave() {
         return;
       }
 
-      const wasEditing =
-        editingQuestionId !== null;
+      const wasEditing = editingQuestionId !== null;
 
       editingQuestionId = null;
+      clearDirty("question");
 
       const container =
         document.getElementById(
