@@ -15,7 +15,7 @@ services:
       - tentacles-postgres-data:/var/lib/postgresql/data
 
   tentacles:
-    image: ghcr.io/eiredrake/survey_tentacles:v1.1.0
+    image: ghcr.io/eiredrake/survey_tentacles:v1.2.0
     container_name: tentacles
     restart: unless-stopped
 
