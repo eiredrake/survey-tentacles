@@ -12,4 +12,6 @@ public interface ShortTextAnswerRepository
   boolean existsByQuestionIdAndUserId(Long questionId, Long userId);
 
   void deleteByQuestionIdAndUserId(Long questionId, Long userId);
+
+  List<ShortTextAnswer> findByQuestionIdAndUserId(Long questionId, Long userId);
 }

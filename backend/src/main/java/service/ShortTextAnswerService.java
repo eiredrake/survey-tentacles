@@ -36,4 +36,11 @@ public class ShortTextAnswerService {
   public void deleteForUserAndQuestion(Long questionId, Long userId) {
     shortTextAnswerRepository.deleteByQuestionIdAndUserId(questionId, userId);
   }
+
+  public List<ShortTextAnswer> findByQuestionIdAndUserId(
+    Long questionId,
+    Long userId
+  ) {
+    return shortTextAnswerRepository.findByQuestionIdAndUserId(questionId, userId);
+  }  
 }

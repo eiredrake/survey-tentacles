@@ -648,6 +648,16 @@ async function loadParticipants() {
   }
 
   const participants = await response.json();
+  participants.sort((a, b) => {
+    if (a.completed !== b.completed) {
+      return a.completed ? -1 : 1;
+    }
+  
+    const nameA = (a.name || a.username || "").toLowerCase();
+    const nameB = (b.name || b.username || "").toLowerCase();
+  
+    return nameA.localeCompare(nameB);
+  });  
 
   const table = document.createElement("table");
 
@@ -675,7 +685,22 @@ async function loadParticipants() {
 
     const nameCell = document.createElement("td");
 
-    nameCell.textContent = participant.name || participant.username;
+    const participantName =
+    participant.name || participant.username;
+  
+    if (participant.completed) {
+      const participantLink = document.createElement("a");
+      row.classList.add("participant-completed");
+    
+      participantLink.href =
+        `/survey-participant-view.html?id=${surveyId}&userId=${participant.userId}`;
+    
+      participantLink.textContent = participantName;
+    
+      nameCell.appendChild(participantLink);
+    } else {
+      nameCell.textContent = participantName;
+    }
 
     const requiredCell = document.createElement("td");
 

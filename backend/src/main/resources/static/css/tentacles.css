@@ -526,3 +526,7 @@ main {
   content: "▼";
   font-size: 0.75em;
 }
+
+.participant-completed {
+  background-color: rgba(80, 160, 100, 0.12);
+}

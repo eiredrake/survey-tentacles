@@ -54,5 +54,12 @@ public class SchedulingAnswerService {
             questionId,
             userId
         );
-    }         
+    }   
+
+    public List<SchedulingAnswer> findByQuestionIdAndUserId(
+    Long questionId,
+    Long userId
+    ) {
+    return schedulingAnswerRepository.findByQuestionIdAndUserId(questionId, userId);
+    }          
 }

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>View Participant Answers - Tentacles</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+  <link rel="stylesheet" href="/css/tentacles.css">
+  <link rel="stylesheet" href="/css/toast.css">
+</head>
+
+<body>
+  <main>
+    <a id="back-to-survey-link" href="#">← Survey</a>
+
+    <div class="editor-title">
+      <h1 id="survey-title">Survey</h1>
+    </div>
+
+    <section id="survey-image-preview" class="survey-image-editor" hidden>
+      <img id="survey-image" alt="Survey image">
+    </section>
+
+    <section>
+      <h2 id="participant-heading">Participant Answers</h2>
+
+      <table class="survey-table">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th class="actions-column">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody id="question-list">
+        </tbody>
+      </table>
+    </section>
+
+    <template id="scheduling-view-template">
+      <section class="survey-question">
+        <div class="scheduling-view-results"></div>
+      </section>
+    </template>
+
+    <template id="short-text-view-template">
+      <section class="survey-question">
+        <div class="short-text-view-answers"></div>
+      </section>
+    </template>
+
+    <template id="relationship-view-template">
+      <section class="survey-question">
+        <table class="survey-table relationship-results-table">
+          <thead>
+            <tr>
+              <th>Character</th>
+              <th>Like</th>
+              <th>Trust</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+
+          <tbody class="relationship-view-results">
+          </tbody>
+        </table>
+      </section>
+    </template>
+
+  </main>
+
+  <script src="/js/toast.js"></script>
+  <script src="/js/date-format.js"></script>
+  <script src="/js/survey-participant-view.js"></script>
+  <script src="/js/logout.js"></script>
+</body>
+
+</html>

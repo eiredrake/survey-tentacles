@@ -1,5 +1,8 @@
 package org.eiredrake.tentacles.controller;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -25,31 +28,28 @@ import org.eiredrake.tentacles.service.RelationshipAnswerService;
 import org.eiredrake.tentacles.service.SchedulingAnswerService;
 import org.eiredrake.tentacles.service.ShortTextAnswerService;
 import org.eiredrake.tentacles.service.SurveyAssignmentService;
+import org.eiredrake.tentacles.service.SurveyImageService;
 import org.eiredrake.tentacles.service.SurveyParticipantService;
 import org.eiredrake.tentacles.service.SurveyService;
 import org.eiredrake.tentacles.service.UserService;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.io.IOException;
-import org.eiredrake.tentacles.service.SurveyImageService;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 
 @RestController
 @RequestMapping("/api/surveys")
@@ -111,42 +111,33 @@ public class SurveyController {
   }
 
   @GetMapping("/{surveyId}/image")
-public ResponseEntity<Resource> getSurveyImage(
-    @PathVariable Long surveyId
-) throws IOException {
+  public ResponseEntity<Resource> getSurveyImage(@PathVariable Long surveyId)
+    throws IOException {
     Survey survey = surveyService.findById(surveyId);
 
     String filename = survey.getImageFilename();
 
     if (filename == null || filename.isBlank()) {
-        return ResponseEntity.notFound().build();
+      return ResponseEntity.notFound().build();
     }
 
     Path path = surveyImageService.getPath(filename);
 
-    if (
-        path == null ||
-        !Files.exists(path)
-    ) {
-        return ResponseEntity.notFound().build();
+    if (path == null || !Files.exists(path)) {
+      return ResponseEntity.notFound().build();
     }
 
-    String contentType =
-        Files.probeContentType(path);
+    String contentType = Files.probeContentType(path);
 
     MediaType mediaType =
-        contentType != null
-            ? MediaType.parseMediaType(contentType)
-            : MediaType.APPLICATION_OCTET_STREAM;
+      contentType != null
+        ? MediaType.parseMediaType(contentType)
+        : MediaType.APPLICATION_OCTET_STREAM;
 
-    Resource resource =
-        new FileSystemResource(path);
+    Resource resource = new FileSystemResource(path);
 
-    return ResponseEntity
-        .ok()
-        .contentType(mediaType)
-        .body(resource);
-}
+    return ResponseEntity.ok().contentType(mediaType).body(resource);
+  }
 
   @GetMapping
   public Object listSurveys(
@@ -640,6 +631,43 @@ public ResponseEntity<Resource> getSurveyImage(
     );
   }
 
+@GetMapping("/{surveyId}/questions/{questionId}/answers/relationship/{userId}")
+public List<Map<String, Object>> getRelationshipAnswersForUser(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId,
+  @PathVariable Long userId
+) {
+  RelationshipQuestion question =
+    (RelationshipQuestion) questionService.findById(questionId);
+
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
+    );
+  }
+
+  return relationshipAnswerService
+    .findByQuestionIdAndUserId(questionId, userId)
+    .stream()
+    .map(answer -> {
+      Map<String, Object> result = new HashMap<>();
+
+      result.put("userId", answer.getUser().getId());
+      result.put("name", answer.getUser().getDisplayName());
+      result.put("username", answer.getUser().getUsername());
+      result.put("subjectId", answer.getSubject().getId());
+      result.put("likeScore", answer.getLikeScore());
+      result.put("trustScore", answer.getTrustScore());
+      result.put(
+        "comment",
+        answer.getComment() == null ? "" : answer.getComment()
+      );
+
+      return result;
+    })
+    .toList();
+}
+
   @GetMapping("/{surveyId}/questions/{questionId}/answers/relationship")
   public List<Map<String, Object>> getRelationshipAnswers(
     @PathVariable Long surveyId,
@@ -745,6 +773,39 @@ public ResponseEntity<Resource> getSurveyImage(
       saved
     );
   }
+
+@GetMapping("/{surveyId}/questions/{questionId}/answers/scheduling/{userId}")
+public List<Map<String, Object>> getSchedulingAnswersForUser(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId,
+  @PathVariable Long userId
+) {
+  SchedulingQuestion question =
+    (SchedulingQuestion) questionService.findById(questionId);
+
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
+    );
+  }
+
+  return schedulingAnswerService
+    .findByQuestionIdAndUserId(questionId, userId)
+    .stream()
+    .map(answer -> {
+      Map<String, Object> result = new HashMap<>();
+
+      result.put("answerId", answer.getId());
+      result.put("userId", answer.getUser().getId());
+      result.put("username", answer.getUser().getUsername());
+      result.put("optionId", answer.getOption().getId());
+      result.put("date", answer.getOption().getDate());
+      result.put("dateTime", answer.getOption().getDateTime());
+
+      return result;
+    })
+    .toList();
+}
 
   @GetMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
   public List<Map<String, Object>> getSchedulingAnswers(
@@ -945,53 +1006,43 @@ public ResponseEntity<Resource> getSurveyImage(
     return Map.of("id", survey.getId(), "title", survey.getTitle());
   }
 
-@PostMapping("/{surveyId}/image")
-public Map<String, Object> uploadSurveyImage(
+  @PostMapping("/{surveyId}/image")
+  public Map<String, Object> uploadSurveyImage(
     @PathVariable Long surveyId,
     @RequestParam("file") MultipartFile file
-) throws IOException {
+  ) throws IOException {
     Survey survey = surveyService.findById(surveyId);
 
     String oldFilename = survey.getImageFilename();
 
-    String newFilename =
-        surveyImageService.save(file);
+    String newFilename = surveyImageService.save(file);
 
     survey.setImageFilename(newFilename);
     surveyService.save(survey);
 
-    if (
-        oldFilename != null &&
-        !oldFilename.isBlank()
-    ) {
-        surveyImageService.delete(oldFilename);
+    if (oldFilename != null && !oldFilename.isBlank()) {
+      surveyImageService.delete(oldFilename);
     }
 
-    return Map.of(
-        "id",
-        survey.getId(),
-        "imageFilename",
-        newFilename
-    );
-}  
+    return Map.of("id", survey.getId(), "imageFilename", newFilename);
+  }
 
-@DeleteMapping("/{surveyId}/image")
-public ResponseEntity<Void> deleteSurveyImage(
-    @PathVariable Long surveyId
-) throws IOException {
+  @DeleteMapping("/{surveyId}/image")
+  public ResponseEntity<Void> deleteSurveyImage(@PathVariable Long surveyId)
+    throws IOException {
     Survey survey = surveyService.findById(surveyId);
 
     String filename = survey.getImageFilename();
 
     if (filename != null && !filename.isBlank()) {
-        surveyImageService.delete(filename);
+      surveyImageService.delete(filename);
 
-        survey.setImageFilename(null);
-        surveyService.save(survey);
+      survey.setImageFilename(null);
+      surveyService.save(survey);
     }
 
     return ResponseEntity.noContent().build();
-}
+  }
 
   @PostMapping("/{surveyId}/copy")
   public Map<String, Object> copySurvey(
@@ -1279,6 +1330,38 @@ public ResponseEntity<Void> deleteSurveyImage(
     );
   }
 
+@GetMapping("/{surveyId}/questions/{questionId}/answers/short-text/{userId}")
+public List<Map<String, Object>> getShortTextAnswersForUser(
+  @PathVariable Long surveyId,
+  @PathVariable Long questionId,
+  @PathVariable Long userId
+) {
+  ShortTextQuestion question =
+    (ShortTextQuestion) questionService.findById(questionId);
+
+  if (!question.getSurvey().getId().equals(surveyId)) {
+    throw new IllegalArgumentException(
+      "Question does not belong to survey: " + surveyId
+    );
+  }
+
+  return shortTextAnswerService
+    .findByQuestionIdAndUserId(questionId, userId)
+    .stream()
+    .map(answer -> {
+      Map<String, Object> result = new HashMap<>();
+
+      result.put("answerId", answer.getId());
+      result.put("userId", answer.getUser().getId());
+      result.put("username", answer.getUser().getUsername());
+      result.put("name", answer.getUser().getDisplayName());
+      result.put("value", answer.getValue());
+
+      return result;
+    })
+    .toList();
+}
+
   @GetMapping("/{surveyId}/questions/{questionId}/answers/short-text")
   public List<Map<String, Object>> getShortTextAnswers(
     @PathVariable Long surveyId,
@@ -1306,78 +1389,66 @@ public ResponseEntity<Void> deleteSurveyImage(
 
   private boolean isSurveyCompletedForUser(Survey survey, User user) {
     List<Question> requiredQuestions = survey
-        .getQuestions()
-        .stream()
-        .filter(Question::isRequired)
-        .toList();
+      .getQuestions()
+      .stream()
+      .filter(Question::isRequired)
+      .toList();
 
     if (!requiredQuestions.isEmpty()) {
-        return requiredQuestions
-            .stream()
-            .allMatch(question ->
-                switch (question.getType()) {
-                    case SCHEDULING -> schedulingAnswerService.hasAnswered(
-                        question.getId(),
-                        user.getId()
-                    );
-
-                    case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
-                        question.getId(),
-                        user.getId()
-                    );
-
-                    case RELATIONSHIP -> relationshipAnswerService
-                        .findByQuestionIdAndUserId(
-                            question.getId(),
-                            user.getId()
-                        )
-                        .stream()
-                        .anyMatch(answer ->
-                            (answer.getLikeScore() != null &&
-                             answer.getLikeScore() != 0) ||
-                            (answer.getTrustScore() != null &&
-                             answer.getTrustScore() != 0)
-                        );
-
-                    case SINGLE_SELECT, MULTI_SELECT -> false;
-                }
+      return requiredQuestions
+        .stream()
+        .allMatch(question ->
+          switch (question.getType()) {
+            case SCHEDULING -> schedulingAnswerService.hasAnswered(
+              question.getId(),
+              user.getId()
             );
+            case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
+              question.getId(),
+              user.getId()
+            );
+            case RELATIONSHIP -> relationshipAnswerService
+              .findByQuestionIdAndUserId(question.getId(), user.getId())
+              .stream()
+              .anyMatch(
+                answer ->
+                  (answer.getLikeScore() != null &&
+                    answer.getLikeScore() != 0) ||
+                  (answer.getTrustScore() != null &&
+                    answer.getTrustScore() != 0)
+              );
+            case SINGLE_SELECT, MULTI_SELECT -> false;
+          }
+        );
     }
 
     return survey
-        .getQuestions()
-        .stream()
-        .anyMatch(question ->
-            switch (question.getType()) {
-                case SCHEDULING -> schedulingAnswerService.hasAnswered(
-                    question.getId(),
-                    user.getId()
-                );
-
-                case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
-                    question.getId(),
-                    user.getId()
-                );
-
-                case RELATIONSHIP -> relationshipAnswerService
-                    .findByQuestionIdAndUserId(
-                        question.getId(),
-                        user.getId()
-                    )
-                    .stream()
-                    .anyMatch(answer ->
-                        (answer.getLikeScore() != null &&
-                         answer.getLikeScore() != 0) ||
-                        (answer.getTrustScore() != null &&
-                         answer.getTrustScore() != 0) ||
-                        (answer.getComment() != null &&
-                         !answer.getComment().isBlank())
-                    );
-
-                case SINGLE_SELECT, MULTI_SELECT -> false;
-            }
-        );
-}
+      .getQuestions()
+      .stream()
+      .anyMatch(question ->
+        switch (question.getType()) {
+          case SCHEDULING -> schedulingAnswerService.hasAnswered(
+            question.getId(),
+            user.getId()
+          );
+          case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
+            question.getId(),
+            user.getId()
+          );
+          case RELATIONSHIP -> relationshipAnswerService
+            .findByQuestionIdAndUserId(question.getId(), user.getId())
+            .stream()
+            .anyMatch(
+              answer ->
+                (answer.getLikeScore() != null && answer.getLikeScore() != 0) ||
+                (answer.getTrustScore() != null &&
+                  answer.getTrustScore() != 0) ||
+                (answer.getComment() != null && !answer.getComment().isBlank())
+            );
+          case SINGLE_SELECT, MULTI_SELECT -> false;
+        }
+      );
+  }
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/relationship")
   @Transactional
@@ -1529,7 +1600,9 @@ public ResponseEntity<Void> deleteSurveyImage(
 
       // Completely blank rows do not create answer records.
       // Zero means "No opinion". Rows with no rating and no comment are not stored.
-      if ( (likeScore == null || likeScore == 0) && (trustScore == null || trustScore == 0) &&
+      if (
+        (likeScore == null || likeScore == 0) &&
+        (trustScore == null || trustScore == 0) &&
         comment.isBlank()
       ) {
         continue;

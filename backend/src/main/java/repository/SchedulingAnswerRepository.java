@@ -11,6 +11,8 @@ public interface SchedulingAnswerRepository extends JpaRepository<SchedulingAnsw
 
     List<SchedulingAnswer> findByQuestionId(Long questionId);
 
+    List<SchedulingAnswer> findByQuestionIdAndUserId(Long questionId, Long userId);
+
     long countByOptionId(Long optionId);
 
     boolean existsByQuestionIdAndUserId(Long questionId, Long userId);
