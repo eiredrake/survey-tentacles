@@ -629,6 +629,8 @@ async function loadQuestions() {
             relationshipSubjects &&
             submitButton
         ) {
+            section.classList.add("relationship-question");            
+
             const detailResponse =
                 await fetch(
                     `/api/surveys/${surveyId}/questions/${question.id}`

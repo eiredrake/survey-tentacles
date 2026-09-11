@@ -230,28 +230,6 @@ main {
   box-sizing: border-box;
 }
 
-@media (max-width: 600px) {
-  main {
-    padding: 12px;
-  }
-
-  .app-title {
-    font-size: 1.4rem;
-  }
-
-  .app-user {
-    font-size: 1rem;
-  }
-
-  .survey-question {
-    padding: 16px;
-  }
-
-  .scheduling-options label {
-    padding: 14px 12px;
-  }
-}
-
 .scheduling-results {
   display: flex;
   flex-direction: column;
@@ -529,4 +507,124 @@ main {
 
 .participant-completed {
   background-color: rgba(80, 160, 100, 0.12);
+}
+
+.relationship-question {
+  max-width: 1100px;
+}
+
+.relationship-question .relationship-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.relationship-question .relationship-table th:nth-child(1),
+.relationship-question .relationship-table td:nth-child(1) {
+  width: 30%;
+}
+
+.relationship-question .relationship-table th:nth-child(2),
+.relationship-question .relationship-table td:nth-child(2) {
+  width: 20%;
+}
+
+.relationship-question .relationship-table th:nth-child(3),
+.relationship-question .relationship-table td:nth-child(3) {
+  width: 20%;
+}
+
+.relationship-question .relationship-table th:nth-child(4),
+.relationship-question .relationship-table td:nth-child(4) {
+  width: 30%;
+}
+
+@media (max-width: 600px) {
+  main {
+    padding: 12px;
+  }
+
+  .app-title {
+    font-size: 1.4rem;
+  }
+
+  .app-user {
+    font-size: 1rem;
+  }
+
+  .survey-question {
+    padding: 16px;
+  }
+
+  .scheduling-options label {
+    padding: 14px 12px;
+  }
+
+  .relationship-question .relationship-table,
+  .relationship-question .relationship-table tbody,
+  .relationship-question .relationship-table tr,
+  .relationship-question .relationship-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .relationship-question .relationship-table {
+    table-layout: auto;
+  }
+
+  .relationship-question .relationship-table th:nth-child(1),
+  .relationship-question .relationship-table td:nth-child(1),
+  .relationship-question .relationship-table th:nth-child(2),
+  .relationship-question .relationship-table td:nth-child(2),
+  .relationship-question .relationship-table th:nth-child(3),
+  .relationship-question .relationship-table td:nth-child(3),
+  .relationship-question .relationship-table th:nth-child(4),
+  .relationship-question .relationship-table td:nth-child(4) {
+    width: 100%;
+  }
+
+  .relationship-question .relationship-table thead {
+    display: none;
+  }
+
+  .relationship-question .relationship-table tr {
+    padding: 16px 0;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .relationship-question .relationship-table td {
+    box-sizing: border-box;
+    margin-bottom: 12px;
+  }
+
+  .relationship-question .relationship-table td:first-child {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .relationship-question .relationship-table td:nth-child(2)::before {
+    content: "Like";
+  }
+
+  .relationship-question .relationship-table td:nth-child(3)::before {
+    content: "Trust";
+  }
+
+  .relationship-question .relationship-table td:nth-child(4)::before {
+    content: "Comments";
+  }
+
+  .relationship-question .relationship-table td:nth-child(n+2)::before {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .relationship-question .relationship-comment {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100px;
+    box-sizing: border-box;
+    resize: vertical;
+  }
 }
