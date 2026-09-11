@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Survey - Tentacles</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" >
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
     <link rel="stylesheet" href="/css/toast.css">
     <link rel="stylesheet" href="/css/tentacles.css">
 </head>
@@ -12,12 +16,16 @@
 <body>
     <main>
         <header class="app-header">
-            <div class="app-title">Tentacles Survey System</div>
-        
+            <div class="app-title">
+                Tentacles Survey System
+            </div>
+
             <div class="app-user">
                 <span>User:</span>
-                <span id="user">Loading user...</span>
-        
+                <span id="user">
+                    Loading user...
+                </span>
+
                 <button
                     id="logout-button"
                     class="icon-button"
@@ -29,118 +37,133 @@
                 </button>
             </div>
         </header>
-        
+
         <hr class="app-divider">
         
+        <div id="development-mode-banner" class="development-mode-banner" hidden>
+            <strong>
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+                DEVELOPMENT MODE
+            </strong>
+        
+            <div>
+                This survey is still under development and is not accepting responses.
+                You may preview the survey, but responses cannot be submitted until the survey is opened.
+            </div>
+        </div>            
+
         <div class="survey-page-heading">
-            <a href="/">← Surveys</a>
-            <h1 id="survey-title">Survey</h1>
+            <a href="/">
+                ← Surveys
+            </a>
+
+            <h1 id="survey-title">
+                Survey
+            </h1>
         </div>
 
+    
+
         <div id="survey-image-preview" class="survey-image-editor" hidden >
-            <img id="survey-image" alt="Survey image" >
+            <img id="survey-image" alt="Survey image">
         </div>
 
         <div id="questions">
             Loading questions...
         </div>
+
+        <div class="question-actions">
+            <button
+                id="submit-survey-button"
+                class="submit-answer-button"
+                type="button"
+                disabled
+            >
+                Submit Survey
+            </button>
+        </div>
     </main>
 
-        <template id="scheduling-participant-template">
-            <section class="survey-question">
-                <h2 class="question-prompt"></h2>
-        
-                <div class="scheduling-options"></div>
-                    <div class="multi-select-actions">
-                        <button
-                            type="button"
-                            class="select-all-button"
-                        >
-                            Select All
-                        </button>
-                    
-                        <button
-                            type="button"
-                            class="select-none-button"
-                        >
-                            Clear All
-                        </button>
-                    </div>        
-                <div class="question-actions">
-                    <button
-                        type="button"
-                        class="submit-answer-button"
-                    >
-                        Submit
-                    </button>
-                    
-                </div>
+    <template id="scheduling-participant-template">
+        <section class="survey-question">
+            <h2 class="question-prompt"></h2>
 
-                
-        
-                <div class="scheduling-status"></div>
-            </section>
-        </template>    
-        <template id="short-text-participant-template">
-            <section class="survey-question">
-                <h2 class="question-prompt"></h2>
-        
-                <div class="short-text-answer">
-                    <textarea
-                        class="short-text-input"
-                        maxlength="500"
-                        rows="5"
-                        placeholder="Enter your response..."
-                    ></textarea>
-        
-                    <div class="short-text-character-count">
-                        0 / 500
-                    </div>
+            <div class="scheduling-options"></div>
+
+            <div class="multi-select-actions">
+                <button
+                    type="button"
+                    class="select-all-button"
+                >
+                    Select All
+                </button>
+
+                <button
+                    type="button"
+                    class="select-none-button"
+                >
+                    Clear All
+                </button>
+            </div>
+
+            <div class="scheduling-status"></div>
+        </section>
+    </template>
+
+    <template id="short-text-participant-template">
+        <section class="survey-question">
+            <h2 class="question-prompt"></h2>
+
+            <div class="short-text-answer">
+                <textarea
+                    class="short-text-input"
+                    maxlength="500"
+                    rows="5"
+                    placeholder="Enter your response..."
+                ></textarea>
+
+                <div class="short-text-character-count">
+                    0 / 500
                 </div>
-        
-                <div class="question-actions">
-                    <button
-                        type="button"
-                        class="submit-answer-button"
-                    >
-                        Submit
-                    </button>
-                </div>
-                <div class="short-text-status"></div>
-            </section>
-        </template>   
-        <template id="relationship-participant-template">
-            <section class="survey-question">
-                <h2 class="question-prompt"></h2>
-        
-                <div class="relationship-answer">
-                    <table class="relationship-table">
-                        <thead>
-                            <tr>
-                                <th data-sort-key="character">Character</th>
-                                <th data-sort-key="like">Like</th>
-                                <th data-sort-key="trust">Trust</th>
-                                <th data-sort-key="comments">Comments</th>
-                            </tr>
-                        </thead>
-        
-                        <tbody class="relationship-subjects">
-                        </tbody>
-                    </table>
-                </div>
-        
-                <div class="question-actions">
-                    <button
-                        type="button"
-                        class="submit-answer-button"
-                    >
-                        Submit
-                    </button>
-                </div>
-        
-                <div class="relationship-status"></div>
-            </section>
-        </template>             
+            </div>
+
+            <div class="short-text-status"></div>
+        </section>
+    </template>
+
+    <template id="relationship-participant-template">
+        <section class="survey-question">
+            <h2 class="question-prompt"></h2>
+
+            <div class="relationship-answer">
+                <table class="relationship-table">
+                    <thead>
+                        <tr>
+                            <th data-sort-key="character">
+                                Character
+                            </th>
+
+                            <th data-sort-key="like">
+                                Like
+                            </th>
+
+                            <th data-sort-key="trust">
+                                Trust
+                            </th>
+
+                            <th data-sort-key="comments">
+                                Comments
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="relationship-subjects"></tbody>
+                </table>
+            </div>
+
+            <div class="relationship-status"></div>
+        </section>
+    </template>
 
     <script src="/js/toast.js"></script>
     <script src="/js/date-format.js"></script>

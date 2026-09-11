@@ -628,3 +628,21 @@ main {
     resize: vertical;
   }
 }
+
+.development-mode-banner {
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid #81b98c;
+  border-left: 5px solid #39834a;
+  border-radius: 6px;
+  background: #edf8ef;
+  color: #234f2d;
+}
+
+.development-mode-banner strong {
+  display: block;
+}
+
+.development-mode-banner div {
+  margin-top: 0.4rem;
+}
