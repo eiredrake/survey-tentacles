@@ -152,6 +152,18 @@ main {
   gap: 4px;
 }
 
+.single-select-editor-option {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.single-select-editor-option input {
+  flex: 1;
+  min-width: 0;
+}
+
+.single-select-options label,
 .scheduling-options label {
   display: flex;
   align-items: center;
@@ -165,10 +177,12 @@ main {
   cursor: pointer;
 }
 
+.single-select-options label:hover,
 .scheduling-options label:hover {
   background: #f5f5f5;
 }
 
+.single-select-options input[type="radio"],
 .scheduling-options input[type="checkbox"] {
   width: 20px;
   height: 20px;

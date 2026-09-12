@@ -277,6 +277,31 @@
         </template>
     </main>
 
+    <template id="single-select-question-template">
+        <section class="question-editor-panel">
+            <label for="single-select-editor-prompt">Question:</label>
+            <input id="single-select-editor-prompt" type="text" maxlength="255">
+            <label><input type="checkbox" class="question-required"> Required</label>
+            <div class="section-heading">
+                <h3>Options</h3>
+                <button id="add-single-select-option" class="icon-button" type="button" title="Add option" aria-label="Add option">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </button>
+            </div>
+            <p>Participants can choose one option. Changing options clears previous responses.</p>
+            <div id="single-select-editor-options"></div>
+
+            <div class="question-editor-actions">
+                <button id="cancel-question-button" class="icon-button" type="button" title="Cancel" aria-label="Cancel">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+                <button id="save-question-button" class="icon-button" type="button" title="Save question" aria-label="Save question">
+                    <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                </button>
+            </div>
+        </section>
+    </template>
+
     <script src="/js/toast.js"></script>
     <script src="/js/date-format.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

@@ -57,8 +57,81 @@ function showQuestionEditor(templateId) {
   setupSchedulingEditor();
   setupSchedulingQuestionSave();
   setupShortTextQuestionSave();
+  setupSingleSelectEditor();
   setupRelationshipEditor();
   setupRelationshipQuestionSave();
+}
+
+function addSingleSelectOption(label = "") {
+  const row = document.createElement("div");
+  row.className = "single-select-editor-option";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.maxLength = 255;
+  input.value = label;
+  input.setAttribute("aria-label", "Option label");
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "icon-button";
+  remove.title = "Remove option";
+  remove.setAttribute("aria-label", "Remove option");
+  remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+  remove.addEventListener("click", () => {
+    row.remove();
+    markDirty("question");
+  });
+  row.append(input, remove);
+  document.getElementById("single-select-editor-options").appendChild(row);
+  return input;
+}
+
+function setupSingleSelectEditor() {
+  const promptInput = document.getElementById("single-select-editor-prompt");
+  if (!promptInput) return;
+  const optionsContainer = document.getElementById("single-select-editor-options");
+  document.getElementById("add-single-select-option").addEventListener("click", () => {
+    addSingleSelectOption().focus();
+    markDirty("question");
+  });
+  const saveButton = document.getElementById("save-question-button");
+  saveButton.addEventListener("click", async () => {
+    const prompt = promptInput.value.trim();
+    const options = [...optionsContainer.querySelectorAll("input")].map(input => input.value.trim());
+    if (!prompt || !options.length || options.some(label => !label)) {
+      showToast("Enter a question and a label for every option.", "error");
+      return;
+    }
+    const wasEditing = editingQuestionId !== null;
+    const url = wasEditing
+      ? `/api/surveys/${surveyId}/questions/${editingQuestionId}/single-select`
+      : `/api/surveys/${surveyId}/questions/single-select`;
+    saveButton.disabled = true;
+    try {
+      const csrfResponse = await fetch("/csrf");
+      if (!csrfResponse.ok) throw new Error("Unable to load CSRF token.");
+      const csrf = await csrfResponse.json();
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+        body: JSON.stringify({ prompt, options, displayOrder: 1,
+          required: document.querySelector(".question-required").checked })
+      });
+      if (!response.ok) throw new Error("Unable to save Single Select question.");
+      const result = await response.json();
+      editingQuestionId = null;
+      clearDirty("question");
+      const container = document.getElementById("question-form-container");
+      container.replaceChildren();
+      container.hidden = true;
+      await loadQuestions();
+      showToast(result.responsesCleared ? "Question updated. Previous responses cleared."
+        : wasEditing ? "Single Select question updated." : "Single Select question created.", "success");
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
 }
 
 function setupRelationshipEditor() {
@@ -1098,6 +1171,13 @@ async function loadQuestions() {
               []
           );
 
+          return;
+        }
+
+        const singleSelectPrompt = document.getElementById("single-select-editor-prompt");
+        if (singleSelectPrompt) {
+          singleSelectPrompt.value = questionDetails.prompt;
+          for (const option of questionDetails.options ?? []) addSingleSelectOption(option.label);
           return;
         }
 

@@ -979,6 +979,60 @@ async function loadSchedulingQuestion(
     });
 }
 
+async function loadSingleSelectQuestion(question, section) {
+    const detailResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}`);
+    const answersResponse = await fetch(
+        `/api/surveys/${surveyId}/questions/${question.id}/answers/single-select/${currentUser.id}`);
+    if (!detailResponse.ok || !answersResponse.ok) {
+        throw new Error("Unable to load Single Select question.");
+    }
+    const detail = await detailResponse.json();
+    const answers = await answersResponse.json();
+    const options = section.querySelector(".single-select-options");
+    options.setAttribute("aria-label", question.prompt);
+    options.setAttribute("aria-required", String(question.required));
+    for (const option of detail.options) {
+        const label = document.createElement("label");
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = `single-select-${question.id}`;
+        radio.value = option.id;
+        radio.checked = answers.some(answer => answer.optionId === option.id);
+        radio.disabled = !surveyAcceptingResponses;
+        radio.addEventListener("change", markSurveyDirty);
+        label.append(radio, document.createTextNode(` ${option.label}`));
+        options.append(label, document.createElement("br"));
+    }
+    const clearButton = section.querySelector(".single-select-clear");
+    clearButton.disabled = !surveyAcceptingResponses;
+    clearButton.addEventListener("click", () => {
+        options.querySelectorAll("input").forEach(radio => { radio.checked = false; });
+        markSurveyDirty();
+    });
+    const selectedId = () => {
+        const selected = options.querySelector("input:checked");
+        return selected ? Number(selected.value) : null;
+    };
+    questionHandlers.push({
+        section,
+        validate() {
+            if (question.required && selectedId() === null) {
+                showRequiredError(section, "This question is required. Please choose one option.");
+                return false;
+            }
+            return true;
+        },
+        async save(csrf) {
+            const response = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/single-select`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+                body: JSON.stringify({ optionId: selectedId() })
+            });
+            return response.ok;
+        }
+    });
+}
+
 async function loadQuestions() {
     const container =
         document.getElementById("questions");
@@ -1072,7 +1126,9 @@ async function loadQuestions() {
                 ".relationship-subjects"
             );
 
-        if (relationshipSubjects) {
+        if (question.type === "SINGLE_SELECT") {
+            await loadSingleSelectQuestion(question, section);
+        } else if (relationshipSubjects) {
             await loadRelationshipQuestion(
                 question,
                 section,

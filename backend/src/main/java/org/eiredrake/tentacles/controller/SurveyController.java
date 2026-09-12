@@ -19,6 +19,10 @@ import org.eiredrake.tentacles.model.SchedulingOption;
 import org.eiredrake.tentacles.model.SchedulingQuestion;
 import org.eiredrake.tentacles.model.ShortTextAnswer;
 import org.eiredrake.tentacles.model.ShortTextQuestion;
+import org.eiredrake.tentacles.model.SingleSelectQuestion;
+import org.eiredrake.tentacles.model.SingleSelectOption;
+import org.eiredrake.tentacles.model.SingleSelectAnswer;
+import org.eiredrake.tentacles.service.SingleSelectAnswerService;
 import org.eiredrake.tentacles.model.Survey;
 import org.eiredrake.tentacles.model.SurveyAssignment;
 import org.eiredrake.tentacles.model.SurveyStatus;
@@ -64,6 +68,7 @@ public class SurveyController {
   private final ShortTextAnswerService shortTextAnswerService;
   private final RelationshipAnswerService relationshipAnswerService;
   private final SurveyImageService surveyImageService;
+  private final SingleSelectAnswerService singleSelectAnswerService;
 
   public SurveyController(
     SurveyService surveyService,
@@ -74,7 +79,8 @@ public class SurveyController {
     SurveyAssignmentService surveyAssignmentService,
     ShortTextAnswerService shortTextAnswerService,
     RelationshipAnswerService relationshipAnswerService,
-    SurveyImageService surveyImageService
+    SurveyImageService surveyImageService,
+    SingleSelectAnswerService singleSelectAnswerService
   ) {
     this.surveyService = surveyService;
     this.userService = userService;
@@ -85,6 +91,7 @@ public class SurveyController {
     this.shortTextAnswerService = shortTextAnswerService;
     this.relationshipAnswerService = relationshipAnswerService;
     this.surveyImageService = surveyImageService;
+    this.singleSelectAnswerService = singleSelectAnswerService;
   }
 
   @PostMapping
@@ -506,6 +513,12 @@ public class SurveyController {
     result.put("displayOrder", question.getDisplayOrder());
     result.put("required", question.isRequired());
     result.put("type", question.getType().name());
+
+    if (question instanceof SingleSelectQuestion singleSelectQuestion) {
+      result.put("options", singleSelectQuestion.getOptions().stream()
+        .map(option -> Map.<String, Object>of("id", option.getId(), "label", option.getLabel()))
+        .toList());
+    }
 
     if (question instanceof SchedulingQuestion schedulingQuestion) {
       List<Map<String, Object>> options = schedulingQuestion
@@ -1112,9 +1125,18 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
 
           yield targetRelationship;
         }
-        case
-          SINGLE_SELECT,
-          MULTI_SELECT -> throw new UnsupportedOperationException(
+        case SINGLE_SELECT -> {
+          SingleSelectQuestion target = new SingleSelectQuestion();
+          copyQuestionFields(sourceQuestion, target, copy);
+          for (SingleSelectOption sourceOption : ((SingleSelectQuestion) sourceQuestion).getOptions()) {
+            SingleSelectOption option = new SingleSelectOption();
+            option.setQuestion(target);
+            option.setLabel(sourceOption.getLabel());
+            target.getOptions().add(option);
+          }
+          yield target;
+        }
+        case MULTI_SELECT -> throw new UnsupportedOperationException(
           "Copy not implemented for question type: " + sourceQuestion.getType()
         );
       };
@@ -1417,7 +1439,8 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
                   (answer.getTrustScore() != null &&
                     answer.getTrustScore() != 0)
               );
-            case SINGLE_SELECT, MULTI_SELECT -> false;
+            case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
+            case MULTI_SELECT -> false;
           }
         );
     }
@@ -1445,9 +1468,130 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
                   answer.getTrustScore() != 0) ||
                 (answer.getComment() != null && !answer.getComment().isBlank())
             );
-          case SINGLE_SELECT, MULTI_SELECT -> false;
+          case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
+          case MULTI_SELECT -> false;
         }
       );
+  }
+
+  @PostMapping("/{surveyId}/questions/single-select")
+  @Transactional
+  public Map<String, Object> createSingleSelectQuestion(@PathVariable Long surveyId,
+    @RequestBody Map<String, Object> request) {
+    List<String> labels = singleSelectLabels(request);
+    SingleSelectQuestion question = new SingleSelectQuestion();
+    question.setSurvey(surveyService.findById(surveyId));
+    question.setType(QuestionType.SINGLE_SELECT);
+    question.setPrompt(((String) request.get("prompt")).trim());
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+    question.setDisplayOrder((Integer) request.get("displayOrder"));
+    addSingleSelectOptions(question, labels);
+    question = (SingleSelectQuestion) questionService.save(question);
+    return Map.of("id", question.getId(), "optionCount", question.getOptions().size());
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/single-select")
+  @Transactional
+  public Map<String, Object> updateSingleSelectQuestion(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @RequestBody Map<String, Object> request) {
+    List<String> labels = singleSelectLabels(request);
+    SingleSelectQuestion question = findSingleSelectQuestion(surveyId, questionId);
+    boolean optionsChanged = !question.getOptions().stream().map(SingleSelectOption::getLabel).toList().equals(labels);
+    if (optionsChanged) {
+      singleSelectAnswerService.deleteForQuestion(questionId);
+      question.getOptions().clear();
+      addSingleSelectOptions(question, labels);
+    }
+    question.setPrompt(((String) request.get("prompt")).trim());
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+    questionService.save(question);
+    return Map.of("id", question.getId(), "responsesCleared", optionsChanged);
+  }
+
+  private List<String> singleSelectLabels(Map<String, Object> request) {
+    if (!(request.get("prompt") instanceof String prompt) || prompt.isBlank() || prompt.trim().length() > 255) {
+      throw new IllegalArgumentException("Enter a question of at most 255 characters.");
+    }
+    if (!(request.get("options") instanceof List<?> options) || options.isEmpty()) {
+      throw new IllegalArgumentException("Add at least one option.");
+    }
+    return options.stream().map(value -> {
+      if (!(value instanceof String label) || label.isBlank() || label.trim().length() > 255) {
+        throw new IllegalArgumentException("Each option needs a label of at most 255 characters.");
+      }
+      return label.trim();
+    }).toList();
+  }
+
+  private void addSingleSelectOptions(SingleSelectQuestion question, List<String> labels) {
+    for (String label : labels) {
+      SingleSelectOption option = new SingleSelectOption();
+      option.setQuestion(question);
+      option.setLabel(label);
+      question.getOptions().add(option);
+    }
+  }
+
+  private SingleSelectQuestion findSingleSelectQuestion(Long surveyId, Long questionId) {
+    Question question = questionService.findById(questionId);
+    if (!(question instanceof SingleSelectQuestion singleSelect) || !question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException("Single Select question does not belong to survey: " + surveyId);
+    }
+    return singleSelect;
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/answers/single-select")
+  @Transactional
+  public Map<String, Object> answerSingleSelectQuestion(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @AuthenticationPrincipal OidcUser oidcUser,
+    @RequestBody Map<String, Object> request) {
+    SingleSelectQuestion question = findSingleSelectQuestion(surveyId, questionId);
+    Survey survey = question.getSurvey();
+    if (survey.getStatus() != SurveyStatus.OPEN) {
+      throw new IllegalStateException("Survey is not open for responses.");
+    }
+    Object value = request.get("optionId");
+    SingleSelectOption option = null;
+    if (value != null) {
+      if (!(value instanceof Number number) || number.doubleValue() != number.longValue()) {
+        throw new IllegalArgumentException("Choose one valid option.");
+      }
+      option = question.getOptions().stream().filter(item -> item.getId().equals(number.longValue()))
+        .findFirst().orElseThrow(() -> new IllegalArgumentException("Option does not belong to question: " + questionId));
+    } else if (question.isRequired()) {
+      throw new IllegalArgumentException("This question requires one selection.");
+    }
+    User user = userService.findOrCreate(oidcUser);
+    surveyParticipantService.add(survey, user);
+    singleSelectAnswerService.deleteForUserAndQuestion(questionId, user.getId());
+    if (option != null) {
+      SingleSelectAnswer answer = new SingleSelectAnswer();
+      answer.setQuestion(question);
+      answer.setUser(user);
+      answer.setOption(option);
+      singleSelectAnswerService.save(answer);
+    }
+    return Map.of("questionId", questionId, "userId", user.getId(), "responseCount", option == null ? 0 : 1);
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/single-select")
+  public List<Map<String, Object>> getSingleSelectAnswers(@PathVariable Long surveyId, @PathVariable Long questionId) {
+    findSingleSelectQuestion(surveyId, questionId);
+    return singleSelectAnswerService.findByQuestionId(questionId).stream().map(this::singleSelectAnswerResult).toList();
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/single-select/{userId}")
+  public List<Map<String, Object>> getSingleSelectAnswersForUser(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @PathVariable Long userId) {
+    findSingleSelectQuestion(surveyId, questionId);
+    return singleSelectAnswerService.findByQuestionIdAndUserId(questionId, userId).stream()
+      .map(this::singleSelectAnswerResult).toList();
+  }
+
+  private Map<String, Object> singleSelectAnswerResult(SingleSelectAnswer answer) {
+    return Map.of("answerId", answer.getId(), "userId", answer.getUser().getId(),
+      "name", answer.getUser().getDisplayName(), "username", answer.getUser().getUsername(),
+      "optionId", answer.getOption().getId(), "label", answer.getOption().getLabel());
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/relationship")

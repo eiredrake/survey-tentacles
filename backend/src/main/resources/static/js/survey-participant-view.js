@@ -267,6 +267,10 @@ async function loadQuestions() {
           );
         }
       
+        if (question.type === "SINGLE_SELECT") {
+          await renderSingleSelectAnswer(question, detailRow.querySelector(".single-select-view-results"));
+        }
+
         if (question.type === "SHORT_TEXT") {
           const container = detailRow.querySelector(
             ".short-text-view-answers"
@@ -294,6 +298,18 @@ async function loadQuestions() {
 
     });   
   }
+}
+
+async function renderSingleSelectAnswer(question, container) {
+  const response = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/single-select/${userId}`);
+  if (!response.ok) {
+    showToast("Unable to load Single Select answer.", "error");
+    return;
+  }
+  const answers = await response.json();
+  const value = document.createElement("p");
+  value.textContent = answers.length ? answers[0].label : "No answer provided.";
+  container.replaceChildren(value);
 }
 
 async function renderRelationshipAnswers(question, container) {

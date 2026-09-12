@@ -557,6 +557,9 @@ async function loadQuestions() {
         await renderShortTextAnswers(question, answersContainer);
       }
 
+      const singleSelectContainer = section.querySelector(".single-select-view-results");
+      if (singleSelectContainer) await renderSingleSelectResults(question, singleSelectContainer);
+
       const relationshipContainer = section.querySelector(
         ".relationship-view-results",
       );
@@ -589,6 +592,35 @@ async function loadQuestions() {
     row.appendChild(actionsCell);
 
     questionList.appendChild(row);
+  }
+}
+
+async function renderSingleSelectResults(question, container) {
+  const detailResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}`);
+  const answersResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/single-select`);
+  if (!detailResponse.ok || !answersResponse.ok) {
+    showToast("Unable to load Single Select results.", "error");
+    return;
+  }
+  const detail = await detailResponse.json();
+  const answers = await answersResponse.json();
+  const heading = document.createElement("h3");
+  heading.textContent = "Results";
+  container.appendChild(heading);
+  for (const option of detail.options) {
+    const voters = answers.filter(answer => answer.optionId === option.id);
+    const row = document.createElement("p");
+    const label = document.createElement("strong");
+    label.textContent = `${option.label}: ${voters.length} vote${voters.length === 1 ? "" : "s"}`;
+    row.appendChild(label);
+    if (voters.length) row.append(document.createElement("br"),
+      document.createTextNode(voters.map(answer => answer.name || answer.username).join(", ")));
+    container.appendChild(row);
+  }
+  if (!answers.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No answers yet.";
+    container.appendChild(empty);
   }
 }
 
