@@ -1,6 +1,10 @@
 package org.eiredrake.tentacles.controller;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.UUID;
+import org.eiredrake.tentacles.event.SurveyAdminEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -63,6 +67,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/surveys")
 public class SurveyController {
 
+  private final ApplicationEventPublisher eventPublisher;
   private final SurveyService surveyService;
   private final UserService userService;
   private final QuestionService questionService;
@@ -86,8 +91,10 @@ public class SurveyController {
     RelationshipAnswerService relationshipAnswerService,
     SurveyImageService surveyImageService,
     SingleSelectAnswerService singleSelectAnswerService,
-    MultiSelectAnswerService multiSelectAnswerService
+    MultiSelectAnswerService multiSelectAnswerService,
+    ApplicationEventPublisher eventPublisher
   ) {
+    this.eventPublisher = eventPublisher;
     this.surveyService = surveyService;
     this.userService = userService;
     this.questionService = questionService;
@@ -99,6 +106,33 @@ public class SurveyController {
     this.surveyImageService = surveyImageService;
     this.singleSelectAnswerService = singleSelectAnswerService;
     this.multiSelectAnswerService = multiSelectAnswerService;
+  }
+
+  public record SubmissionNotice(UUID submissionId) {}
+
+  @PostMapping("/{surveyId}/submitted")
+  @Transactional
+  public Map<String, Object> submitted(@PathVariable Long surveyId, @AuthenticationPrincipal OidcUser oidcUser,
+    @RequestBody SubmissionNotice request, Authentication authentication) {
+    if (request.submissionId() == null) throw new IllegalArgumentException("Submission ID is required.");
+    Survey survey = surveyService.findById(surveyId);
+    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    User user = userService.findOrCreate(oidcUser);
+    boolean isAdmin = authentication.getAuthorities().stream().anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+    if (!isAdmin && !surveyAssignmentService.findBySurveyId(surveyId).isEmpty() && !surveyAssignmentService.isAssigned(surveyId, user.getId())) {
+      throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN);
+    }
+    boolean participated = surveyParticipantService.findBySurveyId(surveyId).stream()
+      .anyMatch(participant -> participant.getUser().getId().equals(user.getId()));
+    if (!participated || (survey.getQuestions().stream().anyMatch(Question::isRequired) && !isSurveyCompletedForUser(survey, user))) {
+      throw new IllegalArgumentException("Save the survey responses before confirming submission.");
+    }
+    String name = user.getDisplayName();
+    if (name == null || name.isBlank()) name = user.getUsername();
+    String eventId = surveyId + ":" + user.getId() + ":" + request.submissionId();
+    eventPublisher.publishEvent(new SurveyAdminEvent(eventId, surveyId, "submission.saved", Instant.now(),
+      Map.of("userId", user.getId(), "userName", name, "surveyTitle", survey.getTitle())));
+    return Map.of("submissionId", request.submissionId(), "saved", true);
   }
 
   @PostMapping

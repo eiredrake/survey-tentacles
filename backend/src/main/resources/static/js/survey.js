@@ -7,10 +7,12 @@ let surveyAcceptingResponses = false;
 
 let hasUnsavedChanges = false;
 let isSubmittingSurvey = false;
+let pendingSubmissionId = null;
 
 const questionHandlers = [];
 
 function markSurveyDirty() {
+    pendingSubmissionId = null;
     hasUnsavedChanges = true;
 }
 
@@ -1172,6 +1174,7 @@ function initializeSurveySubmit() {
     submitButton.addEventListener(
         "click",
         async () => {
+            if (isSubmittingSurvey) return;
             for (const handler of questionHandlers) {
                 if (!handler.validate()) {
                     return;
@@ -1180,6 +1183,9 @@ function initializeSurveySubmit() {
 
             submitButton.disabled = true;
             isSubmittingSurvey = true;
+            pendingSubmissionId ??= crypto.randomUUID();
+            const submissionId = pendingSubmissionId;
+            let answersSaved = false;
 
             try {
                 const csrfResponse =
@@ -1205,6 +1211,17 @@ function initializeSurveySubmit() {
                     }
                 }
 
+                answersSaved = true;
+                // Each answer request has committed before this single survey-level notice.
+                if (questionHandlers.length) {
+                    const notice = await fetch(`/api/surveys/${surveyId}/submitted`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+                        body: JSON.stringify({ submissionId })
+                    });
+                    if (!notice.ok) throw new Error("Unable to confirm survey submission.");
+                }
+                pendingSubmissionId = null;
                 hasUnsavedChanges = false;
 
                 showToast(
@@ -1215,7 +1232,8 @@ function initializeSurveySubmit() {
                 console.error(error);
 
                 showToast(
-                    "Unable to save all survey responses.",
+                    answersSaved ? "Your responses were saved, but submission confirmation failed. Please submit again."
+                        : "Unable to save all survey responses.",
                     "error"
                 );
             } finally {

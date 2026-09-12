@@ -168,7 +168,7 @@ test("Single and Multi Select coexist without changing each other's selections",
   p.window.eval("initializeSurveySubmit()");
   p.document.getElementById("submit-survey-button").click();
   await tick();
-  const posts = p.calls.filter(call => call.options.method === "POST");
+  const posts = p.calls.filter(call => call.options.method === "POST" && !call.url.endsWith("/submitted"));
   assert.equal(posts.length, 2);
   assert.deepEqual(JSON.parse(posts[0].options.body), { optionIds: [3, 4] });
   assert.deepEqual(JSON.parse(posts[1].options.body), { optionId: 4 });

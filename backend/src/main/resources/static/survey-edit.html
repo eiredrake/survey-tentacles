@@ -40,6 +40,14 @@
             Loading survey...
         </div>
 
+        <section id="survey-notifications" class="survey-section" hidden>
+            <h2>Notifications</h2>
+            <label><input id="survey-notifications-enabled" type="checkbox" disabled>
+                Notify me when someone submits this survey</label>
+            <p>Applies only to you. Notifications appear anywhere in Tentacles. Changes save immediately.</p>
+            <span id="survey-notifications-status" role="status"></span>
+        </section>
+
         <section class="survey-image-editor">
             <div class="section-heading">
                 <h2>Survey Image</h2>
@@ -331,6 +339,7 @@
     <script src="/js/date-format.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="/js/survey-edit.js"></script>
+    <script src="/js/survey-events.js"></script>
     <script src="/js/logout.js"></script>
 </body>
 

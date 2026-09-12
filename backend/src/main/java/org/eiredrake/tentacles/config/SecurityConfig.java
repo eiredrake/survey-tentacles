@@ -48,6 +48,9 @@ public class SecurityConfig {
                     "/s/**"
                 ).permitAll()
 
+                .requestMatchers(HttpMethod.GET, "/api/surveys/events", "/api/surveys/*/notifications").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/surveys/*/notifications").hasRole("ADMIN")
+
                 // Survey administration
                 .requestMatchers(
                     HttpMethod.POST,
