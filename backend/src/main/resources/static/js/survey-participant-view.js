@@ -267,8 +267,8 @@ async function loadQuestions() {
           );
         }
       
-        if (question.type === "SINGLE_SELECT") {
-          await renderSingleSelectAnswer(question, detailRow.querySelector(".single-select-view-results"));
+        if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
+          await renderSelectAnswers(question, detailRow.querySelector(".single-select-view-results, .multi-select-view-results"));
         }
 
         if (question.type === "SHORT_TEXT") {
@@ -300,16 +300,22 @@ async function loadQuestions() {
   }
 }
 
-async function renderSingleSelectAnswer(question, container) {
-  const response = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/single-select/${userId}`);
+async function renderSelectAnswers(question, container) {
+  const multiple = question.type === "MULTI_SELECT";
+  const type = multiple ? "multi-select" : "single-select";
+  const response = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/${type}/${userId}`);
   if (!response.ok) {
-    showToast("Unable to load Single Select answer.", "error");
+    showToast("Unable to load selected answers.", "error");
     return;
   }
   const answers = await response.json();
-  const value = document.createElement("p");
-  value.textContent = answers.length ? answers[0].label : "No answer provided.";
-  container.replaceChildren(value);
+  container.replaceChildren();
+  const labels = answers.length ? (multiple ? answers : answers.slice(0, 1)).map(answer => answer.label) : ["No answer provided."];
+  for (const label of labels) {
+    const value = document.createElement("p");
+    value.textContent = label;
+    container.appendChild(value);
+  }
 }
 
 async function renderRelationshipAnswers(question, container) {

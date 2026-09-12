@@ -1,5 +1,9 @@
 {
   "private": true,
-  "scripts": { "test": "node --test single-select.test.cjs" },
-  "devDependencies": { "jsdom": "^26.1.0" }
+  "scripts": {
+    "test": "node --test single-select.test.cjs multi-select.test.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
 }

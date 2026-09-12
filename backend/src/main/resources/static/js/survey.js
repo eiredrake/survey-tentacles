@@ -979,54 +979,55 @@ async function loadSchedulingQuestion(
     });
 }
 
-async function loadSingleSelectQuestion(question, section) {
+async function loadSelectQuestion(question, section) {
+    const multiple = question.type === "MULTI_SELECT";
+    const type = multiple ? "multi-select" : "single-select";
     const detailResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}`);
     const answersResponse = await fetch(
-        `/api/surveys/${surveyId}/questions/${question.id}/answers/single-select/${currentUser.id}`);
+        `/api/surveys/${surveyId}/questions/${question.id}/answers/${type}/${currentUser.id}`);
     if (!detailResponse.ok || !answersResponse.ok) {
-        throw new Error("Unable to load Single Select question.");
+        throw new Error("Unable to load selection question.");
     }
     const detail = await detailResponse.json();
     const answers = await answersResponse.json();
-    const options = section.querySelector(".single-select-options");
+    const options = section.querySelector(`.${type}-options`);
     options.setAttribute("aria-label", question.prompt);
-    options.setAttribute("aria-required", String(question.required));
+    if (!multiple) options.setAttribute("aria-required", String(question.required));
     for (const option of detail.options) {
         const label = document.createElement("label");
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = `single-select-${question.id}`;
-        radio.value = option.id;
-        radio.checked = answers.some(answer => answer.optionId === option.id);
-        radio.disabled = !surveyAcceptingResponses;
-        radio.addEventListener("change", markSurveyDirty);
-        label.append(radio, document.createTextNode(` ${option.label}`));
+        const input = document.createElement("input");
+        input.type = multiple ? "checkbox" : "radio";
+        input.name = `${type}-${question.id}`;
+        input.value = option.id;
+        input.checked = answers.some(answer => answer.optionId === option.id);
+        input.disabled = !surveyAcceptingResponses;
+        input.addEventListener("change", markSurveyDirty);
+        label.append(input, document.createTextNode(` ${option.label}`));
         options.append(label, document.createElement("br"));
     }
-    const clearButton = section.querySelector(".single-select-clear");
+    const clearButton = section.querySelector(`.${type}-clear`);
     clearButton.disabled = !surveyAcceptingResponses;
     clearButton.addEventListener("click", () => {
-        options.querySelectorAll("input").forEach(radio => { radio.checked = false; });
+        options.querySelectorAll("input").forEach(input => { input.checked = false; });
         markSurveyDirty();
     });
-    const selectedId = () => {
-        const selected = options.querySelector("input:checked");
-        return selected ? Number(selected.value) : null;
-    };
+    const selectedIds = () => [...options.querySelectorAll("input:checked")].map(input => Number(input.value));
     questionHandlers.push({
         section,
         validate() {
-            if (question.required && selectedId() === null) {
-                showRequiredError(section, "This question is required. Please choose one option.");
+            if (question.required && selectedIds().length === 0) {
+                showRequiredError(section, multiple
+                    ? "This question is required. Please choose at least one option."
+                    : "This question is required. Please choose one option.");
                 return false;
             }
             return true;
         },
         async save(csrf) {
-            const response = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/single-select`, {
+            const response = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/${type}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
-                body: JSON.stringify({ optionId: selectedId() })
+                body: JSON.stringify(multiple ? { optionIds: selectedIds() } : { optionId: selectedIds()[0] ?? null })
             });
             return response.ok;
         }
@@ -1126,8 +1127,8 @@ async function loadQuestions() {
                 ".relationship-subjects"
             );
 
-        if (question.type === "SINGLE_SELECT") {
-            await loadSingleSelectQuestion(question, section);
+        if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
+            await loadSelectQuestion(question, section);
         } else if (relationshipSubjects) {
             await loadRelationshipQuestion(
                 question,

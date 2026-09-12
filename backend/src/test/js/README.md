@@ -1,9 +1,9 @@
-# Single Select checks
+# Selection question checks
 
 From `backend`, with Java 21:
 
 ```powershell
-.\gradlew.bat test --tests '*SingleSelect*'
+.\gradlew.bat test --tests '*Select*'
 ```
 
 The focused Java tests use mocks and an isolated H2 database. They cover answer validation, completion, copying, option replacement, and deletion cascades.
@@ -15,4 +15,4 @@ npm ci
 npm test
 ```
 
-The DOM tests load the actual HTML and JavaScript with mocked API responses. They cover editing choices, radio exclusivity, restoring answers, required/optional submission, disabled controls, and read-only results. They do not test live PostgreSQL or OIDC login. The existing full application-startup test needs database and OAuth configuration.
+The DOM tests load the actual HTML and JavaScript with mocked API responses. They cover editing choices, radio exclusivity, independent checkboxes, mixed question types, restoring answers, required/optional submission, disabled controls, and read-only results. They do not test live PostgreSQL or OIDC login. The existing full application-startup test needs database and OAuth configuration.

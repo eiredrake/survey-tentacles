@@ -57,14 +57,15 @@ function showQuestionEditor(templateId) {
   setupSchedulingEditor();
   setupSchedulingQuestionSave();
   setupShortTextQuestionSave();
-  setupSingleSelectEditor();
+  setupSelectEditor("single-select", "Single Select");
+  setupSelectEditor("multi-select", "Multi Select");
   setupRelationshipEditor();
   setupRelationshipQuestionSave();
 }
 
-function addSingleSelectOption(label = "") {
+function addSelectOption(label = "", type = "single-select") {
   const row = document.createElement("div");
-  row.className = "single-select-editor-option";
+  row.className = `${type}-editor-option`;
   const input = document.createElement("input");
   input.type = "text";
   input.maxLength = 255;
@@ -81,16 +82,16 @@ function addSingleSelectOption(label = "") {
     markDirty("question");
   });
   row.append(input, remove);
-  document.getElementById("single-select-editor-options").appendChild(row);
+  document.getElementById(`${type}-editor-options`).appendChild(row);
   return input;
 }
 
-function setupSingleSelectEditor() {
-  const promptInput = document.getElementById("single-select-editor-prompt");
+function setupSelectEditor(type, displayName) {
+  const promptInput = document.getElementById(`${type}-editor-prompt`);
   if (!promptInput) return;
-  const optionsContainer = document.getElementById("single-select-editor-options");
-  document.getElementById("add-single-select-option").addEventListener("click", () => {
-    addSingleSelectOption().focus();
+  const optionsContainer = document.getElementById(`${type}-editor-options`);
+  document.getElementById(`add-${type}-option`).addEventListener("click", () => {
+    addSelectOption("", type).focus();
     markDirty("question");
   });
   const saveButton = document.getElementById("save-question-button");
@@ -103,8 +104,8 @@ function setupSingleSelectEditor() {
     }
     const wasEditing = editingQuestionId !== null;
     const url = wasEditing
-      ? `/api/surveys/${surveyId}/questions/${editingQuestionId}/single-select`
-      : `/api/surveys/${surveyId}/questions/single-select`;
+      ? `/api/surveys/${surveyId}/questions/${editingQuestionId}/${type}`
+      : `/api/surveys/${surveyId}/questions/${type}`;
     saveButton.disabled = true;
     try {
       const csrfResponse = await fetch("/csrf");
@@ -116,7 +117,7 @@ function setupSingleSelectEditor() {
         body: JSON.stringify({ prompt, options, displayOrder: 1,
           required: document.querySelector(".question-required").checked })
       });
-      if (!response.ok) throw new Error("Unable to save Single Select question.");
+      if (!response.ok) throw new Error(`Unable to save ${displayName} question.`);
       const result = await response.json();
       editingQuestionId = null;
       clearDirty("question");
@@ -125,7 +126,7 @@ function setupSingleSelectEditor() {
       container.hidden = true;
       await loadQuestions();
       showToast(result.responsesCleared ? "Question updated. Previous responses cleared."
-        : wasEditing ? "Single Select question updated." : "Single Select question created.", "success");
+        : wasEditing ? `${displayName} question updated.` : `${displayName} question created.`, "success");
     } catch (error) {
       showToast(error.message, "error");
     } finally {
@@ -1174,10 +1175,10 @@ async function loadQuestions() {
           return;
         }
 
-        const singleSelectPrompt = document.getElementById("single-select-editor-prompt");
-        if (singleSelectPrompt) {
-          singleSelectPrompt.value = questionDetails.prompt;
-          for (const option of questionDetails.options ?? []) addSingleSelectOption(option.label);
+        if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
+          const type = question.type === "MULTI_SELECT" ? "multi-select" : "single-select";
+          document.getElementById(`${type}-editor-prompt`).value = questionDetails.prompt;
+          for (const option of questionDetails.options ?? []) addSelectOption(option.label, type);
           return;
         }
 

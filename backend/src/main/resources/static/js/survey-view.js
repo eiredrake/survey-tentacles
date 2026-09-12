@@ -557,8 +557,8 @@ async function loadQuestions() {
         await renderShortTextAnswers(question, answersContainer);
       }
 
-      const singleSelectContainer = section.querySelector(".single-select-view-results");
-      if (singleSelectContainer) await renderSingleSelectResults(question, singleSelectContainer);
+      const selectContainer = section.querySelector(".single-select-view-results, .multi-select-view-results");
+      if (selectContainer) await renderSelectResults(question, selectContainer);
 
       const relationshipContainer = section.querySelector(
         ".relationship-view-results",
@@ -595,11 +595,12 @@ async function loadQuestions() {
   }
 }
 
-async function renderSingleSelectResults(question, container) {
+async function renderSelectResults(question, container) {
+  const type = question.type === "MULTI_SELECT" ? "multi-select" : "single-select";
   const detailResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}`);
-  const answersResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/single-select`);
+  const answersResponse = await fetch(`/api/surveys/${surveyId}/questions/${question.id}/answers/${type}`);
   if (!detailResponse.ok || !answersResponse.ok) {
-    showToast("Unable to load Single Select results.", "error");
+    showToast("Unable to load selection results.", "error");
     return;
   }
   const detail = await detailResponse.json();

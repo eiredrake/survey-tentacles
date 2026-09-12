@@ -110,7 +110,7 @@ test("Editor adds, edits, removes, tracks dirty state, and sends labels in order
 test("View shows counts including zero votes and renders option labels as text", async () => {
   const p = page("survey-view", { "/api/surveys/1/questions/2/answers/single-select":
     [{ optionId: 3, name: "Voter" }] });
-  await p.window.eval('renderSingleSelectResults({ id: 2 }, document.getElementById("question-list"))');
+  await p.window.eval('renderSelectResults({ id: 2 }, document.getElementById("question-list"))');
   const container = p.document.getElementById("question-list");
   assert.match(container.textContent, /First: 1 vote/);
   assert.match(container.textContent, /<b>Second<\/b>: 0 votes/);
@@ -125,7 +125,7 @@ test("Participant View displays only the selected participant's answer", async (
     assert.match(url, /\/answers\/single-select\/7$/);
     return { ok: true, json: async () => [{ label: "First" }] };
   };
-  await p.window.eval('renderSingleSelectAnswer({ id: 2 }, document.getElementById("question-list"))');
+  await p.window.eval('renderSelectAnswers({ id: 2 }, document.getElementById("question-list"))');
   assert.equal(p.document.getElementById("question-list").textContent, "First");
   p.dom.window.close();
 });
