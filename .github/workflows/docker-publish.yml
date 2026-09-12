@@ -6,7 +6,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -41,3 +41,8 @@ jobs:
             ghcr.io/eiredrake/survey_tentacles:${{ steps.version.outputs.VERSION }}
             ghcr.io/eiredrake/survey_tentacles:${{ github.ref_name }}
             ghcr.io/eiredrake/survey_tentacles:latest
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
