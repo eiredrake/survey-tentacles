@@ -4,3 +4,4 @@ bin
 bootrun.log
 .git
 .gitignore
+uploads/

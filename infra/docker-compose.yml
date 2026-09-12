@@ -15,7 +15,7 @@ services:
       - tentacles-postgres-data:/var/lib/postgresql/data
 
   tentacles:
-    image: ghcr.io/eiredrake/survey_tentacles:v1.5.4
+    image: ghcr.io/eiredrake/survey_tentacles:v1.5.5
     container_name: tentacles
     restart: unless-stopped
 
@@ -32,7 +32,7 @@ services:
       AUTHENTIK_ISSUER_URI: ${AUTHENTIK_ISSUER_URI}
 
       TENTACLES_PUBLIC_BASE_URL: ${TENTACLES_PUBLIC_BASE_URL}
-      TENTACLES_UPLOAD_DIR: ${TENTACLES_UPLOAD_DIR}
+      TENTACLES_UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
 

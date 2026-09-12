@@ -75,7 +75,7 @@ Docker will download:
 - Survey Tentacles
 - PostgreSQL 17
 
-and create the persistent database volume automatically.
+and create persistent database and survey-image volumes automatically.
 
 Tentacles will be available on port:
 
@@ -98,14 +98,43 @@ Then recreate the containers:
 
     docker compose up -d
 
-Database data is stored in a Docker volume and will persist when containers
-are recreated.
+Database data and uploaded images are stored in separate Docker volumes and persist
+when containers are recreated. The application writes images to `/app/uploads`, which
+must be mounted to the `tentacles-upload-data` named volume in the Compose file.
 
 Do not use:
 
     docker compose down -v
 
-unless you intentionally want to delete the Tentacles database.
+unless you intentionally want to delete both the Tentacles database and uploaded images.
+
+## Survey image storage and existing deployments
+
+Use the current Compose file when upgrading: pulling a new application image does
+not add a volume mount to an older deployment file. Docker builds require an
+explicit persistent mount covering `/app/uploads` and refuse to start without it.
+The upload path in Compose is fixed to match the mount. Keep the Compose project
+name unchanged so updates reuse the same named volumes.
+
+Before replacing a legacy container that has no upload mount, preserve its images:
+
+    docker cp tentacles:/app/uploads ./survey-image-backup
+
+Update your deployment Compose file to mount `tentacles-upload-data:/app/uploads`.
+Restore the backup into that volume before starting the application:
+
+    docker compose run --rm --no-deps --entrypoint sh --volume ./survey-image-backup:/recovery:ro tentacles -c 'cp -an /recovery/. /app/uploads/'
+    docker compose up -d
+
+This retains existing files instead of overwriting them. Keep the backup until you
+have verified the surveys. Images already discarded with an old container need to
+be restored from a backup or uploaded again.
+
+Terminal/IDE runs use the local `uploads` directory by default. That directory and
+a Docker volume are separate stores: when using the same database in both modes,
+copy the referenced image files as part of switching modes, or configure both to
+use a shared bind-mounted directory. Back up the database and image storage together.
+Runtime uploads are excluded from new Git additions and Docker build contexts.
 
 ## Building From Source
 

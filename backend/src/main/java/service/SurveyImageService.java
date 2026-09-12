@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Set;
+import org.slf4j.LoggerFactory;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -26,9 +28,34 @@ public class SurveyImageService {
     private final Path uploadDirectory;
 
     public SurveyImageService(
-        @Value("${tentacles.upload-dir}") String uploadDirectory
+        @Value("${tentacles.upload-dir}") String uploadDirectory,
+        @Value("${tentacles.require-persistent-uploads:false}") boolean requirePersistentUploads
     ) {
-        this.uploadDirectory = Path.of(uploadDirectory);
+        if (uploadDirectory == null || uploadDirectory.isBlank()) {
+            throw new IllegalStateException("Survey upload directory must not be empty.");
+        }
+        try {
+            this.uploadDirectory = Files.createDirectories(Path.of(uploadDirectory).toAbsolutePath().normalize()).toRealPath();
+            if (requirePersistentUploads && !hasUploadMount(this.uploadDirectory, Files.readAllLines(Path.of("/proc/self/mountinfo")))) {
+                throw new IllegalStateException("Survey images require persistent storage at " + this.uploadDirectory
+                    + ". Mount the tentacles-upload-data volume there before starting the container.");
+            }
+        } catch (IOException error) {
+            throw new IllegalStateException("Unable to initialize survey image storage at " + uploadDirectory, error);
+        }
+        LoggerFactory.getLogger(SurveyImageService.class).info("Survey images stored in {}", this.uploadDirectory);
+    }
+
+    static boolean hasUploadMount(Path directory, List<String> mountInfo) {
+        for (String line : mountInfo) {
+            String[] fields = line.split(" ");
+            if (fields.length < 6 || fields[4].equals("/")) continue;
+            if (line.contains(" - tmpfs ") || line.contains(" - ramfs ")) continue;
+            String mount = fields[4].replace("\\040", " ").replace("\\011", "\t")
+                .replace("\\012", "\n").replace("\\134", "\\");
+            if (directory.startsWith(Path.of(mount).toAbsolutePath().normalize())) return true;
+        }
+        return false;
     }
 
     public String save(MultipartFile file) throws IOException {
@@ -45,11 +72,9 @@ public class SurveyImageService {
         Path destination =
             uploadDirectory.resolve(filename);
 
-        Files.copy(
-            file.getInputStream(),
-            destination,
-            StandardCopyOption.REPLACE_EXISTING
-        );
+        try (var input = file.getInputStream()) {
+            Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
 
         return filename;
     }

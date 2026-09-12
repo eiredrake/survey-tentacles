@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# Runtime image data; existing tracked files are left untouched.
+uploads/

@@ -19,6 +19,9 @@ RUN cp "$(find build/libs \
 
 FROM eclipse-temurin:21-jre
 
+ENV TENTACLES_UPLOAD_DIR=/app/uploads
+ENV TENTACLES_REQUIRE_PERSISTENT_UPLOADS=true
+
 WORKDIR /app
 
 COPY --from=build /app/tentacles.jar tentacles.jar
