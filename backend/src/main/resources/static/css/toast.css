@@ -26,3 +26,7 @@
 #toast[data-type="info"] {
   background: #222;
 }
+
+#toast[data-type="notify"] {
+  background: #1e97c7;
+}

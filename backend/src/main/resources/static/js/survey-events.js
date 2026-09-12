@@ -77,7 +77,7 @@
                 if (seen.size > 1000) seen.delete(seen.values().next().value);
                 if (event.type === "submission.saved" && typeof event.data?.userName === "string"
                     && typeof event.data?.surveyTitle === "string") {
-                    showToast(event.data.userName + " submitted " + event.data.surveyTitle + ".", "info");
+                    showToast(event.data.userName + " submitted " + event.data.surveyTitle + ".", "notify");
                 }
                 window.dispatchEvent(new CustomEvent("survey-admin-event", { detail: event }));
             });
