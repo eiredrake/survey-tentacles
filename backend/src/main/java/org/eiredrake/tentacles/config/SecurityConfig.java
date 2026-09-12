@@ -82,6 +82,8 @@ public class SecurityConfig {
                     HttpMethod.POST,
                     "/api/surveys/*/questions/scheduling",
                     "/api/surveys/*/questions/short-text",
+                    "/api/surveys/*/questions/nomination",
+                    "/api/surveys/*/questions/*/nomination",
                     "/api/surveys/*/questions/multi-select",
                     "/api/surveys/*/questions/*/multi-select",
                     "/api/surveys/*/questions/single-select",

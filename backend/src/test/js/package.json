@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "test": "node --test single-select.test.cjs multi-select.test.cjs survey-events.test.cjs"
+    "test": "node --test single-select.test.cjs multi-select.test.cjs survey-events.test.cjs nomination.test.cjs"
   },
   "devDependencies": {
     "jsdom": "^26.1.0"

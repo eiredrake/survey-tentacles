@@ -14,6 +14,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.eiredrake.tentacles.model.Question;
+import org.eiredrake.tentacles.model.NominationQuestion;
+import org.eiredrake.tentacles.model.NominationAnswer;
+import org.eiredrake.tentacles.service.NominationAnswerService;
 import org.eiredrake.tentacles.model.QuestionType;
 import org.eiredrake.tentacles.model.RelationshipAnswer;
 import org.eiredrake.tentacles.model.RelationshipQuestion;
@@ -79,6 +82,7 @@ public class SurveyController {
   private final SurveyImageService surveyImageService;
   private final SingleSelectAnswerService singleSelectAnswerService;
   private final MultiSelectAnswerService multiSelectAnswerService;
+  private final NominationAnswerService nominationAnswerService;
 
   public SurveyController(
     SurveyService surveyService,
@@ -92,6 +96,7 @@ public class SurveyController {
     SurveyImageService surveyImageService,
     SingleSelectAnswerService singleSelectAnswerService,
     MultiSelectAnswerService multiSelectAnswerService,
+    NominationAnswerService nominationAnswerService,
     ApplicationEventPublisher eventPublisher
   ) {
     this.eventPublisher = eventPublisher;
@@ -106,6 +111,7 @@ public class SurveyController {
     this.surveyImageService = surveyImageService;
     this.singleSelectAnswerService = singleSelectAnswerService;
     this.multiSelectAnswerService = multiSelectAnswerService;
+    this.nominationAnswerService = nominationAnswerService;
   }
 
   public record SubmissionNotice(UUID submissionId) {}
@@ -559,6 +565,10 @@ public class SurveyController {
       result.put("options", singleSelectQuestion.getOptions().stream()
         .map(option -> Map.<String, Object>of("id", option.getId(), "label", option.getLabel()))
         .toList());
+    }
+
+    if (question instanceof NominationQuestion nomination) {
+      result.put("maxNominations", nomination.getMaxNominations());
     }
 
     if (question instanceof MultiSelectQuestion multiSelectQuestion) {
@@ -1183,6 +1193,12 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
           }
           yield target;
         }
+        case NOMINATION -> {
+          NominationQuestion target = new NominationQuestion();
+          copyQuestionFields(sourceQuestion, target, copy);
+          target.setMaxNominations(((NominationQuestion) sourceQuestion).getMaxNominations());
+          yield target;
+        }
         case MULTI_SELECT -> {
           MultiSelectQuestion target = new MultiSelectQuestion();
           copyQuestionFields(sourceQuestion, target, copy);
@@ -1496,6 +1512,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
               );
             case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
             case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+            case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
           }
         );
     }
@@ -1525,6 +1542,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
             );
           case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
           case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+          case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
         }
       );
   }
@@ -1647,6 +1665,114 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     return Map.of("answerId", answer.getId(), "userId", answer.getUser().getId(),
       "name", answer.getUser().getDisplayName(), "username", answer.getUser().getUsername(),
       "optionId", answer.getOption().getId(), "label", answer.getOption().getLabel());
+  }
+
+
+  @PostMapping("/{surveyId}/questions/nomination")
+  @Transactional
+  public Map<String, Object> createNominationQuestion(@PathVariable Long surveyId, @RequestBody Map<String, Object> request) {
+    NominationQuestion question = new NominationQuestion();
+    applyNominationSettings(question, request);
+    question.setSurvey(surveyService.findById(surveyId));
+    question.setType(QuestionType.NOMINATION);
+    question.setDisplayOrder((Integer) request.getOrDefault("displayOrder", 1));
+    question = (NominationQuestion) questionService.save(question);
+    return Map.of("id", question.getId());
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/nomination")
+  @Transactional
+  public Map<String, Object> updateNominationQuestion(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @RequestBody Map<String, Object> request) {
+    NominationQuestion question = findNominationQuestion(surveyId, questionId);
+    applyNominationSettings(question, request);
+    // Settings edits preserve existing nominations; the new limit applies on the next submission.
+    questionService.save(question);
+    return Map.of("id", question.getId());
+  }
+
+  private void applyNominationSettings(NominationQuestion question, Map<String, Object> request) {
+    if (!(request.get("prompt") instanceof String prompt) || prompt.isBlank() || prompt.trim().length() > 255) {
+      throw new IllegalArgumentException("Enter a question of 1 to 255 characters.");
+    }
+    Object maximum = request.getOrDefault("maxNominations", 0);
+    if (!(maximum instanceof Number number) || number.doubleValue() != number.intValue() || number.intValue() < 0) {
+      throw new IllegalArgumentException("Maximum nominations must be a non-negative whole number; 0 means unlimited.");
+    }
+    question.setPrompt(prompt.trim());
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+    question.setMaxNominations(number.intValue());
+  }
+
+  private NominationQuestion findNominationQuestion(Long surveyId, Long questionId) {
+    Question question = questionService.findById(questionId);
+    if (!(question instanceof NominationQuestion nomination) || !question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException("Nomination question does not belong to survey: " + surveyId);
+    }
+    return nomination;
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/answers/nomination")
+  @Transactional
+  public Map<String, Object> answerNominationQuestion(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @AuthenticationPrincipal OidcUser oidcUser, @RequestBody Map<String, Object> request, Authentication authentication) {
+    NominationQuestion question = findNominationQuestion(surveyId, questionId);
+    Survey survey = question.getSurvey();
+    if (survey.getStatus() != SurveyStatus.OPEN) {
+      throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Survey is not open for responses.");
+    }
+    if (!(request.get("nominations") instanceof List<?> values)) {
+      throw new IllegalArgumentException("Submit a list of nominations.");
+    }
+    List<String> nominations = values.stream().map(value -> {
+      if (!(value instanceof String text) || text.isBlank() || text.trim().length() > 255) {
+        throw new IllegalArgumentException("Each nomination must contain 1 to 255 characters.");
+      }
+      return text.trim();
+    }).toList();
+    if (nominations.stream().distinct().count() != nominations.size()) {
+      throw new IllegalArgumentException("Enter each nomination only once.");
+    }
+    if (question.isRequired() && nominations.isEmpty()) {
+      throw new IllegalArgumentException("This question requires at least one nomination.");
+    }
+    if (question.getMaxNominations() > 0 && nominations.size() > question.getMaxNominations()) {
+      throw new IllegalArgumentException("Too many nominations. Maximum: " + question.getMaxNominations());
+    }
+    User user = userService.findOrCreate(oidcUser);
+    boolean admin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    if (!admin && !surveyAssignmentService.findBySurveyId(surveyId).isEmpty() && !surveyAssignmentService.isAssigned(surveyId, user.getId())) {
+      throw new org.springframework.security.access.AccessDeniedException("You are not assigned to this survey.");
+    }
+    surveyParticipantService.add(survey, user);
+    nominationAnswerService.deleteForUserAndQuestion(questionId, user.getId());
+    for (String value : nominations) {
+      NominationAnswer answer = new NominationAnswer();
+      answer.setQuestion(question);
+      answer.setUser(user);
+      answer.setNomination(value);
+      nominationAnswerService.save(answer);
+    }
+    return Map.of("questionId", questionId, "userId", user.getId(), "responseCount", nominations.size());
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/nomination")
+  public List<Map<String, Object>> getNominationAnswers(@PathVariable Long surveyId, @PathVariable Long questionId) {
+    findNominationQuestion(surveyId, questionId);
+    return nominationAnswerService.findByQuestionId(questionId).stream().map(this::nominationAnswerResult).toList();
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/nomination/{userId}")
+  public List<Map<String, Object>> getNominationAnswersForUser(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @PathVariable Long userId) {
+    findNominationQuestion(surveyId, questionId);
+    return nominationAnswerService.findByQuestionIdAndUserId(questionId, userId).stream().map(this::nominationAnswerResult).toList();
+  }
+
+  private Map<String, Object> nominationAnswerResult(NominationAnswer answer) {
+    User user = answer.getUser();
+    return Map.of("answerId", answer.getId(), "userId", user.getId(), "username", user.getUsername(),
+      "name", user.getDisplayName() == null ? user.getUsername() : user.getDisplayName(), "value", answer.getNomination());
   }
 
   @PostMapping("/{surveyId}/questions/multi-select")

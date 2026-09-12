@@ -1131,6 +1131,8 @@ async function loadQuestions() {
 
         if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
             await loadSelectQuestion(question, section);
+        } else if (question.type === "NOMINATION") {
+            await loadNominationQuestion(question, section);
         } else if (relationshipSubjects) {
             await loadRelationshipQuestion(
                 question,
@@ -1254,3 +1256,69 @@ async function initialize() {
 }
 
 initialize();
+
+async function loadNominationQuestion(question, section) {
+    const url = "/api/surveys/" + surveyId + "/questions/" + question.id;
+    const [detailResponse, answersResponse] = await Promise.all([
+        fetch(url), fetch(url + "/answers/nomination/" + currentUser.id)
+    ]);
+    if (!detailResponse.ok || !answersResponse.ok) throw new Error("Unable to load nominations.");
+    const detail = await detailResponse.json();
+    const answers = await answersResponse.json();
+    const entries = section.querySelector(".nomination-entries");
+    const add = section.querySelector(".nomination-add");
+    const maximum = detail.maxNominations;
+    const inputs = () => [...entries.querySelectorAll("input")];
+    const updateLimit = () => {
+        add.disabled = !surveyAcceptingResponses || (maximum > 0 && inputs().length >= maximum);
+        section.querySelector(".nomination-limit").textContent = maximum > 0
+            ? inputs().length + " / " + maximum + " nominations" : "Unlimited nominations";
+    };
+    const addEntry = (value = "") => {
+        const row = document.createElement("div");
+        row.className = "nomination-entry";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.maxLength = 255;
+        input.value = value;
+        input.placeholder = "Enter a nomination";
+        input.setAttribute("aria-label", "Nomination");
+        input.disabled = !surveyAcceptingResponses;
+        input.addEventListener("input", markSurveyDirty);
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "icon-button";
+        remove.title = "Remove nomination";
+        remove.setAttribute("aria-label", "Remove nomination");
+        remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+        remove.disabled = !surveyAcceptingResponses;
+        remove.addEventListener("click", () => { row.remove(); updateLimit(); markSurveyDirty(); });
+        row.append(input, remove);
+        entries.appendChild(row);
+        updateLimit();
+        return input;
+    };
+    answers.forEach(answer => addEntry(answer.value));
+    updateLimit();
+    add.addEventListener("click", () => { addEntry().focus(); markSurveyDirty(); });
+    questionHandlers.push({
+        section,
+        validate() {
+            const values = inputs().map(input => input.value.trim());
+            let error = "";
+            if (question.required && !values.length) error = "This question is required. Please add a nomination.";
+            else if (values.some(value => !value || value.length > 255)) error = "Enter 1 to 255 characters for each nomination, or remove the empty row.";
+            else if (new Set(values).size !== values.length) error = "Enter each nomination only once.";
+            else if (maximum > 0 && values.length > maximum) error = "Please keep no more than " + maximum + " nominations.";
+            if (error) { showRequiredError(section, error); return false; }
+            return true;
+        },
+        async save(csrf) {
+            const response = await fetch(url + "/answers/nomination", {
+                method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+                body: JSON.stringify({ nominations: inputs().map(input => input.value.trim()) })
+            });
+            return response.ok;
+        }
+    });
+}

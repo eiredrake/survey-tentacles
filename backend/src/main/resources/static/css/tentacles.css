@@ -665,3 +665,14 @@ main {
 .development-mode-banner div {
   margin-top: 0.4rem;
 }
+
+.nomination-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.nomination-entry input { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; }
+.nomination-entry .icon-button, .nomination-add { font-size: 1.15rem; }
+.nomination-entry .icon-button:disabled, .nomination-add:disabled { opacity: 0.25; cursor: not-allowed; }

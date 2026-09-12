@@ -271,6 +271,10 @@ async function loadQuestions() {
           await renderSelectAnswers(question, detailRow.querySelector(".single-select-view-results, .multi-select-view-results"));
         }
 
+        if (question.type === "NOMINATION") {
+          await renderNominationAnswers(question, detailRow.querySelector(".nomination-view-answers"));
+        }
+
         if (question.type === "SHORT_TEXT") {
           const container = detailRow.querySelector(
             ".short-text-view-answers"
@@ -382,3 +386,25 @@ async function initialize() {
 }
 
 initialize();
+
+async function renderNominationAnswers(question, container) {
+  const response = await fetch("/api/surveys/" + surveyId + "/questions/" + question.id + "/answers/nomination" + "/" + userId);
+  if (!response.ok) { showToast("Unable to load nominations.", "error"); return; }
+  const answers = await response.json();
+  container.replaceChildren();
+  if (!answers.length) { container.textContent = "No nominations yet."; return; }
+  const table = document.createElement("table");
+  table.className = "survey-table";
+  const head = table.createTHead().insertRow();
+  for (const label of ["Nomination"]) {
+    const cell = document.createElement("th");
+    cell.textContent = label;
+    head.appendChild(cell);
+  }
+  const body = table.createTBody();
+  for (const answer of answers) {
+    const row = body.insertRow();
+    row.insertCell().textContent = answer.value;
+  }
+  container.appendChild(table);
+}

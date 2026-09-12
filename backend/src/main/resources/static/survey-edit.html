@@ -183,6 +183,40 @@
                 </div>
             </div>
         </template>
+        <template id="nomination-question-template">
+            <div class="question-editor-panel">
+                <div class="question-editor-row">
+                    <label for="nomination-editor-prompt">
+                        Question:
+                    </label>
+
+                    <input id="nomination-editor-prompt" type="text" maxlength="255">
+
+                    <label>
+                        <input type="checkbox" class="question-required">
+                        Required
+                    </label>
+                </div>
+
+                <div class="question-editor-row">
+                    <label for="nomination-editor-maximum">Maximum nominations per participant:</label>
+                    <input id="nomination-editor-maximum" type="number" min="0" max="2147483647" step="1" value="0">
+                    <span>0 = unlimited</span>
+                </div>
+                <p>Changing the limit preserves saved nominations. The new limit applies when participants submit again.</p>
+                <div class="question-editor-actions">
+                    <button id="cancel-question-button" class="icon-button" type="button" title="Cancel"
+                        aria-label="Cancel">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <button id="save-question-button" class="icon-button" type="button" title="Save question"
+                        aria-label="Save question">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                </div>
+            </div>
+        </template>
         <template id="short-text-question-template">
             <div class="question-editor-panel">
                 <div class="question-editor-row">

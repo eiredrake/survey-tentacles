@@ -66,7 +66,7 @@ test("A submission displays one toast and duplicate reconnect events are ignored
   stream.receive(submission());
   assert.equal(p.streams.length, 1);
   assert.equal(stream.closed, false);
-  assert.deepEqual(p.notices, [["Arlo submitted Foundations Survey.", "info"]]);
+  assert.deepEqual(p.notices, [["Arlo submitted Foundations Survey.", "notify"]]);
   stream.receive(submission("two"));
   assert.equal(p.notices.length, 2);
   p.dom.window.close();

@@ -16,6 +16,7 @@ public enum QuestionType {
         "multi-select-participant-template",
         "multi-select-view-template"
     ),
+    NOMINATION("nomination-question-template", "nomination-participant-template", "nomination-view-template"),
     SHORT_TEXT(
         "short-text-question-template",
         "short-text-participant-template",

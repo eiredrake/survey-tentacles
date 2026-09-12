@@ -57,6 +57,7 @@ function showQuestionEditor(templateId) {
   setupSchedulingEditor();
   setupSchedulingQuestionSave();
   setupShortTextQuestionSave();
+  setupNominationQuestionSave();
   setupSelectEditor("single-select", "Single Select");
   setupSelectEditor("multi-select", "Multi Select");
   setupRelationshipEditor();
@@ -1182,6 +1183,12 @@ async function loadQuestions() {
           return;
         }
 
+        if (question.type === "NOMINATION") {
+          document.getElementById("nomination-editor-prompt").value = questionDetails.prompt;
+          document.getElementById("nomination-editor-maximum").value = questionDetails.maxNominations;
+          return;
+        }
+
         const shortTextPrompt =
           document.getElementById(
             "short-text-editor-prompt"
@@ -2230,3 +2237,42 @@ function setupSurveyImageUpload() {
 }
 
 initialize();
+
+function setupNominationQuestionSave() {
+  const promptInput = document.getElementById("nomination-editor-prompt");
+  if (!promptInput) return;
+  const maximum = document.getElementById("nomination-editor-maximum");
+  const saveButton = document.getElementById("save-question-button");
+  saveButton.addEventListener("click", async () => {
+    const prompt = promptInput.value.trim();
+    const maxNominations = maximum.value === "" ? 0 : Number(maximum.value);
+    if (!prompt || prompt.length > 255 || !Number.isInteger(maxNominations) || maxNominations < 0 || maxNominations > 2147483647) {
+      showToast("Enter a question and a whole-number limit of 0 or more.", "error");
+      return;
+    }
+    const wasEditing = editingQuestionId !== null;
+    const url = "/api/surveys/" + surveyId + "/questions/" + (wasEditing ? editingQuestionId + "/" : "") + "nomination";
+    saveButton.disabled = true;
+    try {
+      const csrfResponse = await fetch("/csrf");
+      if (!csrfResponse.ok) throw new Error("Unable to load CSRF token.");
+      const csrf = await csrfResponse.json();
+      const response = await fetch(url, {
+        method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+        body: JSON.stringify({ prompt, maxNominations, displayOrder: 1, required: document.querySelector(".question-required").checked })
+      });
+      if (!response.ok) throw new Error("Unable to save nomination question.");
+      editingQuestionId = null;
+      clearDirty("question");
+      const container = document.getElementById("question-form-container");
+      container.replaceChildren();
+      container.hidden = true;
+      await loadQuestions();
+      showToast(wasEditing ? "Nomination question updated." : "Nomination question created.", "success");
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+}
