@@ -36,7 +36,7 @@ jobs:
 
       - name: Run tests
         working-directory: ./backend
-        run: ./gradlew test
+        run: bash ./gradlew test
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
