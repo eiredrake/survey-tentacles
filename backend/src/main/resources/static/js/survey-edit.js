@@ -168,6 +168,8 @@ function setupRelationshipEditor() {
     return;
   }
 
+  const sortSubjects = setupRelationshipSubjectSorting();
+
   showEditorButton.addEventListener("click", () => {
     subjectEditor.hidden = false;
     nameInput.focus();
@@ -193,6 +195,8 @@ function setupRelationshipEditor() {
       );
 
     subjectList.appendChild(row);
+    sortSubjects();
+    markDirty("question");
 
     nameInput.value = "";
     descriptionInput.value = "";
@@ -1346,8 +1350,6 @@ function populateRelationshipSubjects(
 
     subjectList.appendChild(row);
   }
-
-  setupRelationshipSubjectSorting();
 }
 
 function setupRelationshipSubjectSorting() {
@@ -1465,6 +1467,7 @@ function setupRelationshipSubjectSorting() {
   }
 
   updateSortIndicators();
+  return sortRows;
 }
 
 function populateSchedulingSelections(
