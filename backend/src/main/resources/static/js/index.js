@@ -23,6 +23,7 @@ async function loadUser() {
     const user = await response.json();
 
     currentUser = user;
+    document.getElementById("participant-groups-link").hidden = !user.authorities?.includes("ROLE_ADMIN");
 
     document.getElementById("user").textContent = `${user.name}`;
 }

@@ -1028,12 +1028,8 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
 
     User user = userService.findByUsername(username);
 
-    SurveyAssignment assignment = new SurveyAssignment();
-    assignment.setSurvey(survey);
-    assignment.setUser(user);
-    assignment.setRequired(required);
-
-    assignment = surveyAssignmentService.save(assignment);
+    SurveyAssignment assignment = surveyAssignmentService.addSelection(surveyId,
+      java.util.Set.of(user.getId()), java.util.Set.of(), required).getFirst();
 
     return Map.of(
       "id",
