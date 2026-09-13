@@ -22,7 +22,8 @@ public class SurveyImageService {
         Set.of(
             "image/png",
             "image/jpeg",
-            "image/webp"
+            "image/webp",
+            "image/gif"
         );
 
     private final Path uploadDirectory;
@@ -60,6 +61,7 @@ public class SurveyImageService {
 
     public String save(MultipartFile file) throws IOException {
         validate(file);
+        validateSignature(file);
 
         Files.createDirectories(uploadDirectory);
 
@@ -74,9 +76,19 @@ public class SurveyImageService {
 
         try (var input = file.getInputStream()) {
             Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException error) {
+            try { Files.deleteIfExists(destination); } catch (IOException cleanup) { error.addSuppressed(cleanup); }
+            throw error;
         }
 
         return filename;
+    }
+
+    public String copy(String filename) throws IOException {
+        Path source = getPath(filename);
+        String copy = UUID.randomUUID() + filename.substring(filename.lastIndexOf('.'));
+        Files.copy(source, uploadDirectory.resolve(copy));
+        return copy;
     }
 
     public void delete(String filename) throws IOException {
@@ -117,7 +129,7 @@ public class SurveyImageService {
         return file;
     }
 
-    private void validate(MultipartFile file) {
+    private void validate(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException(
                 "Image file is required."
@@ -137,9 +149,24 @@ public class SurveyImageService {
             )
         ) {
             throw new IllegalArgumentException(
-                "Image must be PNG, JPEG, or WebP."
+                "Image must be PNG, JPEG, WebP, or GIF."
             );
         }
+    }
+
+    private void validateSignature(MultipartFile file) throws IOException {
+        byte[] header;
+        try (var input = file.getInputStream()) { header = input.readNBytes(12); }
+        String text = new String(header, java.nio.charset.StandardCharsets.ISO_8859_1);
+        boolean valid = switch (file.getContentType()) {
+            case "image/png" -> header.length >= 8 && java.util.Arrays.equals(java.util.Arrays.copyOf(header, 8),
+                new byte[] {(byte) 137, 80, 78, 71, 13, 10, 26, 10});
+            case "image/jpeg" -> header.length >= 3 && header[0] == (byte) 255 && header[1] == (byte) 216 && header[2] == (byte) 255;
+            case "image/gif" -> text.startsWith("GIF87a") || text.startsWith("GIF89a");
+            case "image/webp" -> header.length >= 12 && text.startsWith("RIFF") && text.substring(8, 12).equals("WEBP");
+            default -> false;
+        };
+        if (!valid) throw new IllegalArgumentException("The file does not match its image type.");
     }
 
     private String extensionFor(String contentType) {
@@ -147,6 +174,7 @@ public class SurveyImageService {
             case "image/png" -> ".png";
             case "image/jpeg" -> ".jpg";
             case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
             default -> throw new IllegalArgumentException(
                 "Unsupported image type."
             );

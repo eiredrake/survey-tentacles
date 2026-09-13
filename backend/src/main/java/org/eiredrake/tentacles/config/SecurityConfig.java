@@ -65,6 +65,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     HttpMethod.POST,
                     "/api/surveys/*/title",
+                    "/api/surveys/*/image",
                     "/api/surveys/*/status",
                     "/api/surveys/*/participants",
                     "/api/surveys/*/assignments",
@@ -74,8 +75,12 @@ public class SecurityConfig {
                 .requestMatchers(
                     HttpMethod.DELETE,
                     "/api/surveys/*",
-                    "/api/surveys/*/assignments/*"
+                    "/api/surveys/*/assignments/*",
+                    "/api/surveys/*/image"
                 ).hasRole("ADMIN")
+
+                .requestMatchers(HttpMethod.POST, "/api/surveys/*/images/*/*").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/surveys/*/images/*/*").hasRole("ADMIN")
 
                 // Question administration
                 .requestMatchers(

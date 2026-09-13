@@ -47,6 +47,8 @@ import org.eiredrake.tentacles.service.SurveyImageService;
 import org.eiredrake.tentacles.service.SurveyParticipantService;
 import org.eiredrake.tentacles.service.SurveyService;
 import org.eiredrake.tentacles.service.UserService;
+import org.eiredrake.tentacles.service.ImageAttachmentService;
+import org.eiredrake.tentacles.model.AttachmentOwner;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -70,6 +72,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/surveys")
 public class SurveyController {
 
+  private final ImageAttachmentService imageAttachments;
   private final ApplicationEventPublisher eventPublisher;
   private final SurveyService surveyService;
   private final UserService userService;
@@ -97,9 +100,11 @@ public class SurveyController {
     SingleSelectAnswerService singleSelectAnswerService,
     MultiSelectAnswerService multiSelectAnswerService,
     NominationAnswerService nominationAnswerService,
-    ApplicationEventPublisher eventPublisher
+    ApplicationEventPublisher eventPublisher,
+    ImageAttachmentService imageAttachments
   ) {
     this.eventPublisher = eventPublisher;
+    this.imageAttachments = imageAttachments;
     this.surveyService = surveyService;
     this.userService = userService;
     this.questionService = questionService;
@@ -379,6 +384,7 @@ public class SurveyController {
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/relationship")
+  @Transactional
   public Map<String, Object> updateRelationshipQuestion(
     @PathVariable Long surveyId,
     @PathVariable Long questionId,
@@ -405,21 +411,33 @@ public class SurveyController {
       subjects = List.of();
     }
 
-    relationshipAnswerService.deleteForQuestion(question.getId());
-
-    question.getSubjects().clear();
-
+    Map<Long, RelationshipSubject> existing = question.getSubjects().stream()
+      .collect(java.util.stream.Collectors.toMap(RelationshipSubject::getId, subject -> subject));
+    List<RelationshipSubject> updated = new java.util.ArrayList<>();
+    java.util.Set<Long> retained = new java.util.HashSet<>();
     for (int i = 0; i < subjects.size(); i++) {
-      Map<String, Object> subjectRequest = subjects.get(i);
-
+      Map<String, Object> input = subjects.get(i);
       RelationshipSubject subject = new RelationshipSubject();
-
+      if (input.get("id") != null) {
+        if (!(input.get("id") instanceof Number number) || number.doubleValue() != number.longValue()
+          || !retained.add(number.longValue()) || !existing.containsKey(number.longValue())) {
+          throw new IllegalArgumentException("Character does not belong to this question.");
+        }
+        subject = existing.get(number.longValue());
+      }
       subject.setQuestion(question);
-      subject.setName((String) subjectRequest.get("name"));
-      subject.setDescription((String) subjectRequest.get("description"));
+      subject.setName((String) input.get("name"));
+      subject.setDescription((String) input.get("description"));
       subject.setDisplayOrder(i);
-
-      question.getSubjects().add(subject);
+      updated.add(subject);
+    }
+    relationshipAnswerService.deleteForQuestion(question.getId());
+    for (RelationshipSubject removed : existing.values()) {
+      if (!retained.contains(removed.getId())) imageAttachments.remove(surveyId, AttachmentOwner.RELATIONSHIP_SUBJECT, removed.getId());
+    }
+    question.getSubjects().removeIf(subject -> !updated.contains(subject));
+    for (RelationshipSubject subject : updated) {
+      if (!question.getSubjects().contains(subject)) question.getSubjects().add(subject);
     }
 
     questionService.save(question);
@@ -1115,6 +1133,7 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
   }
 
   @PostMapping("/{surveyId}/copy")
+  @Transactional
   public Map<String, Object> copySurvey(
     @PathVariable Long surveyId,
     @AuthenticationPrincipal OidcUser oidcUser
@@ -1212,7 +1231,8 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
         }
       };
 
-      questionService.save(copiedQuestion);
+      copiedQuestion = questionService.save(copiedQuestion);
+      imageAttachments.copyQuestion(sourceQuestion, copiedQuestion);
     }
 
     for (SurveyAssignment sourceAssignment : surveyAssignmentService.findBySurveyId(

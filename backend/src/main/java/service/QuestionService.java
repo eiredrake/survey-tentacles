@@ -3,13 +3,17 @@ package org.eiredrake.tentacles.service;
 import org.eiredrake.tentacles.model.Question;
 import org.eiredrake.tentacles.repository.QuestionRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class QuestionService {
 
     private final QuestionRepository questionRepository;
 
-    public QuestionService(QuestionRepository questionRepository) {
+    private final ImageAttachmentService attachments;
+
+    public QuestionService(QuestionRepository questionRepository, ImageAttachmentService attachments) {
+        this.attachments = attachments;
         this.questionRepository = questionRepository;
     }
 
@@ -22,7 +26,9 @@ public class QuestionService {
             .orElseThrow(() -> new IllegalArgumentException("Question not found: " + id));
     }    
 
+    @Transactional
     public void delete(Question question) {
+        attachments.removeQuestion(question.getId());
         questionRepository.delete(question);
     }    
 }

@@ -149,6 +149,7 @@ async function renderRelationshipResults(question, container) {
     nameText.textContent = subject.name;
 
     nameCell.appendChild(nameText);
+    await window.QuestionImages?.renderSubject(question, subject, nameCell);
 
     if (comments.length > 0) {
       const chevron = document.createElement("i");
@@ -252,7 +253,7 @@ async function renderRelationshipResults(question, container) {
       row.addEventListener("click", () => {
         detailRow.hidden = !detailRow.hidden;
 
-        const chevron = nameCell.querySelector("i");
+        const chevron = nameCell.querySelector(".fa-chevron-right, .fa-chevron-down");
 
         if (chevron) {
           chevron.className = detailRow.hidden
@@ -540,6 +541,7 @@ async function loadQuestions() {
       const fragment = template.content.cloneNode(true);
 
       const section = fragment.querySelector(".survey-question");
+      await window.QuestionImages?.renderQuestion(question, section);
 
       const resultsContainer = section.querySelector(
         ".scheduling-view-results",

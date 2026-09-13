@@ -522,6 +522,7 @@ async function loadRelationshipQuestion(
 
         const nameCell = document.createElement("td");
         nameCell.textContent = subject.name;
+        await window.QuestionImages?.renderSubject(question, subject, nameCell);
 
         if (subject.description) {
             nameCell.title = subject.description;
@@ -1098,6 +1099,7 @@ async function loadQuestions() {
         section.querySelector(
             ".question-prompt"
         ).textContent = question.prompt;
+        await window.QuestionImages?.renderQuestion(question, section);
 
         const optionsContainer =
             section.querySelector(

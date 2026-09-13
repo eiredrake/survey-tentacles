@@ -29,6 +29,7 @@ class MultiSelectQuestionTests {
   @Mock ShortTextAnswerService shortText;
   @Mock RelationshipAnswerService relationships;
   @Mock SurveyImageService images;
+  @Mock ImageAttachmentService attachments;
   @InjectMocks SurveyController controller;
   MultiSelectQuestion question;
   Survey survey;

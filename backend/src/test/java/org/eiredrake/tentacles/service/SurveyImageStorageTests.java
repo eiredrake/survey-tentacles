@@ -12,7 +12,7 @@ class SurveyImageStorageTests {
   @TempDir Path directory;
 
   @Test void uploadedFileSurvivesRecreatingTheService() throws Exception {
-    byte[] content = {1, 2, 3, 4};
+    byte[] content = java.util.Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK1kAAAAASUVORK5CYII=");
     SurveyImageService first = new SurveyImageService(directory.toString(), false);
     String filename = first.save(new MockMultipartFile("image", "test.png", "image/png", content));
     SurveyImageService restarted = new SurveyImageService(directory.toString(), false);

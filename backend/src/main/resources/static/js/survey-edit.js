@@ -203,7 +203,8 @@ function setupRelationshipEditor() {
 
 function createRelationshipSubjectRow(
   name,
-  description = ""
+  description = "",
+  subjectId = null
 ) {
   const row =
     document.createElement("tr");
@@ -211,6 +212,7 @@ function createRelationshipSubjectRow(
   row.className =
     "relationship-subject";
 
+  if (subjectId != null) row.dataset.subjectId = subjectId;
   row.dataset.name = name;
   row.dataset.description =
     description;
@@ -728,6 +730,7 @@ function setupRelationshipQuestionSave() {
           )
         ).map(
           (subject, index) => ({
+            id: subject.dataset.subjectId ? Number(subject.dataset.subjectId) : null,
             name:
               subject.dataset.name,
             description:
@@ -1295,6 +1298,16 @@ async function loadQuestions() {
     row.appendChild(typeCell);
     row.appendChild(actionsCell);
 
+    if (window.QuestionImages) {
+      const imagesButton = document.createElement("button");
+      imagesButton.type = "button";
+      imagesButton.className = "icon-button";
+      imagesButton.title = "Edit images";
+      imagesButton.setAttribute("aria-label", "Edit images for " + question.prompt);
+      imagesButton.innerHTML = '<i class="fa-solid fa-image" aria-hidden="true"></i>';
+      imagesButton.addEventListener("click", () => QuestionImages.edit(question, row));
+      actionsCell.appendChild(imagesButton);
+    }
     list.appendChild(row);
   }
 }
@@ -1327,7 +1340,8 @@ function populateRelationshipSubjects(
     const row =
       createRelationshipSubjectRow(
         subject.name,
-        subject.description || ""
+        subject.description || "",
+        subject.id
       );
 
     subjectList.appendChild(row);

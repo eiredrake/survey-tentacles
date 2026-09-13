@@ -246,6 +246,7 @@ async function loadQuestions() {
       );
     }
     
+    await window.QuestionImages?.renderQuestion(question, detailCell.querySelector(".survey-question"));
     detailRow.appendChild(detailCell);
     
     questionList.appendChild(detailRow);
@@ -357,6 +358,7 @@ async function renderRelationshipAnswers(question, container) {
 
     const characterCell = document.createElement("td");
     characterCell.textContent = subject.name;
+    await window.QuestionImages?.renderSubject(question, subject, characterCell);
 
     const likeCell = document.createElement("td");
     likeCell.textContent =
