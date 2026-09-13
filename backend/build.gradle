@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'org.eiredrake'
-version = '1.6.0'
+version = '1.6.1'
 
 java {
 	toolchain {
@@ -37,4 +37,11 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+tasks.named('processResources') {
+	inputs.property('applicationVersion', project.version.toString())
+	filesMatching('static/app-version.json') {
+		expand(versionJson: groovy.json.JsonOutput.toJson(project.version.toString()))
+	}
 }
