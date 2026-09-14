@@ -19,7 +19,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:participantgroups;NON_KEYWORDS=VALUE")
+@SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 class ParticipantGroupTests {
