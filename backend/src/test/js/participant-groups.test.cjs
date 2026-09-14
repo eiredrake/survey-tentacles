@@ -39,7 +39,7 @@ function page(name) {
 }
 
 test('Admin creates, renames, changes membership and deletes a reusable group with CSRF', async () => {
-  const p = page('participant-groups');
+  const p = page('admin/participant-groups');
   try {
     await p.w.initialize();
     assert.equal(p.d.getElementById('group-management').hidden, false);
@@ -67,7 +67,7 @@ test('Admin creates, renames, changes membership and deletes a reusable group wi
 });
 
 test('Failed group saves preserve edits and prevent accidental navigation away from dirty forms', async () => {
-  const p = page('participant-groups');
+  const p = page('admin/participant-groups');
   try {
     await p.w.initialize(); p.d.querySelector('button[title="Edit group"]').click();
     const name = p.d.getElementById('group-name'); name.value = 'Unsaved';
@@ -85,7 +85,7 @@ test('Failed group saves preserve edits and prevent accidental navigation away f
 });
 
 test('Non-admins never receive the group editor or group list', async () => {
-  const p = page('participant-groups');
+  const p = page('admin/participant-groups');
   try {
     p.state.admin = false; await p.w.initialize();
     assert.equal(p.d.getElementById('group-management').hidden, true);
@@ -131,6 +131,6 @@ test('Failed group assignment retains checked selections and permits retry', asy
 
 test('Survey labels clarify expected users and group page includes notifications and version footer', () => {
   for (const page of ['survey-edit', 'survey-view']) assert.match(readFileSync(path.join(dir, page + '.html'), 'utf8'), /<h2>Expected Participants<\/h2>/);
-  const html = readFileSync(path.join(dir, 'participant-groups.html'), 'utf8');
+  const html = readFileSync(path.join(dir, 'admin/participant-groups.html'), 'utf8');
   assert.match(html, /survey-events.js/); assert.match(html, /app-footer.js/);
 });

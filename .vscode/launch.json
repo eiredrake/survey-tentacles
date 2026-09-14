@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Tentacles Local Dev (8081)",
+      "request": "launch",
+      "mainClass": "org.eiredrake.tentacles.TentaclesApplication",
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/.env",
+      "args": "--tentacles.ui.development=true --tentacles.dev.encode-http-callback=true --server.address=127.0.0.1 --server.port=8081 --spring.datasource.url=jdbc:postgresql://localhost:5434/tentacles --tentacles.public-base-url=http://localhost:8081 --tentacles.upload-dir=\"${workspaceFolder}/dev-uploads\" --tentacles.require-persistent-uploads=false",
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -106,3 +106,6 @@ coverage/
 *.crt
 secrets/
 oidc_information.txt
+docker-compose.dev.yml
+
+/dev-uploads/

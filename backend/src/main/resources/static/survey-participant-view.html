@@ -15,6 +15,25 @@
 
 <body>
   <main>
+        <header class="app-header">
+            <div class="app-title">Tentacles Survey System</div>
+
+            <div class="app-user">
+                <span>User:</span>
+                <span id="user">Loading user...</span>
+
+                <button
+                    id="logout-button"
+                    class="icon-button"
+                    type="button"
+                    title="Logout"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <hr class="app-divider">
     <a id="back-to-survey-link" href="#">← Survey</a>
 
     <div class="editor-title">
@@ -91,6 +110,7 @@
   <script src="/js/date-format.js"></script>
   <script src="/js/survey-participant-view.js"></script>
   <script src="/js/survey-events.js"></script>
+    <script src="/js/administration-nav.js"></script>
     <script src="/js/logout.js"></script>
     <script src="/js/app-footer.js"></script>
 </body>

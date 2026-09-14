@@ -6,6 +6,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import java.util.HashSet;
 import java.util.Set;
+import java.net.URI;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -37,8 +40,15 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
         HttpSecurity http,
-        ClientRegistrationRepository clientRegistrationRepository
+        ClientRegistrationRepository clientRegistrationRepository,
+        @Value("${tentacles.dev.encode-http-callback:false}") boolean encodeHttpCallback
     ) throws Exception {
+        var authorizationResolver = new DefaultOAuth2AuthorizationRequestResolver(clientRegistrationRepository, "/oauth2/authorization");
+        if (encodeHttpCallback) {
+            // NPM blocks literal =http:// query values; encoding preserves the OAuth callback.
+            authorizationResolver.setAuthorizationRequestCustomizer(builder -> builder.authorizationRequestUri(uri ->
+                URI.create(uri.build().toASCIIString().replace("redirect_uri=http://", "redirect_uri=http%3A%2F%2F"))));
+        }
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -51,7 +61,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/surveys/events", "/api/surveys/*/notifications").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/surveys/*/notifications").hasRole("ADMIN")
 
-                .requestMatchers("/participant-groups.html", "/api/participant-groups", "/api/participant-groups/**").hasRole("ADMIN")
+                .requestMatchers("/admin", "/admin/**", "/participant-groups.html", "/api/participant-groups", "/api/participant-groups/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/surveys/*/assignments/batch").hasRole("ADMIN")
 
                 // Survey administration
@@ -108,6 +118,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
+                .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(authorizationResolver))
                 .userInfoEndpoint(userInfo -> userInfo
                     .userAuthoritiesMapper(authorities -> {
                         Set<GrantedAuthority> mapped = new HashSet<>(authorities);

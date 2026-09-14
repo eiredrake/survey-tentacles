@@ -1,7 +1,7 @@
 # Expected Participants and reusable groups
 
-Admins can open **Participant Groups** from the surveys list, or **Manage participant
-groups** beside the Groups heading inside the Expected Participants picker in Edit Survey. The editor link opens a new
+Admins can open **Administration** using the gear in the application header, then
+**Participant Groups**, or use **Manage participant groups** beside the Groups heading inside the Expected Participants picker in Edit Survey. The editor link opens a new
 tab so an unsaved question stays intact. Create or rename a group, check its members,
 and save. Users come from Tentacles' known-user list (currently populated on sign-in).
 An empty group is allowed. Group names are trimmed, limited to 100 characters, and

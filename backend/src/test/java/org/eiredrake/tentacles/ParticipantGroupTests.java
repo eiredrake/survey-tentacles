@@ -35,6 +35,15 @@ class ParticipantGroupTests {
     alice = knownUser("Alice"); bob = knownUser("Bob"); charlie = knownUser("Charlie");
     survey = new Survey(); survey.setTitle("Movie Night"); survey.setCreator(alice); em.persist(survey); em.flush();
   }
+
+  @Test void administrationPagesRequireAdmin() throws Exception {
+    for (String path : List.of("/admin/index.html", "/admin/participant-groups.html", "/participant-groups.html")) {
+      mvc.perform(get(path).with(user("reader"))).andExpect(status().isForbidden());
+      mvc.perform(get(path).with(user("admin").roles("ADMIN"))).andExpect(status().isOk());
+      mvc.perform(get(path)).andExpect(status().is3xxRedirection());
+    }
+    mvc.perform(get("/admin/future-settings.html").with(user("reader"))).andExpect(status().isForbidden());
+  }
   User knownUser(String name) {
     User user = new User(); user.setOidcSubject(UUID.randomUUID().toString());
     user.setUsername(name); user.setDisplayName(name); em.persist(user); return user;

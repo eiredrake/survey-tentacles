@@ -2,62 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Participant Groups — Tentacles</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <link rel="stylesheet" href="/css/tentacles.css">
-  <link rel="stylesheet" href="/css/toast.css">
+  <meta http-equiv="refresh" content="0;url=/admin/participant-groups.html">
+  <title>Participant Groups - Administration</title>
 </head>
-<body>
-  <main>
-        <header class="app-header">
-            <div class="app-title">Tentacles Survey System</div>
-        
-            <div class="app-user">
-                <span>User:</span>
-                <span id="user">Loading user...</span>
-        
-                <button
-                    id="logout-button"
-                    class="icon-button"
-                    type="button"
-                    title="Logout"
-                >
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </button>
-            </div>
-        </header>
-        
-        <hr class="app-divider">
-
-
-    <a href="/">← Surveys</a>
-    <section id="group-management" hidden>
-      <div class="section-heading">
-        <h1>Participant Groups</h1>
-        <button id="new-group" class="icon-button" type="button" title="Create group" aria-label="Create group"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
-      </div>
-      <p>Reuse groups of known Tentacles users when choosing Expected Participants. Editing a group does not change existing surveys.</p>
-      <form id="group-editor" hidden>
-        <fieldset id="group-fields">
-          <legend id="group-editor-title">Create group</legend>
-          <label for="group-name">Group name</label>
-          <input id="group-name" maxlength="100" required>
-          <h3>Members</h3>
-          <div id="group-members" class="participant-choices"></div>
-          <div class="question-editor-actions">
-            <button type="submit" class="icon-button" title="Save group" aria-label="Save group"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i></button>
-            <button id="cancel-group" type="button" class="icon-button" title="Cancel" aria-label="Cancel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-          </div>
-        </fieldset>
-      </form>
-      <table class="survey-table"><thead><tr><th>Group</th><th>Members</th><th>Actions</th></tr></thead><tbody id="group-list"></tbody></table>
-    </section>
-  </main>
-  <script src="/js/toast.js"></script>
-  <script src="/js/participant-groups.js"></script>
-  <script src="/js/survey-events.js"></script>
-  <script src="/js/logout.js"></script>
-  <script src="/js/app-footer.js"></script>
-</body>
+<body><p><a href="/admin/participant-groups.html">Open Participant Groups in Administration</a></p></body>
 </html>

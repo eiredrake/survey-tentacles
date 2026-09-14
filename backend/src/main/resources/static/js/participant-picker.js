@@ -28,7 +28,7 @@ function setupParticipantPicker(container, addButton, participants) {
         headingRow.appendChild(heading);
         if (kind === "group") {
           const manage = document.createElement("a");
-          manage.href = "/participant-groups.html";
+          manage.href = "/admin/participant-groups.html";
           manage.target = "_blank";
           manage.rel = "noopener";
           manage.textContent = "Manage participant groups";
