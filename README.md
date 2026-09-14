@@ -64,6 +64,8 @@ Edit `.env` and provide the appropriate values:
 
 Do not commit your `.env` file to source control.
 
+Set `TENTACLES_VERSION` in `.env` to the exact published release tag you want to run. The image version is no longer hard-coded in Compose.
+
 ### 3. Start Tentacles
 
 From the directory containing `docker-compose.yml` and `.env`:
@@ -87,6 +89,10 @@ For example:
 
 For a public installation, configure your reverse proxy to forward requests
 to port 8080.
+
+## Releasing from source
+
+See [Release and deployment commands](docs/releases.md) to select one version, publish it, and deploy it separately.
 
 ## Updating
 

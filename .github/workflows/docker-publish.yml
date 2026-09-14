@@ -9,13 +9,16 @@ permissions:
   contents: write
   packages: write
 
+concurrency:
+  group: tentacles-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17-alpine
         env:
           POSTGRES_DB: tentacles
           POSTGRES_USER: tentacles_test
@@ -29,8 +32,52 @@ jobs:
           --health-retries=5
 
     steps:
-      - name: Check out repository
+      - name: Check out release tag
         uses: actions/checkout@v4
+
+      - name: Validate release version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'Expected vMAJOR.MINOR.PATCH' }
+          $entry = @(Get-Content backend/gradle.properties | Where-Object { $_ -match '^version=' })
+          if ($entry.Count -ne 1 -or "v$($entry[0].Substring(8))" -cne $tag) { throw 'Tag does not match backend/gradle.properties' }
+          "VERSION=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Run backend tests
+        working-directory: ./backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/tentacles
+          SPRING_DATASOURCE_USERNAME: tentacles_test
+          SPRING_DATASOURCE_PASSWORD: tentacles_test_password
+        run: bash ./gradlew test --no-daemon
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/src/test/js/package-lock.json
+
+      - name: Run browser logic tests
+        working-directory: ./backend/src/test/js
+        run: |
+          npm ci
+          npm test
+
+      - name: Test release tooling with a temporary local remote
+        shell: pwsh
+        run: |
+          ./scripts/test-release.ps1
+          ./scripts/test-deploy.ps1
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -38,25 +85,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-
-      - name: Run tests
-        working-directory: ./backend
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/tentacles
-          SPRING_DATASOURCE_USERNAME: tentacles_test
-          SPRING_DATASOURCE_PASSWORD: tentacles_test_password
-        run: bash ./gradlew test
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -70,7 +98,10 @@ jobs:
           tags: |
             ghcr.io/eiredrake/survey_tentacles:${{ steps.version.outputs.VERSION }}
             ghcr.io/eiredrake/survey_tentacles:${{ github.ref_name }}
-            ghcr.io/eiredrake/survey_tentacles:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/eiredrake/survey-tentacles
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'org.eiredrake'
-version = '1.7.1'
+// Version is maintained by scripts/release.ps1 in gradle.properties.
 
 java {
 	toolchain {
