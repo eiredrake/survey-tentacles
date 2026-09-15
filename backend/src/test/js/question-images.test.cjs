@@ -164,3 +164,50 @@ test("All question pages include the shared controls and survey upload accepts G
   }
   assert.match(readFileSync(path.join(staticDir, "survey-edit.html"), "utf8"), /accept="image\/png,image\/jpeg,image\/webp,image\/gif"/);
 });
+
+test("Character descriptions expose a tooltip and safe full-text dialog without changing answers", async () => {
+  const p = page("survey"), previous = detail.subjects[0].description;
+  try {
+    detail.subjects[0].description = "First line\n<script>unsafe()</script>\n" + "LongDescription".repeat(100);
+    p.evaluate("currentUser = { id: 7 }; surveyAcceptingResponses = true;");
+    await p.evaluate("loadQuestions()");
+    const info = p.document.querySelector(".character-description-button");
+    assert.equal(info.title, detail.subjects[0].description);
+    assert.equal(info.getAttribute("aria-haspopup"), "dialog");
+    assert.equal(info.getAttribute("aria-label"), "Description for <Arlo>");
+    const comment = p.document.querySelector(".relationship-comment");
+    comment.value = "Unsaved comment";
+    const callCount = p.calls.length;
+    info.click();
+    const dialog = p.document.querySelector(".character-description-dialog");
+    assert.equal(dialog.open, true);
+    assert.equal(dialog.querySelector("p").textContent, detail.subjects[0].description);
+    assert.equal(dialog.querySelector("script"), null);
+    assert.equal(dialog.querySelector("h2").textContent, "<Arlo>");
+    dialog.querySelector("button").click();
+    assert.equal(dialog.isConnected, false);
+    assert.equal(p.document.activeElement, info);
+    assert.equal(comment.value, "Unsaved comment");
+    assert.equal(p.document.querySelector(".relationship-like").value, "2");
+    assert.equal(p.calls.length, callCount);
+  } finally { detail.subjects[0].description = previous; p.dom.window.close(); }
+});
+
+test("Blank descriptions omit the info control; closed surveys still allow reading descriptions", async () => {
+  const previous = detail.subjects[0].description;
+  for (const description of ["  ", "Read this character description"]) {
+    const p = page("survey");
+    try {
+      detail.subjects[0].description = description;
+      p.evaluate("currentUser = { id: 7 }; surveyAcceptingResponses = false;");
+      await p.evaluate("loadQuestions()");
+      const info = p.document.querySelector(".character-description-button");
+      if (!description.trim()) assert.equal(info, null);
+      else {
+        assert.equal(info.disabled, false);
+        info.click();
+        assert.equal(p.document.querySelector("dialog").open, true);
+      }
+    } finally { detail.subjects[0].description = previous; p.dom.window.close(); }
+  }
+});

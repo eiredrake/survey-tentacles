@@ -730,3 +730,10 @@ main {
   line-height: 1.4;
   text-align: center;
 }
+
+.character-description-button { font-size: 1rem; margin-left: 4px; vertical-align: middle; }
+.character-description-dialog { box-sizing: border-box; width: 36rem; max-width: calc(100% - 2rem); max-height: 85vh; overflow-y: auto; border: 1px solid #888; border-radius: 6px; padding: 16px; overflow-wrap: anywhere; }
+.character-description-dialog::backdrop { background: rgb(0 0 0 / 65%); }
+.character-description-dialog > .icon-button { display: block; margin-left: auto; }
+.character-description-dialog h2 { margin-top: 0; }
+.character-description-dialog p { white-space: pre-wrap; }
