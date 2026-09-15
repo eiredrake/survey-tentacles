@@ -242,7 +242,201 @@ test("Saved character row opens its portrait uploader and saves to the existing 
     const post = p.calls.find(call => call.options.method === "POST");
     assert.equal(post.url, "/api/surveys/1/images/RELATIONSHIP_SUBJECT/3");
     assert.equal(post.options.headers["X-CSRF"], "test");
-    assert.equal(p.document.querySelector("dialog [role=status]").textContent, "Image saved.");
+    assert.equal(p.document.querySelector("dialog"), null);
     assert.equal(p.calls.some(call => call.options.method === "POST" && call.url.endsWith("/relationship")), false);
+  } finally { p.dom.window.close(); }
+});
+async function choosePortrait(p, trigger, drop = false) {
+  trigger.click(); await tick();
+  const dialog = p.document.querySelector('dialog');
+  const file = new p.window.File(['GIF89a'], 'portrait.gif', { type: 'image/gif' });
+  if (drop) {
+    const event = new p.window.Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'dataTransfer', { value: { files: [file] } });
+    dialog.dispatchEvent(event);
+  } else {
+    const picker = dialog.querySelector('input[type=file]');
+    Object.defineProperty(picker, 'files', { value: [file] });
+    picker.dispatchEvent(new p.window.Event('change'));
+  }
+  for (let i = 0; i < 50 && dialog.isConnected; i++) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(dialog.isConnected, false);
+  return file;
+}
+
+test('New character accepts a dropped portrait without saving the question', async () => {
+  const p = page('survey-edit');
+  try {
+    p.evaluate('showQuestionEditor("relationship-question-template")');
+    p.evaluate('document.getElementById("relationship-editor-subject-list").appendChild(createRelationshipSubjectRow("New", "Description"))');
+    const row = p.document.querySelector('.relationship-subject');
+    const trigger = row.querySelector('button[title="Edit portrait for New"]');
+    assert.equal(trigger.disabled, false);
+    const file = await choosePortrait(p, trigger, true);
+    assert.equal(row.pendingPortrait, file);
+    assert.equal(p.calls.length, 0);
+    assert.equal(p.evaluate('hasUnsavedChanges()'), true);
+    trigger.click(); await tick();
+    assert.match(p.document.querySelector('dialog img').src, /^data:image\/gif;base64,/);
+  } finally { p.dom.window.close(); }
+});
+
+test('Failed draft portrait upload keeps the editor and retries using saved character IDs', async () => {
+  const p = page('survey-edit');
+  try {
+    p.evaluate('showQuestionEditor("relationship-question-template")');
+    p.document.getElementById('relationship-editor-prompt').value = 'Relationships';
+    p.evaluate('document.getElementById("relationship-editor-subject-list").appendChild(createRelationshipSubjectRow("Same", "First")); document.getElementById("relationship-editor-subject-list").appendChild(createRelationshipSubjectRow("Same", "Second"))');
+    const rows = [...p.document.querySelectorAll('.relationship-subject')];
+    await choosePortrait(p, rows[1].querySelector('button[title="Edit portrait for Same"]'));
+    const originalFetch = p.window.fetch, saves = [], uploads = [];
+    let fail = true;
+    p.window.fetch = async (url, options = {}) => {
+      if (url.endsWith('/relationship') && options.method === 'POST') {
+        saves.push({ url, body: JSON.parse(options.body) });
+        return { ok: true, json: async () => ({ id: 2, subjects: [{ id: 11, displayOrder: 1 }, { id: 10, displayOrder: 0 }] }) };
+      }
+      if (url.includes('/images/RELATIONSHIP_SUBJECT/') && options.method === 'POST') {
+        uploads.push(url);
+        return { ok: !fail, json: async () => image('RELATIONSHIP_SUBJECT', 11) };
+      }
+      return originalFetch(url, options);
+    };
+    const save = p.document.getElementById('save-question-button');
+    save.click(); await tick(); await tick();
+    assert.ok(rows[1].pendingPortrait);
+    assert.equal(rows[1].dataset.subjectId, '11');
+    assert.equal(p.document.getElementById('question-form-container').hidden, false);
+    fail = false;
+    save.click(); await tick(); await tick();
+    assert.equal(saves.length, 2);
+    assert.equal(saves[1].url, '/api/surveys/1/questions/2/relationship');
+    assert.deepEqual(saves[1].body.subjects.map(subject => subject.id), [10, 11]);
+    assert.deepEqual(uploads, ['/api/surveys/1/images/RELATIONSHIP_SUBJECT/11', '/api/surveys/1/images/RELATIONSHIP_SUBJECT/11']);
+    assert.equal(p.document.getElementById('question-form-container').hidden, true);
+  } finally { p.dom.window.close(); }
+});
+
+test('Invalid dropped portrait leaves the dialog open with an error', async () => {
+  const p = page('survey-edit');
+  try {
+    p.evaluate('showQuestionEditor("relationship-question-template")');
+    p.evaluate('document.getElementById("relationship-editor-subject-list").appendChild(createRelationshipSubjectRow("New", ""))');
+    p.document.querySelector('button[title="Edit portrait for New"]').click(); await tick();
+    const dialog = p.document.querySelector('dialog');
+    const event = new p.window.Event('drop', { cancelable: true });
+    Object.defineProperty(event, 'dataTransfer', { value: { files: [new p.window.File(['text'], 'bad.txt', { type: 'text/plain' })] } });
+    dialog.dispatchEvent(event); await tick();
+    assert.ok(dialog.isConnected);
+    assert.match(dialog.querySelector('[role=status]').textContent, /Choose a PNG/);
+    assert.equal(p.calls.length, 0);
+  } finally { p.dom.window.close(); }
+});
+
+test('Plus opens an editable character row; Cancel discards it and Save adds its portrait to the list', async () => {
+  const p = page('survey-edit');
+  try {
+    p.evaluate('showQuestionEditor("relationship-question-template")');
+    const doc = p.document, editor = doc.getElementById('relationship-subject-editor');
+    const plus = doc.getElementById('show-relationship-subject-editor-button');
+    plus.click();
+    assert.equal(editor.tagName, 'TR');
+    assert.equal(editor.hidden, false);
+    assert.equal(doc.getElementById('relationship-editor-name').value, '');
+    const upload = editor.querySelector('.character-upload-button');
+    assert.ok(upload);
+    upload.click(); await tick();
+    let dialog = doc.querySelector('dialog');
+    assert.ok(dialog.querySelector('.image-drop-area'));
+    dialog.dispatchEvent(new p.window.MouseEvent('click', { bubbles: true }));
+    assert.equal(doc.querySelector('dialog'), null);
+    await choosePortrait(p, upload);
+    doc.getElementById('cancel-relationship-subject-button').click();
+    assert.equal(editor.hidden, true);
+    assert.equal(doc.querySelectorAll('.relationship-subject').length, 0);
+    plus.click();
+    doc.getElementById('relationship-editor-name').value = 'Arlo';
+    doc.getElementById('relationship-editor-description').value = 'A character';
+    await choosePortrait(p, editor.querySelector('.character-upload-button'));
+    doc.getElementById('add-relationship-subject-button').click();
+    assert.equal(editor.hidden, true);
+    const row = doc.querySelector('.relationship-subject');
+    assert.equal(row.cells[0].textContent, 'Arlo');
+    assert.equal(row.cells[1].textContent, 'A character');
+    assert.ok(row.querySelector('.image-thumbnail img'));
+    assert.ok(row.querySelector('.character-upload-button'));
+    assert.ok(row.querySelector('button[title="Remove character"]'));
+    assert.equal(p.calls.length, 0);
+  } finally { p.dom.window.close(); }
+});
+test('Opening the relationship editor shows saved portraits before character names', async () => {
+  const p = page('survey-edit');
+  try {
+    await p.evaluate('loadQuestions()');
+    p.document.querySelector('button[title="Edit question"]').click();
+    await tick(); await tick();
+    const row = p.document.querySelector('.relationship-subject');
+    const portrait = row.cells[0].querySelector('.image-thumbnail');
+    assert.ok(portrait);
+    assert.equal(row.cells[0].firstElementChild, portrait);
+    assert.equal(portrait.querySelector('img').getAttribute('src'), image('RELATIONSHIP_SUBJECT', 3).url);
+    assert.equal(portrait.nextElementSibling.textContent, '<Arlo>');
+    assert.equal(row.cells[1].textContent, 'Character');
+    assert.ok(row.querySelector('.character-upload-button'));
+    assert.ok(row.querySelector('button[title="Remove character"]'));
+  } finally { p.dom.window.close(); }
+});
+test('Character edits preserve identity and portrait, and Cancel restores the original text', async () => {
+  const p = page('survey-edit');
+  try {
+    await p.evaluate('loadQuestions()');
+    p.document.querySelector('button[title="Edit question"]').click(); await tick(); await tick();
+    const row = p.document.querySelector('.relationship-subject');
+    const portrait = row.querySelector('.image-thumbnail');
+    row.querySelector('.character-edit-button').click();
+    row.querySelector('input[aria-label="Character name"]').value = 'Discard me';
+    row.querySelector('button[title="Cancel character edits"]').click();
+    assert.equal(row.dataset.name, '<Arlo>');
+    row.querySelector('.character-edit-button').click();
+    row.querySelector('input[aria-label="Character name"]').value = 'Arlo corrected';
+    row.querySelector('input[aria-label="Character description"]').value = 'Corrected description';
+    row.querySelector('button[title="Save character edits"]').click();
+    assert.equal(row.dataset.subjectId, '3');
+    assert.equal(row.dataset.name, 'Arlo corrected');
+    assert.equal(row.cells[1].textContent, 'Corrected description');
+    assert.equal(row.querySelector('.image-thumbnail'), portrait);
+    assert.equal(p.evaluate('hasUnsavedChanges()'), true);
+    assert.equal(row.querySelector('input'), null);
+  } finally { p.dom.window.close(); }
+});
+for (const mode of ['survey', 'survey-edit', 'survey-view', 'survey-participant-view']) {
+  test(`${mode}: question thumbnail belongs to the prompt, never the answer area`, async () => {
+    const p = page(mode);
+    try {
+      if (mode === 'survey') p.evaluate('currentUser = { id: 7 }; surveyAcceptingResponses = true;');
+      await p.evaluate('loadQuestions()');
+      const target = mode === 'survey' ? p.document.querySelector('.question-prompt') : p.document.querySelector('#question-list > tr > td');
+      const thumbnail = target.querySelector('.question-image');
+      assert.ok(thumbnail);
+      assert.equal(target.firstElementChild, thumbnail);
+      assert.equal(p.document.querySelector('.question-detail-row .question-image'), null);
+      assert.equal(target.textContent, question.prompt);
+      let clicks = 0;
+      target.addEventListener('click', () => clicks++);
+      thumbnail.click();
+      assert.equal(clicks, 0);
+      assert.ok(p.document.querySelector('dialog img'));
+    } finally { p.dom.window.close(); }
+  });
+}
+
+test('Question without an image has no thumbnail or placeholder', async () => {
+  const p = page('survey-edit');
+  try {
+    const fetch = p.window.fetch;
+    p.window.fetch = (url, options) => url.endsWith('/images') ? Promise.resolve({ ok: true, json: async () => [] }) : fetch(url, options);
+    await p.evaluate('loadQuestions()');
+    assert.equal(p.document.querySelector('#question-list .question-image'), null);
+    assert.equal(p.document.querySelector('#question-list > tr > td').textContent, question.prompt);
   } finally { p.dom.window.close(); }
 });

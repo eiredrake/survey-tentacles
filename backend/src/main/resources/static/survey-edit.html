@@ -290,25 +290,6 @@
                     </button>
                 </div>
 
-                <div id="relationship-subject-editor" class="relationship-subject-editor" hidden>
-                    <label for="relationship-editor-name">
-                        Character:
-                    </label>
-
-                    <input id="relationship-editor-name" type="text" maxlength="255">
-
-                    <label for="relationship-editor-description">
-                        Description:
-                    </label>
-
-                    <input id="relationship-editor-description" type="text" maxlength="255">
-
-                    <button id="add-relationship-subject-button" class="icon-button" type="button"
-                        title="Save character" aria-label="Save character">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                    </button>
-                </div>
-
                 <table class="survey-table relationship-editor-table">
                     <thead>
                         <tr>
@@ -318,6 +299,17 @@
                         </tr>
                     </thead>
 
+                    <tbody>
+                        <tr id="relationship-subject-editor" class="relationship-subject-editor" hidden>
+                            <td><input id="relationship-editor-name" type="text" maxlength="255" placeholder="Character name" aria-label="Character name"></td>
+                            <td><input id="relationship-editor-description" type="text" maxlength="255" placeholder="Description" aria-label="Character description"></td>
+                            <td class="actions-column">
+                                <span id="relationship-draft-upload"></span>
+                                <button id="cancel-relationship-subject-button" class="icon-button" type="button" title="Cancel new character" aria-label="Cancel new character"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                                <button id="add-relationship-subject-button" class="icon-button" type="button" title="Save character" aria-label="Save character"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
                     <tbody id="relationship-editor-subject-list">
                     </tbody>
                 </table>

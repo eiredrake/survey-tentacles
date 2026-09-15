@@ -62,9 +62,9 @@ window.QuestionImages = (() => {
     try {
       const image = (await list(questionId)).find(item => item.ownerType === type && item.ownerId === ownerId);
       if (image) {
-        const button = thumbnail(image, label, large);
-        const prompt = container.querySelector(".question-prompt");
-        if (prompt) prompt.after(button); else container.prepend(button);
+        const button = thumbnail(image, label);
+        button.classList.add("question-image");
+        container.prepend(button);
       }
     } catch (error) {
       console.warn(error.message);
@@ -96,7 +96,7 @@ window.QuestionImages = (() => {
     } catch (error) { cell.textContent = error.message; }
   }
 
-  function editor(questionId, type, ownerId, label, images) {
+  function editor(questionId, type, ownerId, label, images, options = {}) {
     let image = images.find(item => item.ownerType === type && item.ownerId === ownerId);
     const container = document.createElement("div");
     container.className = "content-image-editor";
@@ -119,32 +119,88 @@ window.QuestionImages = (() => {
     };
     refresh();
     upload.addEventListener("click", () => picker.click());
+    const dropArea = document.createElement("button");
+    dropArea.type = "button";
+    dropArea.className = "image-drop-area";
+    dropArea.innerHTML = '<i class="fa-solid fa-image" aria-hidden="true"></i><strong>Drag an image here</strong><span>or click to choose a file</span><small>PNG, JPEG, WebP or GIF · up to 5 MB</small>';
+    const droppedPreview = document.createElement("img");
+    droppedPreview.alt = "Selected portrait preview";
+    droppedPreview.hidden = true;
+
+    dropArea.addEventListener("click", () => picker.click());
+    const dropTarget = options.dropTarget || container;
+    let dragDepth = 0, previewVersion = 0;
+    function resetDrag() {
+      dragDepth = 0;
+      dropTarget.classList.remove("image-drag-active");
+      dropArea.querySelector("strong").textContent = "Drag an image here";
+    }
+    function showFile(file) {
+      const version = ++previewVersion;
+      if (!file || !picker.accept.split(",").includes(file.type) || file.size > 5 * 1024 * 1024) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (version !== previewVersion) return;
+        droppedPreview.src = reader.result; droppedPreview.hidden = false; dropArea.prepend(droppedPreview);
+      };
+      reader.readAsDataURL(file);
+    }
+    let saving = false;
     async function save(file) {
+      if (saving) return;
       if (file && (!picker.accept.split(",").includes(file.type) || file.size > 5 * 1024 * 1024 || !file.size)) {
         status.textContent = "Choose a PNG, JPEG, WebP or GIF image up to 5 MB.";
         picker.value = "";
         return;
       }
-      upload.disabled = remove.disabled = true;
+      saving = true;
+      upload.disabled = remove.disabled = dropArea.disabled = true;
+      showFile(file);
       status.textContent = "Saving…";
       try {
-        const tokenResponse = await fetch("/csrf");
-        if (!tokenResponse.ok) throw new Error("Unable to authorize image change.");
-        const csrf = await tokenResponse.json();
-        const options = { method: file ? "POST" : "DELETE", headers: { [csrf.headerName]: csrf.token } };
-        if (file) { options.body = new FormData(); options.body.append("file", file); }
-        const response = await fetch(base + "/images/" + type + "/" + ownerId, options);
-        if (!response.ok) throw new Error("Unable to save image. Please try again.");
-        image = file ? await response.json() : null;
-        cache.delete(questionId);
+        image = options.save ? await options.save(file) : await saveImage(questionId, type, ownerId, file);
+        previewVersion++; droppedPreview.remove();
+        options.onSaved?.();
         status.textContent = file ? "Image saved." : "Image removed.";
       } catch (error) { status.textContent = error.message; }
-      finally { picker.value = ""; upload.disabled = false; refresh(); }
+      finally { saving = false; picker.value = ""; upload.disabled = dropArea.disabled = false; refresh(); }
     }
     picker.addEventListener("change", () => { if (picker.files[0]) save(picker.files[0]); });
     remove.addEventListener("click", () => save(null));
-    container.append(preview, title, picker, upload, remove, status);
+    dropTarget.addEventListener("dragenter", event => {
+      event.preventDefault();
+      if (saving) return;
+      dragDepth++;
+      dropTarget.classList.add("image-drag-active");
+      dropArea.querySelector("strong").textContent = "Drop your image here";
+      showFile(event.dataTransfer?.files?.[0]);
+    });
+    dropTarget.addEventListener("dragleave", () => { if (--dragDepth <= 0) resetDrag(); });
+    dropTarget.addEventListener("dragover", event => {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = saving ? "none" : "copy";
+    });
+    dropTarget.addEventListener("drop", event => {
+      event.preventDefault(); event.stopPropagation();
+      resetDrag();
+      const files = event.dataTransfer?.files;
+      if (files?.length === 1) save(files[0]);
+      else status.textContent = "Drop one image at a time.";
+    });
+    container.append(preview, title, picker, upload, remove, dropArea, status);
     return container;
+  }
+
+  async function saveImage(questionId, type, ownerId, file) {
+    const tokenResponse = await fetch("/csrf");
+    if (!tokenResponse.ok) throw new Error("Unable to authorize image change.");
+    const csrf = await tokenResponse.json();
+    const options = { method: file ? "POST" : "DELETE", headers: { [csrf.headerName]: csrf.token } };
+    if (file) { options.body = new FormData(); options.body.append("file", file); }
+    const response = await fetch(base + "/images/" + type + "/" + ownerId, options);
+    if (!response.ok) throw new Error("Unable to save image. Please try again.");
+    cache.delete(questionId);
+    return file ? await response.json() : null;
   }
 
   function characterDialog(subject, trigger) {
@@ -190,22 +246,31 @@ window.QuestionImages = (() => {
     container.appendChild(info);
   }
 
-  async function editSubject(questionId, subject, trigger) {
+  async function editSubject(questionId, subject, trigger, draft, onSaved) {
     const dialog = characterDialog(subject, trigger);
     const content = document.createElement("div");
     content.textContent = "Loading portrait…";
     dialog.appendChild(content); dialog.showModal();
     try {
       cache.delete(questionId);
-      const images = await list(questionId);
-      content.replaceChildren(editor(questionId, "RELATIONSHIP_SUBJECT", subject.id, subject.name, images));
+      const images = draft ? (draft.image ? [draft.image] : []) : await list(questionId);
+      content.replaceChildren(editor(questionId, "RELATIONSHIP_SUBJECT", subject.id, subject.name, images,
+        { save: draft?.save, dropTarget: dialog, onSaved: () => { onSaved?.(); dialog.close(); } }));
       const note = document.createElement("p");
-      note.textContent = "Portrait changes save immediately. PNG, JPEG, WebP or GIF, up to 5 MB.";
+      note.textContent = (draft ? "Portrait will be saved with the question. " : "Portrait changes save immediately. ") + "Choose or drop a PNG, JPEG, WebP or GIF, up to 5 MB.";
       content.appendChild(note);
     } catch (error) { content.textContent = error.message; }
   }
 
-  return { thumbnail, edit, editSubject,
+  async function renderPortrait(questionId, subject, container) {
+    try {
+      const image = (await list(questionId)).find(item => item.ownerType === "RELATIONSHIP_SUBJECT" && item.ownerId === subject.id);
+      container.querySelector(".image-thumbnail")?.remove();
+      if (image) container.prepend(thumbnail(image, subject.name));
+    } catch (error) { console.warn(error.message); }
+  }
+
+  return { thumbnail, edit, editSubject, renderPortrait, saveSubject: (questionId, subjectId, file) => saveImage(questionId, "RELATIONSHIP_SUBJECT", subjectId, file),
     renderQuestion: (question, container) => render(question.id, "QUESTION", question.id, container, question.prompt, true),
     renderSubject
   };

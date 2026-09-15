@@ -495,6 +495,7 @@ async function loadQuestions() {
     const questionCell = document.createElement("td");
 
     questionCell.textContent = question.prompt;
+    await window.QuestionImages?.renderQuestion(question, questionCell);
 
     const typeCell = document.createElement("td");
 
@@ -541,7 +542,7 @@ async function loadQuestions() {
       const fragment = template.content.cloneNode(true);
 
       const section = fragment.querySelector(".survey-question");
-      await window.QuestionImages?.renderQuestion(question, section);
+
 
       const resultsContainer = section.querySelector(
         ".scheduling-view-results",

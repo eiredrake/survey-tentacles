@@ -189,6 +189,7 @@ async function loadQuestions() {
     const questionCell = document.createElement("td");
 
     questionCell.textContent = question.prompt;
+    await window.QuestionImages?.renderQuestion(question, questionCell);
 
     const typeCell = document.createElement("td");
 
@@ -246,7 +247,7 @@ async function loadQuestions() {
       );
     }
     
-    await window.QuestionImages?.renderQuestion(question, detailCell.querySelector(".survey-question"));
+
     detailRow.appendChild(detailCell);
     
     questionList.appendChild(detailRow);

@@ -1095,7 +1095,7 @@ async function loadQuestions() {
         section.querySelector(
             ".question-prompt"
         ).textContent = question.prompt;
-        await window.QuestionImages?.renderQuestion(question, section);
+        await window.QuestionImages?.renderQuestion(question, section.querySelector(".question-prompt"));
 
         const optionsContainer =
             section.querySelector(

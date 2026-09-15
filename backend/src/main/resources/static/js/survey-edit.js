@@ -48,7 +48,7 @@ function showQuestionEditor(templateId) {
   container.addEventListener("input", () => {
     markDirty("question");
   });
-  
+
   container.addEventListener("change", () => {
     markDirty("question");
   });  
@@ -169,10 +169,24 @@ function setupRelationshipEditor() {
   }
 
   const sortSubjects = setupRelationshipSubjectSorting();
+  subjectList.addEventListener("character-updated", sortSubjects);
+  let draftRow;
 
   showEditorButton.addEventListener("click", () => {
+    if (!subjectEditor.hidden) { nameInput.focus(); return; }
+    nameInput.value = descriptionInput.value = "";
+    draftRow = createRelationshipSubjectRow("New character");
+    const upload = draftRow.querySelector(".character-upload-button");
+    document.getElementById("relationship-draft-upload").replaceChildren(...(upload ? [upload] : []));
     subjectEditor.hidden = false;
     nameInput.focus();
+  });
+
+  document.getElementById("cancel-relationship-subject-button").addEventListener("click", () => {
+    draftRow = null;
+    nameInput.value = descriptionInput.value = "";
+    document.getElementById("relationship-draft-upload").replaceChildren();
+    subjectEditor.hidden = true;
   });
 
   addButton.addEventListener("click", () => {
@@ -194,6 +208,12 @@ function setupRelationshipEditor() {
         description
       );
 
+    if (draftRow?.pendingPortrait) {
+      row.pendingPortrait = draftRow.pendingPortrait;
+      row.portraitPreview = draftRow.portraitPreview;
+      row.cells[0].prepend(QuestionImages.thumbnail(row.portraitPreview, name));
+    }
+    draftRow = null;
     subjectList.appendChild(row);
     sortSubjects();
     markDirty("question");
@@ -224,7 +244,10 @@ function createRelationshipSubjectRow(
   const nameCell =
     document.createElement("td");
 
-  nameCell.textContent = name;
+  nameCell.className = "relationship-character-cell";
+  const characterName = document.createElement("span");
+  characterName.textContent = name;
+  nameCell.appendChild(characterName);
 
   const descriptionCell =
     document.createElement("td");
@@ -267,18 +290,95 @@ function createRelationshipSubjectRow(
     removeButton
   );
 
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "icon-button character-edit-button";
+  editButton.title = "Edit character";
+  editButton.setAttribute("aria-label", "Edit " + name);
+  editButton.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>';
+  editButton.addEventListener("click", () => {
+    const nameInput = document.createElement("input");
+    nameInput.value = name;
+    nameInput.maxLength = 255;
+    nameInput.setAttribute("aria-label", "Character name");
+    const descriptionInput = document.createElement("input");
+    descriptionInput.value = description;
+    descriptionInput.maxLength = 255;
+    descriptionInput.setAttribute("aria-label", "Character description");
+    characterName.replaceWith(nameInput);
+    descriptionCell.replaceChildren(descriptionInput);
+    const buttons = [...actionsCell.children];
+    buttons.forEach(button => { button.hidden = true; });
+    const cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "icon-button";
+    cancel.title = "Cancel character edits"; cancel.setAttribute("aria-label", cancel.title);
+    cancel.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+    const save = document.createElement("button");
+    save.type = "button"; save.className = "icon-button";
+    save.title = "Save character edits"; save.setAttribute("aria-label", save.title);
+    save.innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>';
+    const finish = () => {
+      nameInput.replaceWith(characterName);
+      descriptionCell.textContent = description;
+      cancel.remove(); save.remove();
+      buttons.forEach(button => { button.hidden = false; });
+      editButton.focus();
+    };
+    cancel.addEventListener("click", finish);
+    save.addEventListener("click", () => {
+      if (!nameInput.value.trim()) { showToast("Enter a character name.", "error"); nameInput.focus(); return; }
+      name = nameInput.value.trim(); description = descriptionInput.value.trim();
+      row.dataset.name = name; row.dataset.description = description;
+      characterName.textContent = name;
+      editButton.setAttribute("aria-label", "Edit " + name);
+      removeButton.setAttribute("aria-label", "Remove " + name);
+      const portrait = actionsCell.querySelector(".character-upload-button");
+      if (portrait) { portrait.title = "Edit portrait for " + name; portrait.setAttribute("aria-label", portrait.title); }
+      const image = nameCell.querySelector("img");
+      if (image) image.alt = name;
+      finish();
+      markDirty("question");
+      row.dispatchEvent(new CustomEvent("character-updated", { bubbles: true }));
+    });
+    actionsCell.append(cancel, save);
+    nameInput.focus();
+  });
+  actionsCell.appendChild(editButton);
   if (window.QuestionImages) {
     const portrait = document.createElement("button");
     portrait.type = "button";
-    portrait.className = "icon-button";
-    portrait.disabled = subjectId == null;
-    portrait.title = subjectId == null ? "Save the question before adding a portrait" : "Edit portrait for " + name;
+    portrait.className = "icon-button character-upload-button";
+    portrait.title = "Edit portrait for " + name;
     portrait.setAttribute("aria-label", portrait.title);
-    portrait.innerHTML = '<i class="fa-solid fa-image" aria-hidden="true"></i>';
-    portrait.addEventListener("click", () => QuestionImages.editSubject(editingQuestionId, { id: subjectId, name }, portrait));
+    portrait.innerHTML = '<i class="fa-solid fa-upload" aria-hidden="true"></i>';
+    portrait.addEventListener("click", () => {
+      const id = row.dataset.subjectId ? Number(row.dataset.subjectId) : null;
+      const draft = id == null || row.pendingPortrait ? {
+        image: row.portraitPreview,
+        save: async file => {
+          const url = file ? await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Unable to read image."));
+            reader.readAsDataURL(file);
+          }) : null;
+          row.pendingPortrait = file;
+          row.portraitPreview = file ? { ownerType: "RELATIONSHIP_SUBJECT", ownerId: id, url } : null;
+          markDirty("question");
+          portrait.title = file ? "Portrait selected for " + name : "Edit portrait for " + name;
+          nameCell.querySelector(".image-thumbnail")?.remove();
+          if (row.portraitPreview) nameCell.prepend(QuestionImages.thumbnail(row.portraitPreview, name));
+          return row.portraitPreview;
+        }
+      } : undefined;
+      QuestionImages.editSubject(editingQuestionId, { id, name }, portrait, draft, () => {
+        if (!draft) QuestionImages.renderPortrait(editingQuestionId, { id, name }, nameCell);
+      });
+    });
     actionsCell.appendChild(portrait);
   }
 
+  if (subjectId != null && window.QuestionImages) QuestionImages.renderPortrait(editingQuestionId, { id: subjectId, name }, nameCell);
   row.appendChild(nameCell);
   row.appendChild(descriptionCell);
   row.appendChild(actionsCell);
@@ -300,10 +400,10 @@ function setupQuestionEditorButtons() {
   if (cancelButton) {
     cancelButton.addEventListener("click", () => {
       clearDirty("question");
-  
+
       container.replaceChildren();
       container.hidden = true;
-  
+
       editingQuestionId = null;
     });
   }
@@ -368,9 +468,9 @@ async function loadSurvey() {
   document.getElementById("survey-title").textContent =`Edit: ${survey.title}`;
 
   const preview = document.getElementById("survey-image-preview");
-  
+
   const image = document.getElementById("survey-image");
-  
+
   if (preview && image && survey.imageFilename) {
     image.src =`/api/surveys/${surveyId}/image`;
     preview.hidden = false;
@@ -739,6 +839,8 @@ function setupRelationshipQuestionSave() {
         return;
       }
 
+      if (saveButton.disabled) return;
+      const rows = [...subjectList.querySelectorAll(".relationship-subject")];
       const subjects =
         Array.from(
           subjectList.querySelectorAll(
@@ -769,66 +871,83 @@ function setupRelationshipQuestionSave() {
           ".question-required"
         )?.checked ?? false;
 
-      const csrfResponse =
-        await fetch("/csrf");
+      saveButton.disabled = true;
+      try {
+        const wasEditing = editingQuestionId !== null;
+        const csrfResponse =
+          await fetch("/csrf");
 
-      const csrf =
-        await csrfResponse.json();
+        const csrf =
+          await csrfResponse.json();
 
-      const url =
-        editingQuestionId === null
-          ? `/api/surveys/${surveyId}/questions/relationship`
-          : `/api/surveys/${surveyId}/questions/${editingQuestionId}/relationship`;
+        const url =
+          editingQuestionId === null
+            ? `/api/surveys/${surveyId}/questions/relationship`
+            : `/api/surveys/${surveyId}/questions/${editingQuestionId}/relationship`;
 
-      const response =
-        await fetch(
-          url,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              [csrf.headerName]:
-                csrf.token
-            },
-            body: JSON.stringify({
-              prompt: prompt,
-              displayOrder: 1,
-              required: required,
-              subjects: subjects
-            })
-          }
-        );
+        const response =
+          await fetch(
+            url,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+                [csrf.headerName]:
+                  csrf.token
+              },
+              body: JSON.stringify({
+                prompt: prompt,
+                displayOrder: 1,
+                required: required,
+                subjects: subjects
+              })
+            }
+          );
 
-      if (!response.ok) {
+        if (!response.ok) {
+          showToast(
+            "Unable to save relationship question.",
+            "error"
+          );
+          return;
+        }
+
+        const saved = await response.json();
+        editingQuestionId = saved.id;
+        for (const [index, row] of rows.entries()) {
+          const subject = saved.subjects.find(subject => subject.displayOrder === index);
+          if (!subject) throw new Error("Unable to match saved characters. Keep this editor open and retry.");
+          row.dataset.subjectId = subject.id;
+        }
+        for (const row of rows) {
+          if (!row.pendingPortrait) continue;
+          await QuestionImages.saveSubject(saved.id, Number(row.dataset.subjectId), row.pendingPortrait);
+          delete row.pendingPortrait;
+          delete row.portraitPreview;
+        }
+        editingQuestionId = null;
+        clearDirty("question");
+
+        const container =
+          document.getElementById(
+            "question-form-container"
+          );
+
+        container.replaceChildren();
+        container.hidden = true;
+
+        await loadQuestions();
+
         showToast(
-          "Unable to save relationship question.",
-          "error"
+          wasEditing
+            ? "Relationship question updated."
+            : "Relationship question created.",
+          "success"
         );
-        return;
-      }
-
-      const wasEditing = editingQuestionId !== null;
-
-      editingQuestionId = null;
-      clearDirty("question");
-
-      const container =
-        document.getElementById(
-          "question-form-container"
-        );
-
-      container.replaceChildren();
-      container.hidden = true;
-
-      await loadQuestions();
-
-      showToast(
-        wasEditing
-          ? "Relationship question updated."
-          : "Relationship question created.",
-        "success"
-      );
+      } catch (error) {
+        showToast(error.message || "Unable to save relationship question. Please retry.", "error");
+      } finally { saveButton.disabled = false; }
     }
   );
 }
@@ -1310,6 +1429,7 @@ async function loadQuestions() {
       deleteButton
     );
 
+    await window.QuestionImages?.renderQuestion(question, promptCell);
     row.appendChild(promptCell);
     row.appendChild(typeCell);
     row.appendChild(actionsCell);
@@ -2081,10 +2201,10 @@ function setupSurveyImageUpload() {
     async () => {
       const csrfResponse =
         await fetch("/csrf");
-  
+
       const csrf =
         await csrfResponse.json();
-  
+
       const response =
         await fetch(
           `/api/surveys/${surveyId}/image`,
@@ -2096,7 +2216,7 @@ function setupSurveyImageUpload() {
             }
           }
         );
-  
+
       if (!response.ok) {
         showToast(
           "Unable to remove survey image.",
@@ -2104,11 +2224,11 @@ function setupSurveyImageUpload() {
         );
         return;
       }
-  
+
       image.removeAttribute("src");
       preview.hidden = true;
       fileInput.value = "";
-  
+
       showToast(
         "Survey image removed.",
         "success"

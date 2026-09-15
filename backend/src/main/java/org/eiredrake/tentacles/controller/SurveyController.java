@@ -450,7 +450,9 @@ public class SurveyController {
       "required",
       question.isRequired(),
       "subjectCount",
-      question.getSubjects().size()
+      question.getSubjects().size(),
+      "subjects", question.getSubjects().stream().map(subject -> Map.of(
+        "id", subject.getId(), "displayOrder", subject.getDisplayOrder())).toList()
     );
   }
 
@@ -497,7 +499,9 @@ public class SurveyController {
       "prompt",
       question.getPrompt(),
       "subjectCount",
-      question.getSubjects().size()
+      question.getSubjects().size(),
+      "subjects", question.getSubjects().stream().map(subject -> Map.of(
+        "id", subject.getId(), "displayOrder", subject.getDisplayOrder())).toList()
     );
   }
 

@@ -62,6 +62,19 @@ class ImageAttachmentTests {
   Long surveyId, questionId, subjectId;
   User user;
 
+  @Test void relationshipSavesReturnIdsForImmediatePortraitUploads() throws Exception {
+    for (String path : List.of("/questions/relationship", "/questions/" + questionId + "/relationship")) {
+      mvc.perform(post("/api/surveys/" + surveyId + path)
+        .with(oidcLogin().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content("""
+          {"prompt":"Characters","displayOrder":1,"subjects":[
+            {"name":"Same","description":"First"},{"name":"Same","description":"Second"}]}
+          """))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.id").isNumber())
+        .andExpect(jsonPath("$.subjects[0].id").isNumber()).andExpect(jsonPath("$.subjects[0].displayOrder").value(0))
+        .andExpect(jsonPath("$.subjects[1].id").isNumber()).andExpect(jsonPath("$.subjects[1].displayOrder").value(1));
+    }
+  }
   @BeforeEach void setup() {
     transaction = new TransactionTemplate(transactionManager);
     transaction.executeWithoutResult(status -> {
