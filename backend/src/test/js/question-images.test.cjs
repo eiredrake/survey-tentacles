@@ -481,3 +481,24 @@ test('Expanded accordion uses its table heading and retains collapse/expand', as
     assert.equal(table.querySelectorAll('th')[1].textContent, 'Required');
   } finally { p.dom.window.close(); }
 });
+test('Participant plus belongs to its header and opens the picker without collapsing', async () => {
+  const p = page('survey-edit');
+  try {
+    p.evaluate(readFileSync(path.join(staticDir, 'js/participant-picker.js'), 'utf8'));
+    await p.evaluate('loadParticipants()');
+    p.evaluate(readFileSync(path.join(staticDir, 'js/table-sections.js'), 'utf8'));
+    await tick();
+    const section = p.document.getElementById('participants-view');
+    const details = section.closest('details');
+    details.open = true;
+    const plus = section.querySelector('button[title="Add participant"]');
+    assert.ok(plus.closest('th.table-section-heading'));
+    assert.equal(plus.textContent.trim(), '');
+    assert.ok(plus.querySelector('.fa-plus'));
+    assert.equal(section.querySelector('[data-table-actions]'), null);
+    plus.click(); await tick();
+    assert.equal(details.open, true);
+    assert.equal(section.querySelector('.expected-participant-picker').hidden, false);
+    assert.ok(section.querySelector('a[href="/admin/participant-groups.html"]'));
+  } finally { p.dom.window.close(); }
+});
