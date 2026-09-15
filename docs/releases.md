@@ -44,11 +44,11 @@ After publication succeeds, run on the Windows production Docker host with this 
 .\scripts\deploy.ps1 -Version v1.7.2 -EnvFile C:\path\to\production\.env
 ```
 
-Omit `-Version` to use the version in `backend/gradle.properties`. Omit `-EnvFile` only if the repository-root `.env` contains the correct production configuration. In particular, production uploads must be `/app/uploads`, not the Windows dev directory. No secrets are printed or committed.
+Omit `-Version` to use the version in `backend/gradle.properties`. By default, the script discovers the active production Compose file from the container labels and loads `.env` beside that file. Use `-EnvFile` to override that path, or `-ComposeFile` to select an explicit production Compose file. In particular, production uploads must be `/app/uploads`, not the Windows dev directory. No secrets are printed or committed.
 
-Deployment uses the repository's `infra/docker-compose.yml`, the existing `survey-tentacles` project, and existing `tentacles` / `tentacles-db` containers. It checks that the database is running and both named volumes match the resolved Compose configuration before updating anything. Installations with different names or mounts must reconcile their configuration first; this script does not migrate them.
+Deployment uses the active production Compose configuration, the existing `survey-tentacles` project, and existing `tentacles` / `tentacles-db` containers. It checks that the database is running, networks and environment match, the app shares a network with its database, and both named volumes match before updating anything. Preview performs these read-only checks too. It never substitutes the repository installation template for the production configuration. Installations with different names or mounts must reconcile their configuration first; this script does not migrate them.
 
-The script temporarily supplies `TENTACLES_VERSION` to Compose, pulls the exact image, recreates only the application with `--no-deps`, and checks `/health` on localhost port 8080. It does not restart PostgreSQL, remove volumes, or change NPM or Authentik. A failed image pull leaves the running app alone. A failed health check reports failure and the previous image; it does not automatically roll back database migrations.
+The script temporarily supplies `TENTACLES_VERSION` and an image-only Compose override (so an existing hard-coded image is also supported), pulls the exact image, recreates only the application with `--no-deps`, and checks `/health` on localhost port 8080. It does not restart PostgreSQL, remove volumes, or change NPM or Authentik. A failed image pull leaves the running app alone. A failed health check reports failure and the previous image; it does not automatically roll back database migrations.
 
 To deploy a different published version, pass it explicitly to `deploy.ps1`. Review schema compatibility before rolling back. The selected image remains on the container; the script does not rewrite the production `.env`. Use this script for subsequent updates, or set `TENTACLES_VERSION` yourself when using Compose directly.
 
@@ -62,3 +62,5 @@ To deploy a different published version, pass it explicitly to `deploy.ps1`. Rev
 These integration checks create disposable repositories and a local bare remote. They test actual commit/tag/push behavior and rejection paths without contacting GitHub or Docker. No live release is created while setting up this tooling.
 
 Deployment checks use a fake Docker executable to verify project/volume rejection, pull failure, application-only recreation, and environment restoration. They never contact the live Docker daemon.
+
+The image override is temporary and removed after execution. On subsequent deployments the script filters its old temporary override from container labels and retains the original production Compose files. The production YAML and .env are not rewritten. Progress messages appear while waiting for health.

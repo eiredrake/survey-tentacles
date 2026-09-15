@@ -23,12 +23,12 @@ const database = 'survey-tentacles_tentacles-postgres-data';
 const updated = path.join(root, 'updated');
 if (args[0] === 'compose' && args.includes('config')) {
   console.log(JSON.stringify({ services: {
-    tentacles: { image, environment: { TENTACLES_UPLOAD_DIR: '/app/uploads' }, volumes: [{ type: 'volume', source: 'uploads', target: '/app/uploads' }] },
-    'tentacles-db': { volumes: [{ type: 'volume', source: 'database', target: '/var/lib/postgresql/data' }] }
-  }, volumes: { uploads: { name: upload }, database: { name: database } } }));
+    tentacles: { image, networks: { proxy: null }, environment: { TENTACLES_UPLOAD_DIR: '/app/uploads' }, volumes: [{ type: 'volume', source: 'uploads', target: '/app/uploads' }] },
+    'tentacles-db': { networks: { proxy: null }, volumes: [{ type: 'volume', source: 'database', target: '/var/lib/postgresql/data' }] }
+  }, networks: { proxy: { name: scenario === 'wrong-network' ? 'wrong-default-network' : 'proxy-tier' } }, volumes: { uploads: { name: upload }, database: { name: database } } }));
 } else if (args[0] === 'inspect') {
   const app = args[1] === 'tentacles';
-  console.log(JSON.stringify([{ Config: { Image: app && fs.existsSync(updated) ? image : 'previous-image', Labels: { 'com.docker.compose.project': scenario === 'wrong-project' ? 'other-project' : 'survey-tentacles' } },
+  console.log(JSON.stringify([{ Config: { Image: app && fs.existsSync(updated) ? image : 'previous-image', Env: ['TENTACLES_UPLOAD_DIR=' + (scenario === 'wrong-env' ? '/wrong' : '/app/uploads')], Labels: { 'com.docker.compose.project.config_files': path.join(root, 'infra/docker-compose.yml'), 'com.docker.compose.project': scenario === 'wrong-project' ? 'other-project' : 'survey-tentacles' } }, NetworkSettings: { Networks: { 'proxy-tier': {} } },
     State: { Running: true }, Mounts: [{ Type: 'volume', Name: scenario === 'wrong-volume' ? 'unexpected-volume' : app ? upload : database, Destination: app ? '/app/uploads' : '/var/lib/postgresql/data' }] }]));
 } else if (args[0] === 'compose' && args.includes('pull')) {
   if (scenario === 'pull-fails') process.exit(1);
@@ -52,9 +52,10 @@ try {
     $env:TENTACLES_VERSION = 'restore-this-value'
     $selected = (Get-Command docker -CommandType Application | Select-Object -First 1).Source
     if (!$selected.StartsWith($temp)) { throw 'Fake Docker was not selected; refusing to test' }
+    Copy-Item "$temp/.env" "$temp/infra/.env"
     & "$temp/scripts/deploy.ps1" -Preview
-    if (Test-Path "$temp/calls.jsonl") { throw 'Preview invoked Docker' }
-    foreach ($scenario in @('wrong-project', 'wrong-volume', 'pull-fails', 'success')) {
+    if ((Get-Content -Raw "$temp/calls.jsonl") -match '"pull"|"up"') { throw 'Preview mutated Docker' }
+    foreach ($scenario in @('wrong-project', 'wrong-volume', 'wrong-network', 'wrong-env', 'pull-fails', 'success')) {
         $env:TENTACLES_TEST_DOCKER_SCENARIO = $scenario
         Set-Content "$temp/calls.jsonl" ''
         $failed = $false
@@ -66,7 +67,7 @@ try {
         if ($updates.Count -ne [int]($scenario -eq 'success')) { throw "Unexpected update for $scenario" }
         if ($scenario -eq 'success' -and !(Test-Path "$temp/updated")) { throw 'Successful deployment did not update the app' }
     }
-    Write-Host 'PASS: deployment preview, project/volume guards, pull failure, app-only update, health check, and environment restoration.'
+    Write-Host 'PASS: production config discovery, preview, project/volume/network/environment guards, pull failure, app-only update, health check, and environment restoration.'
 } finally {
     $env:PATH = $oldPath
     [Environment]::SetEnvironmentVariable('TENTACLES_TEST_DOCKER_ROOT', $oldRoot, 'Process')
