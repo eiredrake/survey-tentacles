@@ -1,9 +1,11 @@
 package org.eiredrake.tentacles.config;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.DefaultRedirectStrategy;
 import java.util.HashSet;
 import java.util.Set;
 import java.net.URI;
@@ -23,7 +25,8 @@ public class SecurityConfig {
 
     @Bean
     public LogoutSuccessHandler logoutSuccessHandler(
-        ClientRegistrationRepository clientRegistrationRepository
+        ClientRegistrationRepository clientRegistrationRepository,
+        @Value("${tentacles.dev.encode-http-callback:false}") boolean encodeHttpCallback
     ) {
         OidcClientInitiatedLogoutSuccessHandler logoutSuccessHandler =
             new OidcClientInitiatedLogoutSuccessHandler(
@@ -34,6 +37,12 @@ public class SecurityConfig {
             "{baseUrl}/"
         );
     
+        if (encodeHttpCallback) {
+            // Apply the same proxy workaround as login to the local logout callback.
+            var redirect = new DefaultRedirectStrategy();
+            logoutSuccessHandler.setRedirectStrategy((request, response, url) -> redirect.sendRedirect(request, response,
+                url.replace("post_logout_redirect_uri=http://", "post_logout_redirect_uri=http%3A%2F%2F")));
+        }
         return logoutSuccessHandler;
     }
 
@@ -51,6 +60,9 @@ public class SecurityConfig {
         }
         http
             .authorizeHttpRequests(auth -> auth
+                // A stream's final container dispatch only completes an already-authorized request.
+                .requestMatchers(request -> request.getDispatcherType() == DispatcherType.ASYNC
+                    && request.getRequestURI().equals(request.getContextPath() + "/api/surveys/events")).permitAll()
                 .requestMatchers(
                     "/health",
                     "/oauth2/**",
@@ -146,7 +158,7 @@ public class SecurityConfig {
             )
             .logout(logout -> logout
                 .logoutUrl("/logout")
-                .logoutSuccessHandler(logoutSuccessHandler(clientRegistrationRepository))
+                .logoutSuccessHandler(logoutSuccessHandler(clientRegistrationRepository, encodeHttpCallback))
                 .invalidateHttpSession(true)
                 .clearAuthentication(true)
                 .deleteCookies("JSESSIONID")

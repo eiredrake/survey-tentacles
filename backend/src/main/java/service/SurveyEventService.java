@@ -114,7 +114,7 @@ public class SurveyEventService {
       emitter.send(event);
     } catch (IOException | IllegalStateException error) {
       remove(userId, emitter);
-      emitter.completeWithError(error);
+      // The container handles failed writes; completing again races its error dispatch.
     }
   }
 

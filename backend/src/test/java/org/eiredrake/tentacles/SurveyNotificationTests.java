@@ -147,6 +147,12 @@ class SurveyNotificationTests {
     subscribe(admin.getId(), null);
   }
 
+  @Test void completedStreamCanFinishAfterAuthenticationIsLost() throws Exception {
+    MvcResult stream = subscribe(admin.getId(), null);
+    emitters.getLast().complete();
+    mvc.perform(context -> anonymous().postProcessRequest(asyncDispatch(stream).buildRequest(context))).andExpect(status().isOk());
+    streams.remove(stream);
+  }
   @Test void publishedOncePerSubmissionAndOnlyToOptedInAdmins() throws Exception {
     MvcResult stream = subscribe(admin.getId(), null);
     MvcResult otherStream = subscribe(otherAdmin.getId(), null);

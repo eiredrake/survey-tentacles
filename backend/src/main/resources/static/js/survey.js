@@ -524,39 +524,6 @@ async function loadRelationshipQuestion(
         nameCell.textContent = subject.name;
         await window.QuestionImages?.renderSubject(question, subject, nameCell);
 
-        if (subject.description?.trim()) {
-            nameCell.title = subject.description;
-            const info = document.createElement("button");
-            info.type = "button";
-            info.className = "icon-button character-description-button";
-            info.title = subject.description;
-            info.setAttribute("aria-label", "Description for " + subject.name);
-            info.setAttribute("aria-haspopup", "dialog");
-            info.innerHTML = '<i class="fa-regular fa-circle-question" aria-hidden="true"></i>';
-            info.addEventListener("click", event => {
-                event.stopPropagation();
-                const dialog = document.createElement("dialog");
-                dialog.className = "character-description-dialog";
-                dialog.setAttribute("aria-label", "Description for " + subject.name);
-                const close = document.createElement("button");
-                close.type = "button";
-                close.className = "icon-button";
-                close.title = "Close description";
-                close.setAttribute("aria-label", close.title);
-                close.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
-                const heading = document.createElement("h2"), text = document.createElement("p");
-                heading.textContent = subject.name;
-                text.textContent = subject.description;
-                dialog.append(close, heading, text);
-                document.body.appendChild(dialog);
-                close.addEventListener("click", () => dialog.close());
-                dialog.addEventListener("click", e => { if (e.target === dialog) dialog.close(); });
-                dialog.addEventListener("close", () => { dialog.remove(); info.focus(); });
-                dialog.showModal();
-            });
-            nameCell.appendChild(info);
-        }
-
         const likeCell = document.createElement("td");
 
         const likeInput = createRelationshipScoreControl(

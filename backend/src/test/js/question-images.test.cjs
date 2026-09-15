@@ -193,7 +193,7 @@ test("Character descriptions expose a tooltip and safe full-text dialog without 
   } finally { detail.subjects[0].description = previous; p.dom.window.close(); }
 });
 
-test("Blank descriptions omit the info control; closed surveys still allow reading descriptions", async () => {
+test("Portrait-only characters and closed surveys still allow opening character information", async () => {
   const previous = detail.subjects[0].description;
   for (const description of ["  ", "Read this character description"]) {
     const p = page("survey");
@@ -202,7 +202,7 @@ test("Blank descriptions omit the info control; closed surveys still allow readi
       p.evaluate("currentUser = { id: 7 }; surveyAcceptingResponses = false;");
       await p.evaluate("loadQuestions()");
       const info = p.document.querySelector(".character-description-button");
-      if (!description.trim()) assert.equal(info, null);
+      if (!description.trim()) { info.click(); assert.ok(p.document.querySelector("dialog img")); assert.equal(p.document.querySelector("dialog p"), null); }
       else {
         assert.equal(info.disabled, false);
         info.click();
@@ -210,4 +210,39 @@ test("Blank descriptions omit the info control; closed surveys still allow readi
       }
     } finally { detail.subjects[0].description = previous; p.dom.window.close(); }
   }
+});
+test("Admin View information popup shows the portrait before the description without expanding responses", async () => {
+  const p = page("survey-view");
+  try {
+    p.document.body.appendChild(p.document.getElementById("relationship-view-template").content.cloneNode(true));
+    await p.evaluate('renderRelationshipResults({ id: 2 }, document.querySelector(".relationship-view-results"))');
+    const info = p.document.querySelector(".character-description-button");
+    let rowClicks = 0;
+    info.closest("tr").addEventListener("click", () => rowClicks++);
+    info.click();
+    const dialog = p.document.querySelector(".character-description-dialog");
+    assert.equal(dialog.querySelector("img").getAttribute("src"), image("RELATIONSHIP_SUBJECT", 3).url);
+    assert.equal(dialog.querySelector("img").nextElementSibling.textContent, "Character");
+    assert.equal(rowClicks, 0);
+    dialog.querySelector("button").click();
+    assert.equal(p.document.activeElement, info);
+  } finally { p.dom.window.close(); }
+});
+
+test("Saved character row opens its portrait uploader and saves to the existing attachment owner", async () => {
+  const p = page("survey-edit");
+  try {
+    await p.evaluate("loadQuestions()");
+    p.document.querySelector('button[title="Edit question"]').click(); await tick();
+    const trigger = p.document.querySelector('button[title="Edit portrait for <Arlo>"]');
+    trigger.click(); await tick();
+    const picker = p.document.querySelector('dialog input[type="file"]');
+    Object.defineProperty(picker, "files", { value: [new p.window.File(["GIF89a"], "portrait.gif", { type: "image/gif" })] });
+    picker.dispatchEvent(new p.window.Event("change")); await tick();
+    const post = p.calls.find(call => call.options.method === "POST");
+    assert.equal(post.url, "/api/surveys/1/images/RELATIONSHIP_SUBJECT/3");
+    assert.equal(post.options.headers["X-CSRF"], "test");
+    assert.equal(p.document.querySelector("dialog [role=status]").textContent, "Image saved.");
+    assert.equal(p.calls.some(call => call.options.method === "POST" && call.url.endsWith("/relationship")), false);
+  } finally { p.dom.window.close(); }
 });

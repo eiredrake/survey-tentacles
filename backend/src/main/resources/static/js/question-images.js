@@ -147,8 +147,66 @@ window.QuestionImages = (() => {
     return container;
   }
 
-  return { thumbnail, edit,
+  function characterDialog(subject, trigger) {
+    const dialog = document.createElement("dialog");
+    dialog.className = "character-description-dialog";
+    dialog.setAttribute("aria-label", "Description for " + subject.name);
+    const close = icon("fa-xmark", "Close description");
+    const heading = document.createElement("h2");
+    heading.textContent = subject.name;
+    dialog.append(close, heading);
+    close.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+    dialog.addEventListener("close", () => { dialog.remove(); trigger.focus(); });
+    document.body.appendChild(dialog);
+    return dialog;
+  }
+
+  async function renderSubject(question, subject, container) {
+    let image;
+    try { image = (await list(question.id)).find(item => item.ownerType === "RELATIONSHIP_SUBJECT" && item.ownerId === subject.id); }
+    catch (error) { console.warn(error.message); }
+    if (image) container.prepend(thumbnail(image, subject.name));
+    if (!image && !subject.description?.trim()) return;
+    const info = icon("fa-circle-question", "Description for " + subject.name);
+    info.classList.add("character-description-button");
+    info.title = subject.description?.trim() ? subject.description : "View " + subject.name;
+    info.setAttribute("aria-haspopup", "dialog");
+    info.addEventListener("click", event => {
+      event.stopPropagation();
+      const dialog = characterDialog(subject, info);
+      if (image) {
+        const portrait = document.createElement("img");
+        portrait.src = image.url; portrait.alt = subject.name;
+        dialog.appendChild(portrait);
+      }
+      if (subject.description?.trim()) {
+        const description = document.createElement("p");
+        description.textContent = subject.description;
+        dialog.appendChild(description);
+      }
+      dialog.showModal();
+    });
+    container.appendChild(info);
+  }
+
+  async function editSubject(questionId, subject, trigger) {
+    const dialog = characterDialog(subject, trigger);
+    const content = document.createElement("div");
+    content.textContent = "Loading portrait…";
+    dialog.appendChild(content); dialog.showModal();
+    try {
+      cache.delete(questionId);
+      const images = await list(questionId);
+      content.replaceChildren(editor(questionId, "RELATIONSHIP_SUBJECT", subject.id, subject.name, images));
+      const note = document.createElement("p");
+      note.textContent = "Portrait changes save immediately. PNG, JPEG, WebP or GIF, up to 5 MB.";
+      content.appendChild(note);
+    } catch (error) { content.textContent = error.message; }
+  }
+
+  return { thumbnail, edit, editSubject,
     renderQuestion: (question, container) => render(question.id, "QUESTION", question.id, container, question.prompt, true),
-    renderSubject: (question, subject, container) => render(question.id, "RELATIONSHIP_SUBJECT", subject.id, container, subject.name)
+    renderSubject
   };
 })();

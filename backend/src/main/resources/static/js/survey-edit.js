@@ -267,6 +267,18 @@ function createRelationshipSubjectRow(
     removeButton
   );
 
+  if (window.QuestionImages) {
+    const portrait = document.createElement("button");
+    portrait.type = "button";
+    portrait.className = "icon-button";
+    portrait.disabled = subjectId == null;
+    portrait.title = subjectId == null ? "Save the question before adding a portrait" : "Edit portrait for " + name;
+    portrait.setAttribute("aria-label", portrait.title);
+    portrait.innerHTML = '<i class="fa-solid fa-image" aria-hidden="true"></i>';
+    portrait.addEventListener("click", () => QuestionImages.editSubject(editingQuestionId, { id: subjectId, name }, portrait));
+    actionsCell.appendChild(portrait);
+  }
+
   row.appendChild(nameCell);
   row.appendChild(descriptionCell);
   row.appendChild(actionsCell);

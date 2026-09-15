@@ -737,3 +737,4 @@ main {
 .character-description-dialog > .icon-button { display: block; margin-left: auto; }
 .character-description-dialog h2 { margin-top: 0; }
 .character-description-dialog p { white-space: pre-wrap; }
+.character-description-dialog > img { display: block; max-width: 100%; max-height: 45vh; object-fit: contain; margin: 0 auto 16px; }
