@@ -440,3 +440,44 @@ test('Question without an image has no thumbnail or placeholder', async () => {
     assert.equal(p.document.querySelector('#question-list > tr > td').textContent, question.prompt);
   } finally { p.dom.window.close(); }
 });
+test('Shared section headings retain character sorting and Add controls', async () => {
+  const p = page('survey-edit');
+  try {
+    p.evaluate('showQuestionEditor("relationship-question-template")');
+    p.evaluate('populateRelationshipSubjects([{id:3,name:"Arlo",description:"Zulu"},{id:4,name:"Zed",description:"Alpha"}])');
+    const plus = p.document.getElementById('show-relationship-subject-editor-button');
+    p.evaluate(readFileSync(path.join(staticDir, 'js/table-sections.js'), 'utf8'));
+    await tick();
+    const header = p.document.querySelector('.relationship-editor-table th');
+    assert.ok(header.textContent.includes('Characters'));
+    assert.equal(plus.closest('th'), header);
+    plus.click();
+    assert.equal(p.document.getElementById('relationship-subject-editor').hidden, false);
+    assert.deepEqual([...p.document.querySelectorAll('.relationship-subject')].map(row => row.dataset.name), ['Arlo', 'Zed']);
+    header.click();
+    assert.deepEqual([...p.document.querySelectorAll('.relationship-subject')].map(row => row.dataset.name), ['Zed', 'Arlo']);
+    assert.ok(header.classList.contains('sort-descending'));
+    assert.equal(p.document.querySelectorAll('#show-relationship-subject-editor-button').length, 1);
+  } finally { p.dom.window.close(); }
+});
+
+test('Expanded accordion uses its table heading and retains collapse/expand', async () => {
+  const p = page('survey-view');
+  try {
+    const details = p.document.querySelector('details');
+    const table = p.document.createElement('table');
+    table.className = 'survey-table';
+    table.innerHTML = '<thead><tr><th>Name</th><th>Required</th></tr></thead><tbody></tbody>';
+    p.document.getElementById('participants-view').appendChild(table);
+    p.evaluate(readFileSync(path.join(staticDir, 'js/table-sections.js'), 'utf8'));
+    details.open = true;
+    const toggle = table.querySelector('.table-section-toggle');
+    assert.equal(toggle.textContent, 'Expected Participants');
+    assert.ok(details.classList.contains('consolidated-table-section'));
+    toggle.click();
+    assert.equal(details.open, false);
+    details.querySelector('summary').click();
+    assert.equal(details.open, true);
+    assert.equal(table.querySelectorAll('th')[1].textContent, 'Required');
+  } finally { p.dom.window.close(); }
+});

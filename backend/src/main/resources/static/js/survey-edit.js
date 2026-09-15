@@ -1841,12 +1841,6 @@ async function loadParticipants() {
   heading.className =
     "section-heading";
 
-  const headingText =
-    document.createElement("h3");
-
-  headingText.textContent =
-    "Expected Participants";
-
   const addButton =
     document.createElement("button");
 
@@ -1863,11 +1857,9 @@ async function loadParticipants() {
   );
 
   addButton.innerHTML =
-    '<i class="fa-solid fa-plus"></i>';
+    '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
 
-  heading.appendChild(
-    headingText
-  );
+
 
   heading.appendChild(
     addButton
@@ -1877,6 +1869,7 @@ async function loadParticipants() {
     heading
   );
 
+  heading.dataset.tableActions = "true";
   setupParticipantPicker(container, addButton, participants);
 
   const table =

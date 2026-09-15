@@ -757,3 +757,9 @@ main {
 .relationship-character-cell > span { vertical-align: middle; }
 .relationship-character-cell .image-thumbnail { display: inline-block; width: 48px; height: 48px; margin-right: 10px; }
 .relationship-subject input[aria-label="Character description"] { box-sizing: border-box; width: 100%; min-width: 0; }
+
+.table-section-heading h2, .table-section-heading h3 { display: inline; margin: 0; font-size: 1.35rem; font-weight: 600; }
+.table-section-heading > .icon-button { margin-left: 8px; }
+.consolidated-table-section[open] > summary { display: none; }
+.table-section-toggle { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; font-size: 1.35rem; cursor: pointer; }
+.table-section-toggle::after { content: "⌄"; margin-left: 8px; }
