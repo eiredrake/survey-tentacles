@@ -472,7 +472,7 @@ test('Expanded accordion uses its table heading and retains collapse/expand', as
     p.evaluate(readFileSync(path.join(staticDir, 'js/table-sections.js'), 'utf8'));
     details.open = true;
     const toggle = table.querySelector('.table-section-toggle');
-    assert.equal(toggle.textContent, 'Expected Participants');
+    assert.equal(toggle.textContent, 'Participants');
     assert.ok(details.classList.contains('consolidated-table-section'));
     toggle.click();
     assert.equal(details.open, false);

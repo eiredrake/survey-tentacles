@@ -65,9 +65,9 @@ function setupParticipantPicker(container, addButton, participants) {
             method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
             body: JSON.stringify({ userIds, groupIds, required: false })
           });
-          if (!response.ok) throw new Error("Unable to add expected participants. Reopen the picker if a group or user was removed.");
+          if (!response.ok) throw new Error("Unable to add participants. Reopen the picker if a group or user was removed.");
           await loadParticipants();
-          showToast("Expected participants updated.", "success");
+          showToast("Participants updated.", "success");
         } catch (error) { showToast(error.message, "error"); }
         finally { fields.disabled = false; addButton.disabled = false; }
       });
