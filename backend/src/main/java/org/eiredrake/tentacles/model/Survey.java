@@ -30,6 +30,9 @@ public class Survey {
     @Column(name = "image_filename")
     private String imageFilename;    
 
+    @Column(name = "tagline", length = 255)
+    private String tagline;    
+
     public Long getId() {
         return id;
     }
@@ -84,5 +87,13 @@ public class Survey {
 
     public void setImageFilename(String imageFilename) {
         this.imageFilename = imageFilename;
+    }    
+
+    public String getTagline() {
+        return tagline;
+    }
+
+    public void setTagline(String tagline) {
+        this.tagline = tagline;
     }    
 }

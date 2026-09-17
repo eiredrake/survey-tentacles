@@ -55,6 +55,14 @@
             </button>
         </div>
 
+        <section class="survey-section">
+            <h2>Share Tagline</h2>
+            <label for="survey-tagline">Short description used when sharing this survey</label>
+            <input id="survey-tagline" type="text" maxlength="255">
+            <button id="save-survey-tagline" type="button">Save</button>
+            <span id="survey-tagline-status" role="status"></span>
+        </section>  
+
         <div id="survey-editor">
             Loading survey...
         </div>
@@ -391,6 +399,7 @@
     <script src="/js/logout.js"></script>
     <script src="/js/app-footer.js"></script>
     <script src="/js/table-sections.js"></script>
+    <script src="/js/getCsrfToken.js"></script>    
 </body>
 
 </html>

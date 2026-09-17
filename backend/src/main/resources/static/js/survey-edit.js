@@ -467,6 +467,11 @@ async function loadSurvey() {
 
   document.getElementById("survey-title").textContent =`Edit: ${survey.title}`;
 
+  const tagline = document.getElementById("survey-tagline");
+  if (tagline) {
+    tagline.value = survey.tagline ?? "";
+  }
+
   const preview = document.getElementById("survey-image-preview");
 
   const image = document.getElementById("survey-image");
@@ -579,6 +584,44 @@ function setupTitleEditor() {
       );
     }
   );
+}
+
+async function saveTagline() {
+  const input = document.getElementById("survey-tagline");
+  const status = document.getElementById("survey-tagline-status");
+
+  try {
+      const csrf = await getCsrfToken();
+      const response = await fetch(`/api/surveys/${surveyId}/tagline`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          [csrf.headerName]: csrf.token
+        },
+        body: JSON.stringify({ tagline: input.value })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to save survey tagline.");
+    }
+
+    const survey = await response.json();
+    input.value = survey.tagline ?? "";
+    status.textContent = "Saved";
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Save failed";
+  }
+}
+
+function setupTaglineEditor() {
+  const saveButton = document.getElementById("save-survey-tagline");
+
+  if (!saveButton) {
+    return;
+  }
+
+  saveButton.addEventListener("click", saveTagline);
 }
 
 function setupSchedulingQuestionSave() {
@@ -2084,6 +2127,7 @@ async function initialize() {
   await loadQuestionTypes();
 
   setupTitleEditor();
+  setupTaglineEditor();
   setupSurveyImageUpload();
   setupQuestionTypePicker();
 

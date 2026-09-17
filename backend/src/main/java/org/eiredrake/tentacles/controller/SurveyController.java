@@ -262,6 +262,7 @@ public class SurveyController {
         result.put("id", survey.getId());
         result.put("active", active);
         result.put("title", survey.getTitle());
+        result.put("tagline", survey.getTagline());
         result.put("creatorId", survey.getCreator().getId());
         result.put("creatorName", survey.getCreator().getDisplayName());
         result.put("questionCount", survey.getQuestions().size());
@@ -271,9 +272,7 @@ public class SurveyController {
         result.put("everPublished", survey.isEverPublished());
         result.put("imageFilename", survey.getImageFilename());
         result.put("completed", completed);
-        result.put(
-          "acceptingResponses",
-          survey.getStatus().isAcceptingResponses()
+        result.put("acceptingResponses", survey.getStatus().isAcceptingResponses()
         );
 
         return result;
@@ -1092,6 +1091,35 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
     surveyService.save(survey);
 
     return Map.of("id", survey.getId(), "title", survey.getTitle());
+  }
+
+  @PostMapping("/{surveyId}/tagline")
+  public Map<String, Object> updateTagline(
+      @PathVariable Long surveyId,
+      @RequestBody Map<String, String> request) {
+      Survey survey = surveyService.findById(surveyId);
+
+      String tagline = request.get("tagline");
+
+      if (tagline != null) {
+          tagline = tagline.trim();
+
+          if (tagline.length() > 255) {
+              throw new IllegalArgumentException("Survey tagline cannot exceed 255 characters.");
+          }
+
+          if (tagline.isBlank()) {
+              tagline = null;
+          }
+      }
+
+      survey.setTagline(tagline);
+      surveyService.save(survey);
+
+      return Map.of(
+          "id", survey.getId(),
+          "tagline", survey.getTagline() == null ? "" : survey.getTagline()
+      );
   }
 
   @PostMapping("/{surveyId}/image")

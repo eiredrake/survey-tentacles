@@ -31,30 +31,20 @@ public class ShareController {
     public ResponseEntity<String> shareSurvey(
         @PathVariable Long surveyId
     ) {
-        Survey survey =
-            surveyService.findById(surveyId);
+        Survey survey = surveyService.findById(surveyId);
 
-        String title =
-            HtmlUtils.htmlEscape(
-                survey.getTitle()
-            );
+        String title = HtmlUtils.htmlEscape(survey.getTitle());
 
-        String description =
-            "Respond to this survey in Tentacles.";
+        String description = 
+            survey.getTagline() == null || survey.getTagline().isBlank() 
+            ? "Respond to this survey in Tentacles." 
+            : HtmlUtils.htmlEscape( survey.getTagline() );
 
-        String shareUrl =
-            publicBaseUrl +
-            "/s/" +
-            surveyId;
+        String shareUrl = publicBaseUrl + "/s/" + surveyId;
 
         String imageMeta = "";
 
-        System.out.println(
-            "SHARE survey " +
-            surveyId +
-            " image = " +
-            survey.getImageFilename()
-        );
+        System.out.println( "SHARE survey " + surveyId + " image = " + survey.getImageFilename());
 
         if (
             survey.getImageFilename() != null &&
