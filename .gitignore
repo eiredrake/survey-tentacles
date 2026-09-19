@@ -109,3 +109,4 @@ oidc_information.txt
 docker-compose.dev.yml
 
 /dev-uploads/
+*.vsix

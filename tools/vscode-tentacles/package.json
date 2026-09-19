@@ -1,0 +1,36 @@
+{
+  "name": "tentacles-control-panel",
+  "displayName": "Tentacles Control Panel",
+  "description": "Workspace controls for Survey Tentacles.",
+  "version": "1.0.0",
+  "publisher": "eiredrake",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:tentacles.controls"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "tentacles",
+          "title": "Tentacles",
+          "icon": "tentacles.svg"
+        }
+      ]
+    },
+    "views": {
+      "tentacles": [
+        {
+          "id": "tentacles.controls",
+          "name": "Controls"
+        }
+      ]
+    }
+  }
+}
