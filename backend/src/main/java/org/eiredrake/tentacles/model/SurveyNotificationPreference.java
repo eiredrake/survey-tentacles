@@ -23,7 +23,8 @@ public class SurveyNotificationPreference {
   public SurveyNotificationPreference(Survey survey, User user) {
     this.survey = survey;
     this.user = user;
-    this.enabledAt = Instant.now();
+    // Avoid rounding opt-in into the future when persisted at microsecond precision.
+    this.enabledAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
   }
   public User getUser() { return user; }
 }

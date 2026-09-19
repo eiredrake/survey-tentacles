@@ -24,9 +24,7 @@ function editGroup(group = null) {
 }
 
 async function groupRequest(url, method, body) {
-  const tokenResponse = await fetch("/csrf");
-  if (!tokenResponse.ok) throw new Error("Unable to load CSRF token.");
-  const token = await tokenResponse.json();
+  const token = await getCsrfToken();
   const response = await fetch(url, { method, headers: { "Content-Type": "application/json", [token.headerName]: token.token },
     ...(body ? { body: JSON.stringify(body) } : {}) });
   if (!response.ok) throw new Error(response.status === 409 ? "A group with this name already exists. Choose another name."

@@ -192,9 +192,7 @@ window.QuestionImages = (() => {
   }
 
   async function saveImage(questionId, type, ownerId, file) {
-    const tokenResponse = await fetch("/csrf");
-    if (!tokenResponse.ok) throw new Error("Unable to authorize image change.");
-    const csrf = await tokenResponse.json();
+    const csrf = await getCsrfToken();
     const options = { method: file ? "POST" : "DELETE", headers: { [csrf.headerName]: csrf.token } };
     if (file) { options.body = new FormData(); options.body.append("file", file); }
     const response = await fetch(base + "/images/" + type + "/" + ownerId, options);

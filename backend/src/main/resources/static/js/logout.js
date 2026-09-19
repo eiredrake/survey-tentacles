@@ -1,12 +1,11 @@
 async function logout() {
-  const csrfResponse = await fetch("/csrf");
-
-  if (!csrfResponse.ok) {
-      showToast("Unable to log out.", "error");
-      return;
+  let csrf;
+  try { csrf = await getCsrfToken(); }
+  catch (error) { showToast(error.message, "error"); return; }
+  // Logout must submit a form so the browser follows the identity-provider redirect.
+  if (typeof csrf.parameterName !== "string" || !csrf.parameterName) {
+    showToast("Unable to log out: missing CSRF form parameter.", "error"); return;
   }
-
-  const csrf = await csrfResponse.json();
 
   const form = document.createElement("form");
   form.method = "POST";

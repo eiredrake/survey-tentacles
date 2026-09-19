@@ -36,7 +36,7 @@ function page(name) {
     }
     return { ok: !(failSave && (options.method === "POST" || options.method === "DELETE")), json: async () => value };
   };
-  for (const script of ["question-images", name]) {
+  for (const script of ["getCsrfToken", "question-images", name]) {
     evaluate(readFileSync(path.join(staticDir, "js", script + ".js"), "utf8").replace(/^initialize\(\);\s*$/m, ""));
   }
   return { dom, window, document, calls, evaluate, fail: () => { failSave = true; } };

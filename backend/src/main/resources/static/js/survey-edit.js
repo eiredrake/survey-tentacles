@@ -109,9 +109,7 @@ function setupSelectEditor(type, displayName) {
       : `/api/surveys/${surveyId}/questions/${type}`;
     saveButton.disabled = true;
     try {
-      const csrfResponse = await fetch("/csrf");
-      if (!csrfResponse.ok) throw new Error("Unable to load CSRF token.");
-      const csrf = await csrfResponse.json();
+      const csrf = await getCsrfToken();
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
@@ -529,11 +527,7 @@ function setupTitleEditor() {
             return;
           }
 
-          const csrfResponse =
-            await fetch("/csrf");
-
-          const csrf =
-            await csrfResponse.json();
+          const csrf = await getCsrfToken();
 
           const response =
             await fetch(
@@ -681,11 +675,7 @@ function setupSchedulingQuestionSave() {
           })
         );
 
-      const csrfResponse =
-        await fetch("/csrf");
-
-      const csrf =
-        await csrfResponse.json();
+      const csrf = await getCsrfToken();
 
       const url =
         editingQuestionId === null
@@ -780,11 +770,7 @@ function setupShortTextQuestionSave() {
         return;
       }
 
-      const csrfResponse =
-        await fetch("/csrf");
-
-      const csrf =
-        await csrfResponse.json();
+      const csrf = await getCsrfToken();
 
       const url =
         editingQuestionId === null
@@ -917,11 +903,7 @@ function setupRelationshipQuestionSave() {
       saveButton.disabled = true;
       try {
         const wasEditing = editingQuestionId !== null;
-        const csrfResponse =
-          await fetch("/csrf");
-
-        const csrf =
-          await csrfResponse.json();
+        const csrf = await getCsrfToken();
 
         const url =
           editingQuestionId === null
@@ -1429,11 +1411,7 @@ async function loadQuestions() {
           return;
         }
 
-        const csrfResponse =
-          await fetch("/csrf");
-
-        const csrf =
-          await csrfResponse.json();
+        const csrf = await getCsrfToken();
 
         const response =
           await fetch(
@@ -1984,11 +1962,7 @@ async function loadParticipants() {
     requiredToggle.addEventListener(
       "change",
       async () => {
-        const csrfResponse =
-          await fetch("/csrf");
-
-        const csrf =
-          await csrfResponse.json();
+        const csrf = await getCsrfToken();
 
         const response =
           await fetch(
@@ -2072,11 +2046,7 @@ async function loadParticipants() {
           return;
         }
 
-        const csrfResponse =
-          await fetch("/csrf");
-
-        const csrf =
-          await csrfResponse.json();
+        const csrf = await getCsrfToken();
 
         const response =
           await fetch(
@@ -2185,11 +2155,7 @@ function setupSurveyImageUpload() {
         return;
       }
 
-      const csrfResponse =
-        await fetch("/csrf");
-
-      const csrf =
-        await csrfResponse.json();
+      const csrf = await getCsrfToken();
 
       const formData =
         new FormData();
@@ -2236,11 +2202,7 @@ function setupSurveyImageUpload() {
   removeButton.addEventListener(
     "click",
     async () => {
-      const csrfResponse =
-        await fetch("/csrf");
-
-      const csrf =
-        await csrfResponse.json();
+      const csrf = await getCsrfToken();
 
       const response =
         await fetch(
@@ -2292,9 +2254,7 @@ function setupNominationQuestionSave() {
     const url = "/api/surveys/" + surveyId + "/questions/" + (wasEditing ? editingQuestionId + "/" : "") + "nomination";
     saveButton.disabled = true;
     try {
-      const csrfResponse = await fetch("/csrf");
-      if (!csrfResponse.ok) throw new Error("Unable to load CSRF token.");
-      const csrf = await csrfResponse.json();
+      const csrf = await getCsrfToken();
       const response = await fetch(url, {
         method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
         body: JSON.stringify({ prompt, maxNominations, displayOrder: 1, required: document.querySelector(".question-required").checked })

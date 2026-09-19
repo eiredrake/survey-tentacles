@@ -33,9 +33,7 @@
             toggle.disabled = true;
             status.textContent = "Saving…";
             try {
-                const csrfResponse = await fetch("/csrf");
-                if (!csrfResponse.ok) throw new Error("Unable to load CSRF token.");
-                const csrf = await csrfResponse.json();
+                const csrf = await getCsrfToken();
                 const response = await fetch(url, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },

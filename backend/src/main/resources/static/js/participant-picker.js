@@ -58,9 +58,7 @@ function setupParticipantPicker(container, addButton, participants) {
         if (!userIds.length && !groupIds.length) { showToast("Select at least one user or group.", "error"); return; }
         fields.disabled = true; addButton.disabled = true;
         try {
-          const csrfResponse = await fetch("/csrf");
-          if (!csrfResponse.ok) throw new Error("Unable to load CSRF token.");
-          const csrf = await csrfResponse.json();
+          const csrf = await getCsrfToken();
           const response = await fetch("/api/surveys/" + surveyId + "/assignments/batch", {
             method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
             body: JSON.stringify({ userIds, groupIds, required: false })

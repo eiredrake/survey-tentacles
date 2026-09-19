@@ -179,11 +179,7 @@ async function loadSurveys() {
         copyButton.addEventListener(
             "click",
             async () => {
-                const csrfResponse =
-                    await fetch("/csrf");
-
-                const csrf =
-                    await csrfResponse.json();
+                const csrf = await getCsrfToken();
 
                 const copyResponse = await fetch(
                     `/api/surveys/${survey.id}/copy`,
@@ -268,11 +264,7 @@ async function loadSurveys() {
                         }
                     }
             
-                    const csrfResponse =
-                        await fetch("/csrf");
-            
-                    const csrf =
-                        await csrfResponse.json();
+                    const csrf = await getCsrfToken();
             
                     const deleteResponse = await fetch(
                         `/api/surveys/${survey.id}`,
@@ -360,11 +352,7 @@ async function loadSurveys() {
                   const previousStatus =
                       survey.status;
 
-                  const csrfResponse =
-                      await fetch("/csrf");
-
-                  const csrf =
-                      await csrfResponse.json();
+                  const csrf = await getCsrfToken();
 
                   const statusResponse = await fetch(
                       `/api/surveys/${survey.id}/status`,
@@ -443,8 +431,7 @@ function setupCreateSurveyButton() {
     }  
 
   button.addEventListener("click", async () => {
-      const csrfResponse = await fetch("/csrf");
-      const csrf = await csrfResponse.json();
+      const csrf = await getCsrfToken();
 
       const response = await fetch("/api/surveys", {
           method: "POST",

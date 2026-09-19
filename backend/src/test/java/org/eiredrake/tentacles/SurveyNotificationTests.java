@@ -239,6 +239,21 @@ class SurveyNotificationTests {
       .andExpect(status().isForbidden());
   }
 
+  @Test void subscriptionTimestampDoesNotRoundPastAnImmediateSubmission() {
+    Instant now = Instant.parse("2026-09-19T12:00:00.123456789Z");
+    transaction.executeWithoutResult(status -> {
+      SurveyNotificationPreference preference;
+      try (var clock = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
+        clock.when(Instant::now).thenReturn(now);
+        preference = new SurveyNotificationPreference(em.find(Survey.class, survey.getId()), em.find(User.class, otherAdmin.getId()));
+      }
+      em.persist(preference);
+    });
+    Instant stored = transaction.execute(status -> em.createQuery(
+      "select p.enabledAt from SurveyNotificationPreference p where p.survey.id = :survey and p.user.id = :user", Instant.class)
+      .setParameter("survey", survey.getId()).setParameter("user", otherAdmin.getId()).getSingleResult());
+    assertFalse(stored.isAfter(now), "Persisting opt-in must not move it after a subsequent submission");
+  }
   @Test void globalStreamIncludesOtherSubscribedSurveysAndFiltersReplay() throws Exception {
     MvcResult stream = subscribe(admin.getId(), null);
     var cursor = Pattern.compile("(?m)^id:([^\r\n]+)").matcher(stream.getResponse().getContentAsString());

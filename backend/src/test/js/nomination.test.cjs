@@ -25,6 +25,7 @@ function page(name, replies = {}) {
       : url.endsWith("/questions") ? [question] : url.endsWith("/questions/2") ? detail : []);
     return { ok: value !== false, json: async () => value };
   };
+  window.eval(readFileSync(path.join(staticDir, "js/getCsrfToken.js"), "utf8"));
   window.eval(readFileSync(path.join(staticDir, "js", name + ".js"), "utf8").replace(/^initialize\(\);\s*$/m, ""));
   return { dom, window, document: window.document, calls, toasts };
 }

@@ -15,6 +15,7 @@ function browser(html = "survey-edit") {
   const evaluate = code => runInContext(code, dom.getInternalVMContext());
   const script = name => evaluate(readFileSync(path.join(staticDir, "js", name + ".js"), "utf8")
     .replace(/^initialize\(\);\s*$/m, ""));
+  script("getCsrfToken");
   window.console.error = () => {};
   window.HTMLElement.prototype.scrollIntoView = () => {};
   return { dom, window, evaluate, script };
