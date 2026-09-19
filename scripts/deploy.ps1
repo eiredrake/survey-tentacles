@@ -74,7 +74,25 @@ try {
     if ($config.services.tentacles.environment.TENTACLES_UPLOAD_DIR -ne '/app/uploads') { throw 'Production upload directory must match the /app/uploads volume.' }
     if ($Preview) { Write-Host 'Preview passed: production configuration, networks, environment, and storage match. No image pulled or containers changed.'; return }
     $previous = $app.Config.Image
-    $null = Docker @compose pull tentacles
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $pullOutput = @(& $dockerExecutable @compose pull tentacles 2>&1)
+        $pullExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($pullExitCode -ne 0) {
+        $pullText = $pullOutput -join [Environment]::NewLine
+        if ($pullText -match 'manifest unknown') {
+            Write-Host '|----------------------------------------------------------------------------------------------------------------------------|'
+            Write-Host '|Image is not available yet. If you just released the version, wait for the GitHub release build to finish before deploying. |'
+            Write-Host '|----------------------------------------------------------------------------------------------------------------------------|'
+            throw "Image $image is not available yet. If you just released $tag, wait for the GitHub release build to finish before deploying."
+        }
+        throw "docker compose pull failed; deployment stopped.`n$pullText"
+    }
     # Pull failure leaves the running app alone. No build, database recreation, or volume removal.
     $null = Docker @compose up -d --no-deps --no-build --pull never tentacles
     Write-Host 'Waiting for the application health check (up to about 150 seconds)...'
