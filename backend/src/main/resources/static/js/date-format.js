@@ -26,3 +26,7 @@ if (dateTime) {
 
 return formatDate(date);
 }
+function formatSchedulingAvailability(date, dateTime, endDateTime) {
+  const start = formatSchedulingDate(date, dateTime);
+  return endDateTime ? `${start} – ${formatSchedulingDate(null, endDateTime)}` : start;
+}

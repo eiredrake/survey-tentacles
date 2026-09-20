@@ -95,45 +95,7 @@ async function loadParticipant() {
 
 async function renderSchedulingAnswers(question, container) {
   const response = await fetch(
-    `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling/${userId}`
-  );
-
-  if (!response.ok) {
-    showToast("Unable to load scheduling answers.", "error");
-    return;
-  }
-
-  const answers = await response.json();
-
-  container.replaceChildren();
-
-  if (answers.length === 0) {
-    container.textContent = "—";
-    return;
-  }
-
-  const list = document.createElement("ul");
-
-  for (const answer of answers) {
-    const item = document.createElement("li");
-
-    if (answer.dateTime) {
-      item.textContent = formatDateTime(answer.dateTime);
-    } else if (answer.date) {
-      item.textContent = formatDate(answer.date);
-    } else {
-      item.textContent = "—";
-    }
-
-    list.appendChild(item);
-  }
-
-  container.appendChild(list);
-}
-
-async function renderSchedulingAnswers(question, container) {
-  const response = await fetch(
-    `/api/surveys/${surveyId}/questions/${question.id}/answers/scheduling/${userId}`
+    `/api/surveys/${surveyId}/questions/${question.id}/answers/${question.type === "MEETUP" ? "meetup" : "scheduling"}/${userId}`
   );
 
   if (!response.ok) {
@@ -156,10 +118,7 @@ async function renderSchedulingAnswers(question, container) {
     const item = document.createElement("li");
 
     item.textContent =
-      formatSchedulingDate(
-        answer.date,
-        answer.dateTime
-      );
+      formatSchedulingAvailability(answer.date, answer.dateTime, answer.endDateTime);
 
     list.appendChild(item);
   }
@@ -269,6 +228,9 @@ async function loadQuestions() {
           );
         }
       
+        if (question.type === "MEETUP") {
+          await renderSchedulingAnswers(question, detailRow.querySelector(".meetup-results"));
+        }
         if (question.type === "RANKED_CHOICE") {
           await RankedChoice.renderResults(surveyId, question, detailRow.querySelector(".ranked-choice-view-results"), userId);
         }

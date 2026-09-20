@@ -86,10 +86,6 @@ async function refreshSchedulingStatus(question, section) {
 
     statusContainer.innerHTML = "";
 
-    const resultsHeading = document.createElement("h3");
-    resultsHeading.textContent = "Results";
-    statusContainer.appendChild(resultsHeading);
-
     const resultsResponse = await fetch(
         `/api/surveys/${surveyId}/questions/${question.id}/results`
     );
@@ -101,58 +97,7 @@ async function refreshSchedulingStatus(question, section) {
 
     const results = await resultsResponse.json();
 
-    const maxVotes = Math.max(
-        0,
-        ...results.map(result => result.votes)
-    );
-
-    const resultsList = document.createElement("div");
-    resultsList.className = "scheduling-results";
-
-    for (const result of results) {
-        const item = document.createElement("div");
-        item.className = "scheduling-result";
-
-        if (maxVotes > 0 && result.votes === maxVotes) {
-            item.classList.add("scheduling-result-leading");
-        }
-
-        const header = document.createElement("div");
-        header.className = "scheduling-result-header";
-
-        const date = document.createElement("span");
-        date.textContent = formatSchedulingDate(
-            result.date,
-            result.dateTime
-        );
-
-        const votes = document.createElement("span");
-        votes.textContent = `${result.votes} vote${result.votes === 1 ? "" : "s"}`;
-
-        header.appendChild(date);
-        header.appendChild(votes);
-
-        const barTrack = document.createElement("div");
-        barTrack.className = "scheduling-result-track";
-
-        const bar = document.createElement("div");
-        bar.className = "scheduling-result-bar";
-
-        const percentage = maxVotes > 0
-            ? (result.votes / maxVotes) * 100
-            : 0;
-
-        bar.style.width = `${percentage}%`;
-
-        barTrack.appendChild(bar);
-
-        item.appendChild(header);
-        item.appendChild(barTrack);
-
-        resultsList.appendChild(item);
-    }
-
-    statusContainer.appendChild(resultsList);
+    renderSchedulingResultList(statusContainer, results);
 }
 
 async function refreshShortTextStatus(question, section) {
@@ -1129,6 +1074,8 @@ async function loadQuestions() {
 
         if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
             await loadSelectQuestion(question, section);
+        } else if (question.type === "MEETUP") {
+            await loadMeetupQuestion(question, section);
         } else if (question.type === "RANKED_CHOICE") {
             await loadRankedChoiceQuestion(question, section);
         } else if (question.type === "NOMINATION") {
@@ -1338,6 +1285,36 @@ async function loadRankedChoiceQuestion(question, section) {
                 method: "POST",
                 headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
                 body: JSON.stringify({ optionIds: ranking.getRanking() })
+            });
+            return response.ok;
+        }
+    });
+}
+
+async function loadMeetupQuestion(question, section) {
+    const base = `/api/surveys/${surveyId}/questions/${question.id}`;
+    const response = await fetch(`${base}/answers/meetup/${currentUser.id}`);
+    if (!response.ok) throw new Error("Unable to load meetup availability.");
+    const answers = await response.json();
+    const picker = Meetup.createPicker(section, answers, {
+        disabled: !surveyAcceptingResponses, onChange: markSurveyDirty
+    });
+    if (!surveyAcceptingResponses) await Meetup.renderResults(surveyId, question, section.querySelector(".meetup-results"));
+    questionHandlers.push({
+        section,
+        validate() {
+            if (!picker.finish()) return false;
+            if (question.required && !picker.values().length) {
+                showRequiredError(section, "This question is required. Add at least one available date and time.");
+                return false;
+            }
+            return true;
+        },
+        async save(csrf) {
+            const response = await fetch(`${base}/answers/meetup`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+                body: JSON.stringify({ dateTimes: picker.values() })
             });
             return response.ok;
         }

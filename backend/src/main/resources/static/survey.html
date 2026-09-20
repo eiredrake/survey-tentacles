@@ -204,11 +204,34 @@
         </section>
     </template>
 
+    <template id="meetup-participant-template">
+        <section class="survey-question">
+            <h3 class="question-prompt"></h3>
+            <p>Add specific times, availability windows, or both. A window’s end time is when you are no longer available. Results will be shown after the survey closes.</p>
+            <p class="meetup-time-zone"></p>
+            <label>Availability:
+                <select class="meetup-entry-type">
+                    <option value="time">Specific time</option>
+                    <option value="window">Time window</option>
+                </select>
+            </label>
+            <label>Start: <input type="datetime-local" class="meetup-date-time" step="60"></label>
+            <label class="meetup-end-label" hidden>End: <input type="datetime-local" class="meetup-end-time" step="60"></label>
+            <button type="button" class="icon-button meetup-add" title="Add availability" aria-label="Add availability">
+                <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            </button>
+            <ul class="meetup-selections"></ul>
+            <div class="meetup-results"></div>
+        </section>
+    </template>
+
     <script src="/js/ranked-choice.js"></script>
     <script src="/js/getCsrfToken.js"></script>
     <script src="/js/question-images.js"></script>
     <script src="/js/toast.js"></script>
     <script src="/js/date-format.js"></script>
+    <script src="/js/scheduling-results.js"></script>
+    <script src="/js/meetup.js"></script>
     <script src="/js/survey.js"></script>
     <script src="/js/survey-events.js"></script>
     <script src="/js/administration-nav.js"></script>

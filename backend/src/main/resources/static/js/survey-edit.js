@@ -56,7 +56,8 @@ function showQuestionEditor(templateId) {
   setupQuestionEditorButtons();
   setupSchedulingEditor();
   setupSchedulingQuestionSave();
-  setupShortTextQuestionSave();
+  setupPromptQuestionSave("short-text", "Short text");
+  setupPromptQuestionSave("meetup", "Meetup Scheduling");
   setupNominationQuestionSave();
   setupSelectEditor("single-select", "Single Select");
   setupSelectEditor("multi-select", "Multi Select");
@@ -743,98 +744,38 @@ function setupSchedulingQuestionSave() {
   );
 }
 
-function setupShortTextQuestionSave() {
-  const saveButton =
-    document.getElementById(
-      "save-question-button"
-    );
-
-  const promptInput =
-    document.getElementById(
-      "short-text-editor-prompt"
-    );
-
-  if (!saveButton || !promptInput) {
-    return;
-  }
-
-  saveButton.addEventListener(
-    "click",
-    async () => {
-      const prompt =
-        promptInput.value.trim();
-
-      const required =
-        document.querySelector(
-          ".question-required"
-        )?.checked ?? false;
-
-      if (!prompt) {
-        showToast(
-          "Enter a question.",
-          "error"
-        );
-        return;
-      }
-
+function setupPromptQuestionSave(type, displayName) {
+  const saveButton = document.getElementById("save-question-button");
+  const promptInput = document.getElementById(`${type}-editor-prompt`);
+  if (!saveButton || !promptInput) return;
+  saveButton.addEventListener("click", async () => {
+    const prompt = promptInput.value.trim();
+    if (!prompt) { showToast("Enter a question.", "error"); return; }
+    if (saveButton.disabled) return;
+    const wasEditing = editingQuestionId !== null;
+    const url = wasEditing ? `/api/surveys/${surveyId}/questions/${editingQuestionId}/${type}`
+      : `/api/surveys/${surveyId}/questions/${type}`;
+    saveButton.disabled = true;
+    try {
       const csrf = await getCsrfToken();
-
-      const url =
-        editingQuestionId === null
-          ? `/api/surveys/${surveyId}/questions/short-text`
-          : `/api/surveys/${surveyId}/questions/${editingQuestionId}/short-text`;
-
-      const response =
-        await fetch(
-          url,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              [csrf.headerName]:
-                csrf.token
-            },
-            body: JSON.stringify({
-              prompt: prompt,
-              displayOrder: 1,
-              required: required
-            })
-          }
-        );
-
-      if (!response.ok) {
-        showToast(
-          "Unable to create short text question.",
-          "error"
-        );
-        return;
-      }
-
-      const wasEditing =
-        editingQuestionId !== null;
-
+      const response = await fetch(url, {
+        method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+        body: JSON.stringify({ prompt, displayOrder: 1, required: document.querySelector(".question-required")?.checked ?? false })
+      });
+      if (!response.ok) throw new Error(`Unable to save ${displayName} question.`);
       editingQuestionId = null;
-      clearDirty("question");      
-
-      const container =
-        document.getElementById(
-          "question-form-container"
-        );
-
+      clearDirty("question");
+      const container = document.getElementById("question-form-container");
       container.replaceChildren();
       container.hidden = true;
-
       await loadQuestions();
-
-      showToast(
-        wasEditing
-          ? "Short text question updated."
-          : "Short text question created.",
-        "success"
-      );
+      showToast(`${displayName} question ${wasEditing ? "updated" : "created"}.`, "success");
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      saveButton.disabled = false;
     }
-  );
+  });
 }
 
 function setupRelationshipQuestionSave() {
@@ -1353,6 +1294,10 @@ async function loadQuestions() {
           return;
         }
 
+        if (question.type === "MEETUP") {
+          document.getElementById("meetup-editor-prompt").value = questionDetails.prompt;
+          return;
+        }
         if (question.type === "RANKED_CHOICE") {
           document.getElementById("ranked-choice-editor-prompt").value = questionDetails.prompt;
           document.getElementById("ranked-choice-editor-options").ranking.setOptions(questionDetails.options);

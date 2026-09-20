@@ -2,6 +2,12 @@ package org.eiredrake.tentacles.controller;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import org.eiredrake.tentacles.model.MeetupQuestion;
+import org.eiredrake.tentacles.model.MeetupAnswer;
+import org.eiredrake.tentacles.repository.MeetupAnswerRepository;
+import org.eiredrake.tentacles.service.MeetupAvailabilityService;
 import java.util.UUID;
 import org.eiredrake.tentacles.event.SurveyAdminEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -93,6 +99,8 @@ public class SurveyController {
   private final MultiSelectAnswerService multiSelectAnswerService;
   private final NominationAnswerService nominationAnswerService;
   private final RankedChoiceAnswerRepository rankedChoiceAnswers;
+  private final MeetupAnswerRepository meetupAnswers;
+  private final MeetupAvailabilityService meetupAvailability;
 
   public SurveyController(
     SurveyService surveyService,
@@ -108,6 +116,8 @@ public class SurveyController {
     MultiSelectAnswerService multiSelectAnswerService,
     NominationAnswerService nominationAnswerService,
     RankedChoiceAnswerRepository rankedChoiceAnswers,
+    MeetupAnswerRepository meetupAnswers,
+    MeetupAvailabilityService meetupAvailability,
     ApplicationEventPublisher eventPublisher,
     ImageAttachmentService imageAttachments
   ) {
@@ -126,6 +136,8 @@ public class SurveyController {
     this.multiSelectAnswerService = multiSelectAnswerService;
     this.nominationAnswerService = nominationAnswerService;
     this.rankedChoiceAnswers = rankedChoiceAnswers;
+    this.meetupAnswers = meetupAnswers;
+    this.meetupAvailability = meetupAvailability;
   }
 
   public record SubmissionNotice(UUID submissionId) {}
@@ -1258,6 +1270,11 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
           target.setMaxNominations(((NominationQuestion) sourceQuestion).getMaxNominations());
           yield target;
         }
+        case MEETUP -> {
+          MeetupQuestion target = new MeetupQuestion();
+          copyQuestionFields(sourceQuestion, target, copy);
+          yield target;
+        }
         case RANKED_CHOICE -> {
           RankedChoiceQuestion target = new RankedChoiceQuestion();
           copyQuestionFields(sourceQuestion, target, copy);
@@ -1585,6 +1602,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
               );
             case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
             case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+            case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
             case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
             case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
           }
@@ -1616,6 +1634,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
             );
           case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
           case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+          case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
           case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
           case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
         }
@@ -1851,6 +1870,102 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     User user = answer.getUser();
     return Map.of("answerId", answer.getId(), "userId", user.getId(), "username", user.getUsername(),
       "name", user.getDisplayName() == null ? user.getUsername() : user.getDisplayName(), "value", answer.getNomination());
+  }
+
+  private MeetupQuestion findMeetupQuestion(Long surveyId, Long questionId) {
+    Question question = questionService.findById(questionId);
+    if (!(question instanceof MeetupQuestion meetup) || !question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException("Meetup question does not belong to survey: " + surveyId);
+    }
+    return meetup;
+  }
+
+  @PostMapping({"/{surveyId}/questions/meetup", "/{surveyId}/questions/{questionId}/meetup"})
+  @Transactional
+  public Map<String, Object> saveMeetupQuestion(@PathVariable Long surveyId,
+    @PathVariable(required = false) Long questionId, @RequestBody Map<String, Object> request) {
+    String prompt = questionPrompt(request);
+    MeetupQuestion question = questionId == null ? new MeetupQuestion() : findMeetupQuestion(surveyId, questionId);
+    if (questionId == null) {
+      question.setSurvey(surveyService.findById(surveyId));
+      question.setType(QuestionType.MEETUP);
+      question.setDisplayOrder((Integer) request.getOrDefault("displayOrder", 1));
+    }
+    question.setPrompt(prompt);
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+    questionService.save(question);
+    return Map.of("id", question.getId());
+  }
+
+  private Instant meetupDateTime(Object value) {
+    if (value instanceof String text) {
+      try {
+        OffsetDateTime dateTime = OffsetDateTime.parse(text);
+        if (dateTime.getSecond() == 0 && dateTime.getNano() == 0) return dateTime.toInstant();
+      } catch (DateTimeParseException ignored) { }
+    }
+    throw new IllegalArgumentException("Choose valid dates and times to the nearest minute, including a time-zone offset.");
+  }
+
+  private record MeetupEntry(Instant dateTime, Instant endDateTime) {}
+
+  private MeetupEntry meetupEntry(Object value) {
+    // Retain the original point-only request format for already-open clients.
+    if (value instanceof String) return new MeetupEntry(meetupDateTime(value), null);
+    if (!(value instanceof Map<?, ?> entry)) throw new IllegalArgumentException("Submit a date/time or availability window.");
+    Instant start = meetupDateTime(entry.get("dateTime"));
+    Instant end = entry.get("endDateTime") == null ? null : meetupDateTime(entry.get("endDateTime"));
+    if (end != null && !end.isAfter(start)) throw new IllegalArgumentException("Availability must end after it starts.");
+    return new MeetupEntry(start, end);
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/answers/meetup")
+  @Transactional
+  public Map<String, Object> answerMeetupQuestion(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @AuthenticationPrincipal OidcUser oidcUser, @RequestBody Map<String, Object> request) {
+    MeetupQuestion question = findMeetupQuestion(surveyId, questionId);
+    Survey survey = question.getSurvey();
+    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    if (!(request.get("dateTimes") instanceof List<?> values)) {
+      throw new IllegalArgumentException("Submit a list of available dates and times.");
+    }
+    List<MeetupEntry> dates = values.stream().map(this::meetupEntry).distinct().toList();
+    if (question.isRequired() && dates.isEmpty()) throw new IllegalArgumentException("Add at least one available date and time.");
+    User user = userService.findOrCreate(oidcUser);
+    surveyParticipantService.add(survey, user);
+    meetupAnswers.deleteByQuestionIdAndUserId(questionId, user.getId());
+    meetupAnswers.flush();
+    for (MeetupEntry date : dates) {
+      MeetupAnswer answer = new MeetupAnswer();
+      answer.setQuestion(question);
+      answer.setUser(user);
+      answer.setDateTime(date.dateTime());
+      answer.setEndDateTime(date.endDateTime());
+      meetupAnswers.save(answer);
+    }
+    return Map.of("questionId", questionId, "userId", user.getId(), "responseCount", dates.size());
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/meetup/{userId}")
+  public List<Map<String, Object>> getMeetupAnswersForUser(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @PathVariable Long userId) {
+    findMeetupQuestion(surveyId, questionId);
+    return meetupAnswers.findByQuestionIdAndUserIdOrderByDateTimeAsc(questionId, userId).stream()
+      .map(answer -> {
+        Map<String, Object> result = new HashMap<>();
+        result.put("answerId", answer.getId());
+        result.put("dateTime", answer.getDateTime());
+        result.put("endDateTime", answer.getEndDateTime());
+        return result;
+      }).toList();
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/results/meetup")
+  public Map<String, Object> getMeetupResults(@PathVariable Long surveyId, @PathVariable Long questionId) {
+    MeetupQuestion question = findMeetupQuestion(surveyId, questionId);
+    SurveyStatus status = question.getSurvey().getStatus();
+    boolean available = status == SurveyStatus.CLOSED || status == SurveyStatus.PUBLISHED;
+    return Map.of("available", available, "results", available ? meetupAvailability.results(questionId) : List.of());
   }
 
   private long choiceOptionId(Object value, String error) {

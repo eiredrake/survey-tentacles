@@ -420,55 +420,7 @@ async function renderSchedulingResults(question, section) {
 
   const results = await resultsResponse.json();
 
-  const resultsHeading = document.createElement("h3");
-  resultsHeading.textContent = "Results";
-
-  section.appendChild(resultsHeading);
-
-  const maxVotes = Math.max(0, ...results.map((result) => result.votes));
-
-  const resultsList = document.createElement("div");
-  resultsList.className = "scheduling-results";
-
-  for (const result of results) {
-    const item = document.createElement("div");
-    item.className = "scheduling-result";
-
-    if (maxVotes > 0 && result.votes === maxVotes) {
-      item.classList.add("scheduling-result-leading");
-    }
-
-    const header = document.createElement("div");
-    header.className = "scheduling-result-header";
-
-    const date = document.createElement("span");
-    date.textContent = formatSchedulingDate(result.date, result.dateTime);
-
-    const votes = document.createElement("span");
-    votes.textContent = `${result.votes} vote${result.votes === 1 ? "" : "s"}`;
-
-    header.appendChild(date);
-    header.appendChild(votes);
-
-    const barTrack = document.createElement("div");
-    barTrack.className = "scheduling-result-track";
-
-    const bar = document.createElement("div");
-    bar.className = "scheduling-result-bar";
-
-    const percentage = maxVotes > 0 ? (result.votes / maxVotes) * 100 : 0;
-
-    bar.style.width = `${percentage}%`;
-
-    barTrack.appendChild(bar);
-
-    item.appendChild(header);
-    item.appendChild(barTrack);
-
-    resultsList.appendChild(item);
-  }
-
-  section.appendChild(resultsList);
+  renderSchedulingResultList(section, results);
 }
 
 async function loadQuestions() {
@@ -562,6 +514,9 @@ async function loadQuestions() {
 
       const nominationContainer = section.querySelector(".nomination-view-answers");
       if (nominationContainer) await renderNominationAnswers(question, nominationContainer);
+
+      const meetupContainer = section.querySelector(".meetup-results");
+      if (meetupContainer) await Meetup.renderResults(surveyId, question, meetupContainer);
 
       const rankedContainer = section.querySelector(".ranked-choice-view-results");
       if (rankedContainer) await RankedChoice.renderResults(surveyId, question, rankedContainer);
