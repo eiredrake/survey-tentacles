@@ -17,6 +17,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
+import org.eiredrake.tentacles.model.PointAllocationQuestion;
+import org.eiredrake.tentacles.model.PointAllocationOption;
+import org.eiredrake.tentacles.model.PointAllocationAnswer;
+import org.eiredrake.tentacles.repository.PointAllocationAnswerRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
 import org.eiredrake.tentacles.model.RankedChoiceQuestion;
@@ -100,6 +104,7 @@ public class SurveyController {
   private final NominationAnswerService nominationAnswerService;
   private final RankedChoiceAnswerRepository rankedChoiceAnswers;
   private final MeetupAnswerRepository meetupAnswers;
+  private final PointAllocationAnswerRepository pointAllocationAnswers;
   private final MeetupAvailabilityService meetupAvailability;
 
   public SurveyController(
@@ -117,6 +122,7 @@ public class SurveyController {
     NominationAnswerService nominationAnswerService,
     RankedChoiceAnswerRepository rankedChoiceAnswers,
     MeetupAnswerRepository meetupAnswers,
+    PointAllocationAnswerRepository pointAllocationAnswers,
     MeetupAvailabilityService meetupAvailability,
     ApplicationEventPublisher eventPublisher,
     ImageAttachmentService imageAttachments
@@ -137,6 +143,7 @@ public class SurveyController {
     this.nominationAnswerService = nominationAnswerService;
     this.rankedChoiceAnswers = rankedChoiceAnswers;
     this.meetupAnswers = meetupAnswers;
+    this.pointAllocationAnswers = pointAllocationAnswers;
     this.meetupAvailability = meetupAvailability;
   }
 
@@ -615,6 +622,11 @@ public class SurveyController {
       result.put("maxNominations", nomination.getMaxNominations());
     }
 
+    if (question instanceof PointAllocationQuestion allocation) {
+      result.put("pointBudget", allocation.getPointBudget());
+      result.put("options", allocation.getOptions().stream()
+        .map(option -> Map.of("id", option.getId(), "label", option.getLabel())).toList());
+    }
     if (question instanceof RankedChoiceQuestion rankedChoiceQuestion) {
       result.put("options", rankedChoiceQuestion.getOptions().stream().map(this::rankedChoiceOptionResult).toList());
     }
@@ -1277,6 +1289,14 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
           copyQuestionFields(sourceQuestion, target, copy);
           yield target;
         }
+        case POINT_ALLOCATION -> {
+          PointAllocationQuestion target = new PointAllocationQuestion();
+          copyQuestionFields(sourceQuestion, target, copy);
+          target.setPointBudget(((PointAllocationQuestion) sourceQuestion).getPointBudget());
+          addPointAllocationOptions(target, ((PointAllocationQuestion) sourceQuestion).getOptions().stream()
+            .map(PointAllocationOption::getLabel).toList());
+          yield target;
+        }
         case RANKED_CHOICE -> {
           RankedChoiceQuestion target = new RankedChoiceQuestion();
           copyQuestionFields(sourceQuestion, target, copy);
@@ -1604,6 +1624,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
               );
             case SINGLE_SELECT, YES_NO_ABSTAIN -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
             case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+            case POINT_ALLOCATION -> pointAllocationAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
             case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
             case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
             case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
@@ -1636,6 +1657,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
             );
           case SINGLE_SELECT, YES_NO_ABSTAIN -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
           case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+          case POINT_ALLOCATION -> pointAllocationAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
           case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
           case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
           case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
@@ -1753,7 +1775,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     Object value = request.get("optionId");
     SingleSelectOption option = question.getDefaultOption();
     if (value != null) {
-      long optionId = choiceOptionId(value, "Choose one valid option.");
+      long optionId = wholeNumber(value, "Choose one valid option.");
       option = question.getOptions().stream().filter(item -> item.getId().equals(optionId))
         .findFirst().orElseThrow(() -> new IllegalArgumentException("Option does not belong to question: " + questionId));
     } else if (question.isRequired() && option == null) {
@@ -1996,7 +2018,112 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     return Map.of("available", available, "results", available ? meetupAvailability.results(questionId) : List.of());
   }
 
-  private long choiceOptionId(Object value, String error) {
+  private PointAllocationQuestion findPointAllocationQuestion(Long surveyId, Long questionId) {
+    Question question = questionService.findById(questionId);
+    if (!(question instanceof PointAllocationQuestion allocation) || !question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException("Point Allocation question does not belong to survey: " + surveyId);
+    }
+    return allocation;
+  }
+
+  private void addPointAllocationOptions(PointAllocationQuestion question, List<String> labels) {
+    for (String label : labels) {
+      PointAllocationOption option = new PointAllocationOption();
+      option.setQuestion(question);
+      option.setLabel(label);
+      question.getOptions().add(option);
+    }
+  }
+
+  @PostMapping({"/{surveyId}/questions/point-allocation", "/{surveyId}/questions/{questionId}/point-allocation"})
+  @Transactional
+  public Map<String, Object> savePointAllocationQuestion(@PathVariable Long surveyId,
+    @PathVariable(required = false) Long questionId, @RequestBody Map<String, Object> request) {
+    List<String> labels = selectLabels(request);
+    long budget = wholeNumber(request.get("pointBudget"), "Enter a positive whole-number point budget.");
+    if (budget < 1 || budget > Integer.MAX_VALUE) throw new IllegalArgumentException("Point budget must be between 1 and " + Integer.MAX_VALUE + ".");
+    PointAllocationQuestion question = questionId == null ? new PointAllocationQuestion() : findPointAllocationQuestion(surveyId, questionId);
+    boolean optionsChanged = !question.getOptions().stream().map(PointAllocationOption::getLabel).toList().equals(labels);
+    boolean responsesCleared = questionId != null && (optionsChanged || question.getPointBudget() != budget);
+    if (responsesCleared) {
+      pointAllocationAnswers.deleteByQuestionId(questionId);
+      pointAllocationAnswers.flush();
+    }
+    if (questionId == null) {
+      question.setSurvey(surveyService.findById(surveyId));
+      question.setType(QuestionType.POINT_ALLOCATION);
+      question.setDisplayOrder((Integer) request.getOrDefault("displayOrder", 1));
+    }
+    if (optionsChanged) {
+      question.getOptions().clear();
+      addPointAllocationOptions(question, labels);
+    }
+    question.setPointBudget((int) budget);
+    question.setPrompt(((String) request.get("prompt")).trim());
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+    questionService.save(question);
+    return Map.of("id", question.getId(), "responsesCleared", responsesCleared);
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/answers/point-allocation")
+  @Transactional
+  public Map<String, Object> answerPointAllocationQuestion(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @AuthenticationPrincipal OidcUser oidcUser, @RequestBody Map<String, Object> request) {
+    PointAllocationQuestion question = findPointAllocationQuestion(surveyId, questionId);
+    Survey survey = question.getSurvey();
+    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    if (!(request.get("allocations") instanceof List<?> entries)) throw new IllegalArgumentException("Submit a list of point allocations.");
+    Map<Long, Integer> allocations = new HashMap<>();
+    long total = 0;
+    for (Object entry : entries) {
+      if (!(entry instanceof Map<?, ?> allocation)) throw new IllegalArgumentException("Each allocation needs a category and points.");
+      long optionId = wholeNumber(allocation.get("optionId"), "Choose a valid category.");
+      if (allocations.containsKey(optionId) || question.getOptions().stream().noneMatch(option -> option.getId().equals(optionId))) {
+        throw new IllegalArgumentException("Each category must belong to this question and appear only once.");
+      }
+      long points = wholeNumber(allocation.get("points"), "Points must be non-negative whole numbers.");
+      if (points < 0 || points > question.getPointBudget()) throw new IllegalArgumentException("Points must be within the question budget.");
+      allocations.put(optionId, (int) points);
+      total += points;
+      if (total > question.getPointBudget()) throw new IllegalArgumentException("The total exceeds the point budget.");
+    }
+    if (question.isRequired() && total == 0) throw new IllegalArgumentException("Assign at least one point to answer this question.");
+    User user = userService.findOrCreate(oidcUser);
+    surveyParticipantService.add(survey, user);
+    pointAllocationAnswers.deleteByQuestionIdAndUserId(questionId, user.getId());
+    pointAllocationAnswers.flush();
+    if (total > 0) for (PointAllocationOption option : question.getOptions()) {
+      PointAllocationAnswer answer = new PointAllocationAnswer();
+      answer.setQuestion(question);
+      answer.setUser(user);
+      answer.setOption(option);
+      answer.setPoints(allocations.getOrDefault(option.getId(), 0));
+      pointAllocationAnswers.save(answer);
+    }
+    return Map.of("questionId", questionId, "userId", user.getId(), "pointsAssigned", total);
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/point-allocation")
+  public List<Map<String, Object>> getPointAllocationAnswers(@PathVariable Long surveyId, @PathVariable Long questionId) {
+    findPointAllocationQuestion(surveyId, questionId);
+    return pointAllocationAnswers.findByQuestionIdOrderByUserIdAscOptionIdAsc(questionId).stream()
+      .map(this::pointAllocationAnswerResult).toList();
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/point-allocation/{userId}")
+  public List<Map<String, Object>> getPointAllocationAnswersForUser(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @PathVariable Long userId) {
+    findPointAllocationQuestion(surveyId, questionId);
+    return pointAllocationAnswers.findByQuestionIdAndUserIdOrderByOptionIdAsc(questionId, userId).stream()
+      .map(this::pointAllocationAnswerResult).toList();
+  }
+
+  private Map<String, Object> pointAllocationAnswerResult(PointAllocationAnswer answer) {
+    return Map.of("answerId", answer.getId(), "userId", answer.getUser().getId(),
+      "optionId", answer.getOption().getId(), "points", answer.getPoints());
+  }
+
+  private long wholeNumber(Object value, String error) {
     if (!(value instanceof Number number) || number.doubleValue() != number.longValue()) {
       throw new IllegalArgumentException(error);
     }
@@ -2004,7 +2131,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
   }
 
   private RankedChoiceOption rankedChoiceOption(RankedChoiceQuestion question, Object value, HashSet<Long> ids) {
-    long id = choiceOptionId(value, "Each candidate must have a valid ID.");
+    long id = wholeNumber(value, "Each candidate must have a valid ID.");
     if (!ids.add(id)) throw new IllegalArgumentException("Each candidate ID must be unique.");
     return question.getOptions().stream().filter(option -> option.getId().equals(id)).findFirst()
       .orElseThrow(() -> new IllegalArgumentException("Candidate does not belong to this question."));
@@ -2215,7 +2342,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     }
     // Validate every selection before replacing any existing answers.
     List<MultiSelectOption> selected = values.stream().map(value -> {
-      long optionId = choiceOptionId(value, "Each selection must be a valid option ID.");
+      long optionId = wholeNumber(value, "Each selection must be a valid option ID.");
       return question.getOptions().stream().filter(option -> option.getId().equals(optionId))
         .findFirst().orElseThrow(() -> new IllegalArgumentException("Option does not belong to question: " + questionId));
     }).distinct().toList();

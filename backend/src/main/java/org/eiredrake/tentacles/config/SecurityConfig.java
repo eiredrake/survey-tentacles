@@ -120,6 +120,8 @@ public class SecurityConfig {
                     "/api/surveys/*/questions/*/ranked-choice",
                     "/api/surveys/*/questions/multi-select",
                     "/api/surveys/*/questions/*/multi-select",
+                    "/api/surveys/*/questions/point-allocation",
+                    "/api/surveys/*/questions/*/point-allocation",
                     "/api/surveys/*/questions/yes-no-abstain",
                     "/api/surveys/*/questions/*/yes-no-abstain",
                     "/api/surveys/*/questions/single-select",

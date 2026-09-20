@@ -473,6 +473,32 @@
             </div>
         </template>
 
+    <template id="point-allocation-question-template">
+        <section class="question-editor-panel">
+            <label for="point-allocation-editor-prompt">Question:</label>
+            <input id="point-allocation-editor-prompt" type="text" maxlength="255">
+            <label><input type="checkbox" class="question-required"> Required</label>
+            <label>Point budget: <input id="point-allocation-editor-budget" type="number" min="1" max="2147483647" step="1" value="10"></label>
+            <div class="section-heading">
+                <h3>Categories</h3>
+                <button id="add-point-allocation-option" class="icon-button" type="button" title="Add category" aria-label="Add category">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </button>
+            </div>
+            <p>Participants may leave points unassigned. Changing the categories or point budget clears previous responses.</p>
+            <div id="point-allocation-editor-options"></div>
+
+            <div class="question-editor-actions">
+                <button id="cancel-question-button" class="icon-button" type="button" title="Cancel" aria-label="Cancel">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+                <button id="save-question-button" class="icon-button" type="button" title="Save question" aria-label="Save question">
+                    <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                </button>
+            </div>
+        </section>
+    </template>
+
     <script src="/js/ranked-choice.js"></script>
     <script src="/js/getCsrfToken.js"></script>
     <script src="/js/question-images.js"></script>

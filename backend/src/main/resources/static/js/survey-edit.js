@@ -62,6 +62,11 @@ function showQuestionEditor(templateId) {
   setupNominationQuestionSave();
   setupSelectEditor("single-select", "Single Select");
   setupSelectEditor("multi-select", "Multi Select");
+  setupSelectEditor("point-allocation", "Point Allocation", null, () => {
+    const input = document.getElementById("point-allocation-editor-budget");
+    if (!input.value || !input.checkValidity()) throw new Error("Enter a positive whole-number point budget.");
+    return { pointBudget: Number(input.value) };
+  });
   const rankedContainer = document.getElementById("ranked-choice-editor-options");
   if (rankedContainer) {
     rankedContainer.ranking = RankedChoice.create(rankedContainer, { editing: true, onChange: () => markDirty("question") });
@@ -94,7 +99,7 @@ function addSelectOption(label = "", type = "single-select") {
   return input;
 }
 
-function setupSelectEditor(type, displayName, ranking = null) {
+function setupSelectEditor(type, displayName, ranking = null, readSettings = () => ({})) {
   const promptInput = document.getElementById(`${type}-editor-prompt`);
   if (!promptInput) return;
   const optionsContainer = document.getElementById(`${type}-editor-options`);
@@ -118,11 +123,12 @@ function setupSelectEditor(type, displayName, ranking = null) {
       : `/api/surveys/${surveyId}/questions/${type}`;
     saveButton.disabled = true;
     try {
+      const settings = readSettings();
       const csrf = await getCsrfToken();
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
-        body: JSON.stringify({ prompt, options, displayOrder: 1,
+        body: JSON.stringify({ ...settings, prompt, options, displayOrder: 1,
           required: document.querySelector(".question-required").checked })
       });
       if (!response.ok) throw new Error(`Unable to save ${displayName} question.`);
@@ -1295,6 +1301,12 @@ async function loadQuestions() {
           return;
         }
 
+        if (question.type === "POINT_ALLOCATION") {
+          document.getElementById("point-allocation-editor-prompt").value = questionDetails.prompt;
+          document.getElementById("point-allocation-editor-budget").value = questionDetails.pointBudget;
+          for (const option of questionDetails.options) addSelectOption(option.label, "point-allocation");
+          return;
+        }
         if (question.type === "YES_NO_ABSTAIN") {
           document.getElementById("yes-no-abstain-editor-prompt").value = questionDetails.prompt;
           return;

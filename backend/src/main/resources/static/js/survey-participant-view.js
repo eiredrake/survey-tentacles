@@ -228,6 +228,9 @@ async function loadQuestions() {
           );
         }
       
+        if (question.type === "POINT_ALLOCATION") {
+          await PointAllocation.renderResults(surveyId, question, detailRow.querySelector(".point-allocation-results"), userId);
+        }
         if (question.type === "MEETUP") {
           await renderSchedulingAnswers(question, detailRow.querySelector(".meetup-results"));
         }

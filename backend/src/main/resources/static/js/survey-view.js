@@ -515,6 +515,9 @@ async function loadQuestions() {
       const nominationContainer = section.querySelector(".nomination-view-answers");
       if (nominationContainer) await renderNominationAnswers(question, nominationContainer);
 
+      const allocationContainer = section.querySelector(".point-allocation-results");
+      if (allocationContainer) await PointAllocation.renderResults(surveyId, question, allocationContainer);
+
       const meetupContainer = section.querySelector(".meetup-results");
       if (meetupContainer) await Meetup.renderResults(surveyId, question, meetupContainer);
 

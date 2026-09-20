@@ -225,7 +225,17 @@
         </section>
     </template>
 
+    <template id="point-allocation-participant-template">
+        <section class="survey-question">
+            <h3 class="question-prompt"></h3>
+            <p>Assign whole-number points to the categories below. You may leave points unassigned.</p>
+            <p class="point-allocation-remaining" role="status" aria-live="polite"></p>
+            <div class="point-allocation-options"></div>
+        </section>
+    </template>
+
     <script src="/js/ranked-choice.js"></script>
+    <script src="/js/point-allocation.js"></script>
     <script src="/js/getCsrfToken.js"></script>
     <script src="/js/question-images.js"></script>
     <script src="/js/toast.js"></script>

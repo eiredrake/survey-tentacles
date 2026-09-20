@@ -775,3 +775,7 @@ main {
 .ranked-choice-actions { display: flex; flex-shrink: 0; gap: .35rem; }
 .ranked-choice-row.dragging { opacity: .45; background: #eee; }
 .ranked-choice-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+.point-allocation-option { display: flex; align-items: center; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid #ddd; }
+.point-allocation-option > span { flex: 1; overflow-wrap: anywhere; }
+.point-allocation-option > input { width: 6rem; }

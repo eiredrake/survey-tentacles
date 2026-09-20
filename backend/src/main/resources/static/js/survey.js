@@ -1080,6 +1080,8 @@ async function loadQuestions() {
 
         if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT" || question.type === "YES_NO_ABSTAIN") {
             await loadSelectQuestion(question, section);
+        } else if (question.type === "POINT_ALLOCATION") {
+            await loadPointAllocationQuestion(question, section);
         } else if (question.type === "MEETUP") {
             await loadMeetupQuestion(question, section);
         } else if (question.type === "RANKED_CHOICE") {
@@ -1321,6 +1323,34 @@ async function loadMeetupQuestion(question, section) {
                 method: "POST",
                 headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
                 body: JSON.stringify({ dateTimes: picker.values() })
+            });
+            return response.ok;
+        }
+    });
+}
+
+async function loadPointAllocationQuestion(question, section) {
+    const base = `/api/surveys/${surveyId}/questions/${question.id}`;
+    const [detailResponse, answersResponse] = await Promise.all([
+        fetch(base), fetch(`${base}/answers/point-allocation/${currentUser.id}`)
+    ]);
+    if (!detailResponse.ok || !answersResponse.ok) throw new Error("Unable to load point allocation question.");
+    const allocation = PointAllocation.createInputs(section, await detailResponse.json(), await answersResponse.json(), {
+        disabled: !surveyAcceptingResponses, onChange: markSurveyDirty
+    });
+    questionHandlers.push({
+        section,
+        validate() {
+            const error = allocation.error() || (question.required && allocation.total() === 0
+                ? "This question is required. Assign at least one point." : null);
+            if (error) { showRequiredError(section, error); return false; }
+            return true;
+        },
+        async save(csrf) {
+            const response = await fetch(`${base}/answers/point-allocation`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+                body: JSON.stringify({ allocations: allocation.total() ? allocation.values() : [] })
             });
             return response.ok;
         }
