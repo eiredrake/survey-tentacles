@@ -604,6 +604,8 @@ public class SurveyController {
     result.put("type", question.getType().name());
 
     if (question instanceof SingleSelectQuestion singleSelectQuestion) {
+      SingleSelectOption defaultOption = singleSelectQuestion.getDefaultOption();
+      if (defaultOption != null) result.put("defaultOptionId", defaultOption.getId());
       result.put("options", singleSelectQuestion.getOptions().stream()
         .map(option -> Map.<String, Object>of("id", option.getId(), "label", option.getLabel()))
         .toList());
@@ -1253,7 +1255,7 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
 
           yield targetRelationship;
         }
-        case SINGLE_SELECT -> {
+        case SINGLE_SELECT, YES_NO_ABSTAIN -> {
           SingleSelectQuestion target = new SingleSelectQuestion();
           copyQuestionFields(sourceQuestion, target, copy);
           for (SingleSelectOption sourceOption : ((SingleSelectQuestion) sourceQuestion).getOptions()) {
@@ -1600,7 +1602,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
                   (answer.getTrustScore() != null &&
                     answer.getTrustScore() != 0)
               );
-            case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
+            case SINGLE_SELECT, YES_NO_ABSTAIN -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
             case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
             case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
             case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
@@ -1632,7 +1634,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
                   answer.getTrustScore() != 0) ||
                 (answer.getComment() != null && !answer.getComment().isBlank())
             );
-          case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
+          case SINGLE_SELECT, YES_NO_ABSTAIN -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
           case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
           case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
           case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
@@ -1645,16 +1647,39 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
   @Transactional
   public Map<String, Object> createSingleSelectQuestion(@PathVariable Long surveyId,
     @RequestBody Map<String, Object> request) {
-    List<String> labels = selectLabels(request);
+    return createSingleSelectQuestion(surveyId, request, QuestionType.SINGLE_SELECT);
+  }
+
+  @PostMapping("/{surveyId}/questions/yes-no-abstain")
+  @Transactional
+  public Map<String, Object> createYesNoAbstainQuestion(@PathVariable Long surveyId,
+    @RequestBody Map<String, Object> request) {
+    return createSingleSelectQuestion(surveyId, request, QuestionType.YES_NO_ABSTAIN);
+  }
+
+  private Map<String, Object> createSingleSelectQuestion(Long surveyId, Map<String, Object> request, QuestionType type) {
+    String prompt = questionPrompt(request);
+    List<String> labels = type == QuestionType.YES_NO_ABSTAIN ? SingleSelectQuestion.YES_NO_ABSTAIN_OPTIONS : selectLabels(request);
     SingleSelectQuestion question = new SingleSelectQuestion();
     question.setSurvey(surveyService.findById(surveyId));
-    question.setType(QuestionType.SINGLE_SELECT);
-    question.setPrompt(((String) request.get("prompt")).trim());
+    question.setType(type);
+    question.setPrompt(prompt);
     question.setRequired(Boolean.TRUE.equals(request.get("required")));
-    question.setDisplayOrder((Integer) request.get("displayOrder"));
+    question.setDisplayOrder((Integer) request.getOrDefault("displayOrder", 1));
     addSingleSelectOptions(question, labels);
     question = (SingleSelectQuestion) questionService.save(question);
     return Map.of("id", question.getId(), "optionCount", question.getOptions().size());
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/yes-no-abstain")
+  @Transactional
+  public Map<String, Object> updateYesNoAbstainQuestion(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @RequestBody Map<String, Object> request) {
+    SingleSelectQuestion question = findSingleSelectQuestion(surveyId, questionId);
+    if (question.getType() != QuestionType.YES_NO_ABSTAIN) throw new IllegalArgumentException("Not a Yes/No/Abstain question.");
+    Map<String, Object> settings = new HashMap<>(request);
+    settings.put("options", SingleSelectQuestion.YES_NO_ABSTAIN_OPTIONS);
+    return updateSingleSelectQuestion(surveyId, questionId, settings);
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/single-select")
@@ -1663,6 +1688,9 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     @PathVariable Long questionId, @RequestBody Map<String, Object> request) {
     List<String> labels = selectLabels(request);
     SingleSelectQuestion question = findSingleSelectQuestion(surveyId, questionId);
+    if (question.getType() == QuestionType.YES_NO_ABSTAIN && !labels.equals(SingleSelectQuestion.YES_NO_ABSTAIN_OPTIONS)) {
+      throw new IllegalArgumentException("Yes/No/Abstain choices cannot be changed.");
+    }
     boolean optionsChanged = !question.getOptions().stream().map(SingleSelectOption::getLabel).toList().equals(labels);
     if (optionsChanged) {
       singleSelectAnswerService.deleteForQuestion(questionId);
@@ -1723,12 +1751,12 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
       throw new IllegalStateException("Survey is not open for responses.");
     }
     Object value = request.get("optionId");
-    SingleSelectOption option = null;
+    SingleSelectOption option = question.getDefaultOption();
     if (value != null) {
       long optionId = choiceOptionId(value, "Choose one valid option.");
       option = question.getOptions().stream().filter(item -> item.getId().equals(optionId))
         .findFirst().orElseThrow(() -> new IllegalArgumentException("Option does not belong to question: " + questionId));
-    } else if (question.isRequired()) {
+    } else if (question.isRequired() && option == null) {
       throw new IllegalArgumentException("This question requires one selection.");
     }
     User user = userService.findOrCreate(oidcUser);

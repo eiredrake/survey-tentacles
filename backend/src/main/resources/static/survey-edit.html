@@ -443,6 +443,36 @@
             </div>
         </template>
 
+    <template id="yes-no-abstain-question-template">
+            <div class="question-editor-panel">
+                <div class="question-editor-row">
+                    <label for="yes-no-abstain-editor-prompt">
+                        Question:
+                    </label>
+
+                    <input id="yes-no-abstain-editor-prompt" type="text" maxlength="255">
+
+                    <label>
+                        <input type="checkbox" class="question-required">
+                        Required
+                    </label>
+                </div>
+
+                <p>A quick vote with fixed choices. Abstain is selected by default and is recorded when the participant submits.</p>
+                <div class="question-editor-actions">
+                    <button id="cancel-question-button" class="icon-button" type="button" title="Cancel"
+                        aria-label="Cancel">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <button id="save-question-button" class="icon-button" type="button" title="Save question"
+                        aria-label="Save question">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                </div>
+            </div>
+        </template>
+
     <script src="/js/ranked-choice.js"></script>
     <script src="/js/getCsrfToken.js"></script>
     <script src="/js/question-images.js"></script>

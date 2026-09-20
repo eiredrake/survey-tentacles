@@ -11,6 +11,7 @@ public enum QuestionType {
         "single-select-participant-template",
         "single-select-view-template"
     ),
+    YES_NO_ABSTAIN("yes-no-abstain-question-template", "single-select-participant-template", "single-select-view-template"),
     MULTI_SELECT(
         "multi-select-question-template",
         "multi-select-participant-template",

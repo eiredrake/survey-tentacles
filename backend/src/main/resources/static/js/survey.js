@@ -943,7 +943,8 @@ async function loadSelectQuestion(question, section) {
         input.type = multiple ? "checkbox" : "radio";
         input.name = `${type}-${question.id}`;
         input.value = option.id;
-        input.checked = answers.some(answer => answer.optionId === option.id);
+        input.checked = answers.some(answer => answer.optionId === option.id)
+            || (surveyAcceptingResponses && !answers.length && detail.defaultOptionId === option.id);
         input.disabled = !surveyAcceptingResponses;
         input.addEventListener("change", markSurveyDirty);
         label.append(input, document.createTextNode(` ${option.label}`));
@@ -951,8 +952,13 @@ async function loadSelectQuestion(question, section) {
     }
     const clearButton = section.querySelector(`.${type}-clear`);
     clearButton.disabled = !surveyAcceptingResponses;
+    if (detail.defaultOptionId != null) {
+        const label = `Reset to ${detail.options.find(option => option.id === detail.defaultOptionId).label}`;
+        clearButton.title = label;
+        clearButton.setAttribute("aria-label", label);
+    }
     clearButton.addEventListener("click", () => {
-        options.querySelectorAll("input").forEach(input => { input.checked = false; });
+        options.querySelectorAll("input").forEach(input => { input.checked = Number(input.value) === detail.defaultOptionId; });
         markSurveyDirty();
     });
     const selectedIds = () => [...options.querySelectorAll("input:checked")].map(input => Number(input.value));
@@ -1072,7 +1078,7 @@ async function loadQuestions() {
                 ".relationship-subjects"
             );
 
-        if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
+        if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT" || question.type === "YES_NO_ABSTAIN") {
             await loadSelectQuestion(question, section);
         } else if (question.type === "MEETUP") {
             await loadMeetupQuestion(question, section);

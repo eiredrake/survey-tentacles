@@ -234,7 +234,7 @@ async function loadQuestions() {
         if (question.type === "RANKED_CHOICE") {
           await RankedChoice.renderResults(surveyId, question, detailRow.querySelector(".ranked-choice-view-results"), userId);
         }
-        if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
+        if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT" || question.type === "YES_NO_ABSTAIN") {
           await renderSelectAnswers(question, detailRow.querySelector(".single-select-view-results, .multi-select-view-results"));
         }
 

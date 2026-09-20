@@ -58,6 +58,7 @@ function showQuestionEditor(templateId) {
   setupSchedulingQuestionSave();
   setupPromptQuestionSave("short-text", "Short text");
   setupPromptQuestionSave("meetup", "Meetup Scheduling");
+  setupPromptQuestionSave("yes-no-abstain", "Yes/No/Abstain");
   setupNominationQuestionSave();
   setupSelectEditor("single-select", "Single Select");
   setupSelectEditor("multi-select", "Multi Select");
@@ -1294,6 +1295,10 @@ async function loadQuestions() {
           return;
         }
 
+        if (question.type === "YES_NO_ABSTAIN") {
+          document.getElementById("yes-no-abstain-editor-prompt").value = questionDetails.prompt;
+          return;
+        }
         if (question.type === "MEETUP") {
           document.getElementById("meetup-editor-prompt").value = questionDetails.prompt;
           return;
