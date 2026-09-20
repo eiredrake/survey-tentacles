@@ -1129,6 +1129,8 @@ async function loadQuestions() {
 
         if (question.type === "SINGLE_SELECT" || question.type === "MULTI_SELECT") {
             await loadSelectQuestion(question, section);
+        } else if (question.type === "RANKED_CHOICE") {
+            await loadRankedChoiceQuestion(question, section);
         } else if (question.type === "NOMINATION") {
             await loadNominationQuestion(question, section);
         } else if (relationshipSubjects) {
@@ -1305,6 +1307,37 @@ async function loadNominationQuestion(question, section) {
             const response = await fetch(url + "/answers/nomination", {
                 method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
                 body: JSON.stringify({ nominations: inputs().map(input => input.value.trim()) })
+            });
+            return response.ok;
+        }
+    });
+}
+
+async function loadRankedChoiceQuestion(question, section) {
+    const base = `/api/surveys/${surveyId}/questions/${question.id}`;
+    const [detailResponse, answersResponse] = await Promise.all([
+        fetch(base), fetch(`${base}/answers/ranked-choice/${currentUser.id}`)
+    ]);
+    if (!detailResponse.ok || !answersResponse.ok) throw new Error("Unable to load ranked-choice question.");
+    const detail = await detailResponse.json(), answers = await answersResponse.json();
+    const ranking = RankedChoice.create(section.querySelector(".ranked-choice-options"), {
+        disabled: !surveyAcceptingResponses, onChange: markSurveyDirty
+    });
+    ranking.setOptions(detail.options, answers.sort((a, b) => a.rank - b.rank).map(answer => answer.optionId));
+    questionHandlers.push({
+        section,
+        validate() {
+            if (question.required && !ranking.getRanking().length) {
+                showRequiredError(section, "This question is required. Please rank at least one candidate.");
+                return false;
+            }
+            return true;
+        },
+        async save(csrf) {
+            const response = await fetch(`${base}/answers/ranked-choice`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+                body: JSON.stringify({ optionIds: ranking.getRanking() })
             });
             return response.ok;
         }

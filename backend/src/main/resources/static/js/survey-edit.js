@@ -60,6 +60,11 @@ function showQuestionEditor(templateId) {
   setupNominationQuestionSave();
   setupSelectEditor("single-select", "Single Select");
   setupSelectEditor("multi-select", "Multi Select");
+  const rankedContainer = document.getElementById("ranked-choice-editor-options");
+  if (rankedContainer) {
+    rankedContainer.ranking = RankedChoice.create(rankedContainer, { editing: true, onChange: () => markDirty("question") });
+    setupSelectEditor("ranked-choice", "Ranked Choice", rankedContainer.ranking);
+  }
   setupRelationshipEditor();
   setupRelationshipQuestionSave();
 }
@@ -87,19 +92,21 @@ function addSelectOption(label = "", type = "single-select") {
   return input;
 }
 
-function setupSelectEditor(type, displayName) {
+function setupSelectEditor(type, displayName, ranking = null) {
   const promptInput = document.getElementById(`${type}-editor-prompt`);
   if (!promptInput) return;
   const optionsContainer = document.getElementById(`${type}-editor-options`);
   document.getElementById(`add-${type}-option`).addEventListener("click", () => {
-    addSelectOption("", type).focus();
+    if (ranking) ranking.add();
+    else addSelectOption("", type).focus();
     markDirty("question");
   });
   const saveButton = document.getElementById("save-question-button");
   saveButton.addEventListener("click", async () => {
     const prompt = promptInput.value.trim();
-    const options = [...optionsContainer.querySelectorAll("input")].map(input => input.value.trim());
-    if (!prompt || !options.length || options.some(label => !label)) {
+    const options = ranking ? ranking.getOptions()
+      : [...optionsContainer.querySelectorAll("input")].map(input => input.value.trim());
+    if (!prompt || !options.length || options.some(option => ranking ? !option.name : !option)) {
       showToast("Enter a question and a label for every option.", "error");
       return;
     }
@@ -1346,6 +1353,11 @@ async function loadQuestions() {
           return;
         }
 
+        if (question.type === "RANKED_CHOICE") {
+          document.getElementById("ranked-choice-editor-prompt").value = questionDetails.prompt;
+          document.getElementById("ranked-choice-editor-options").ranking.setOptions(questionDetails.options);
+          return;
+        }
         if (question.type === "NOMINATION") {
           document.getElementById("nomination-editor-prompt").value = questionDetails.prompt;
           document.getElementById("nomination-editor-maximum").value = questionDetails.maxNominations;

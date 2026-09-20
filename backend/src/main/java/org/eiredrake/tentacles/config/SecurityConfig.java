@@ -114,6 +114,8 @@ public class SecurityConfig {
                     "/api/surveys/*/questions/short-text",
                     "/api/surveys/*/questions/nomination",
                     "/api/surveys/*/questions/*/nomination",
+                    "/api/surveys/*/questions/ranked-choice",
+                    "/api/surveys/*/questions/*/ranked-choice",
                     "/api/surveys/*/questions/multi-select",
                     "/api/surveys/*/questions/*/multi-select",
                     "/api/surveys/*/questions/single-select",

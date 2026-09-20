@@ -11,6 +11,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.HashSet;
+import org.eiredrake.tentacles.model.RankedChoiceQuestion;
+import org.eiredrake.tentacles.model.RankedChoiceOption;
+import org.eiredrake.tentacles.model.RankedChoiceAnswer;
+import org.eiredrake.tentacles.repository.RankedChoiceAnswerRepository;
 import java.util.List;
 import java.util.Map;
 import org.eiredrake.tentacles.model.Question;
@@ -86,6 +92,7 @@ public class SurveyController {
   private final SingleSelectAnswerService singleSelectAnswerService;
   private final MultiSelectAnswerService multiSelectAnswerService;
   private final NominationAnswerService nominationAnswerService;
+  private final RankedChoiceAnswerRepository rankedChoiceAnswers;
 
   public SurveyController(
     SurveyService surveyService,
@@ -100,6 +107,7 @@ public class SurveyController {
     SingleSelectAnswerService singleSelectAnswerService,
     MultiSelectAnswerService multiSelectAnswerService,
     NominationAnswerService nominationAnswerService,
+    RankedChoiceAnswerRepository rankedChoiceAnswers,
     ApplicationEventPublisher eventPublisher,
     ImageAttachmentService imageAttachments
   ) {
@@ -117,6 +125,7 @@ public class SurveyController {
     this.singleSelectAnswerService = singleSelectAnswerService;
     this.multiSelectAnswerService = multiSelectAnswerService;
     this.nominationAnswerService = nominationAnswerService;
+    this.rankedChoiceAnswers = rankedChoiceAnswers;
   }
 
   public record SubmissionNotice(UUID submissionId) {}
@@ -592,6 +601,9 @@ public class SurveyController {
       result.put("maxNominations", nomination.getMaxNominations());
     }
 
+    if (question instanceof RankedChoiceQuestion rankedChoiceQuestion) {
+      result.put("options", rankedChoiceQuestion.getOptions().stream().map(this::rankedChoiceOptionResult).toList());
+    }
     if (question instanceof MultiSelectQuestion multiSelectQuestion) {
       result.put("options", multiSelectQuestion.getOptions().stream()
         .map(option -> Map.<String, Object>of("id", option.getId(), "label", option.getLabel()))
@@ -1246,6 +1258,19 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
           target.setMaxNominations(((NominationQuestion) sourceQuestion).getMaxNominations());
           yield target;
         }
+        case RANKED_CHOICE -> {
+          RankedChoiceQuestion target = new RankedChoiceQuestion();
+          copyQuestionFields(sourceQuestion, target, copy);
+          for (RankedChoiceOption sourceOption : ((RankedChoiceQuestion) sourceQuestion).getOptions()) {
+            RankedChoiceOption option = new RankedChoiceOption();
+            option.setQuestion(target);
+            option.setName(sourceOption.getName());
+            option.setDescription(sourceOption.getDescription());
+            option.setDisplayOrder(sourceOption.getDisplayOrder());
+            target.getOptions().add(option);
+          }
+          yield target;
+        }
         case MULTI_SELECT -> {
           MultiSelectQuestion target = new MultiSelectQuestion();
           copyQuestionFields(sourceQuestion, target, copy);
@@ -1560,6 +1585,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
               );
             case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
             case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+            case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
             case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
           }
         );
@@ -1590,6 +1616,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
             );
           case SINGLE_SELECT -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
           case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
+          case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
           case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
         }
       );
@@ -1629,10 +1656,15 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     return Map.of("id", question.getId(), "responsesCleared", optionsChanged);
   }
 
-  private List<String> selectLabels(Map<String, Object> request) {
+  private String questionPrompt(Map<String, Object> request) {
     if (!(request.get("prompt") instanceof String prompt) || prompt.isBlank() || prompt.trim().length() > 255) {
       throw new IllegalArgumentException("Enter a question of at most 255 characters.");
     }
+    return prompt.trim();
+  }
+
+  private List<String> selectLabels(Map<String, Object> request) {
+    questionPrompt(request);
     if (!(request.get("options") instanceof List<?> options) || options.isEmpty()) {
       throw new IllegalArgumentException("Add at least one option.");
     }
@@ -1674,10 +1706,8 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     Object value = request.get("optionId");
     SingleSelectOption option = null;
     if (value != null) {
-      if (!(value instanceof Number number) || number.doubleValue() != number.longValue()) {
-        throw new IllegalArgumentException("Choose one valid option.");
-      }
-      option = question.getOptions().stream().filter(item -> item.getId().equals(number.longValue()))
+      long optionId = choiceOptionId(value, "Choose one valid option.");
+      option = question.getOptions().stream().filter(item -> item.getId().equals(optionId))
         .findFirst().orElseThrow(() -> new IllegalArgumentException("Option does not belong to question: " + questionId));
     } else if (question.isRequired()) {
       throw new IllegalArgumentException("This question requires one selection.");
@@ -1823,6 +1853,159 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
       "name", user.getDisplayName() == null ? user.getUsername() : user.getDisplayName(), "value", answer.getNomination());
   }
 
+  private long choiceOptionId(Object value, String error) {
+    if (!(value instanceof Number number) || number.doubleValue() != number.longValue()) {
+      throw new IllegalArgumentException(error);
+    }
+    return number.longValue();
+  }
+
+  private RankedChoiceOption rankedChoiceOption(RankedChoiceQuestion question, Object value, HashSet<Long> ids) {
+    long id = choiceOptionId(value, "Each candidate must have a valid ID.");
+    if (!ids.add(id)) throw new IllegalArgumentException("Each candidate ID must be unique.");
+    return question.getOptions().stream().filter(option -> option.getId().equals(id)).findFirst()
+      .orElseThrow(() -> new IllegalArgumentException("Candidate does not belong to this question."));
+  }
+
+  private Map<String, Object> rankedChoiceOptionResult(RankedChoiceOption option) {
+    return Map.of("id", option.getId(), "name", option.getName(), "description", option.getDescription(),
+      "displayOrder", option.getDisplayOrder());
+  }
+
+  private RankedChoiceQuestion findRankedChoiceQuestion(Long surveyId, Long questionId) {
+    Question question = questionService.findById(questionId);
+    if (!(question instanceof RankedChoiceQuestion ranked) || !question.getSurvey().getId().equals(surveyId)) {
+      throw new IllegalArgumentException("Ranked Choice question does not belong to survey: " + surveyId);
+    }
+    return ranked;
+  }
+
+  // Validate the complete definition before changing managed entities or removing responses.
+  private boolean updateRankedChoiceOptions(RankedChoiceQuestion question, Object value) {
+    if (!(value instanceof List<?> values) || values.isEmpty()) {
+      throw new IllegalArgumentException("Add at least one candidate.");
+    }
+    List<RankedChoiceOption> ordered = new ArrayList<>();
+    List<String> names = new ArrayList<>();
+    List<String> descriptions = new ArrayList<>();
+    HashSet<Long> ids = new HashSet<>();
+    for (Object entry : values) {
+      if (!(entry instanceof Map<?, ?> candidate) || !(candidate.get("name") instanceof String name)
+          || name.isBlank() || name.trim().length() > 255) {
+        throw new IllegalArgumentException("Each candidate needs a name of at most 255 characters.");
+      }
+      Object description = candidate.get("description");
+      if (description != null && (!(description instanceof String) || ((String) description).length() > 255)) {
+        throw new IllegalArgumentException("Candidate descriptions must be at most 255 characters.");
+      }
+      RankedChoiceOption option;
+      if (candidate.get("id") == null) {
+        option = new RankedChoiceOption();
+        option.setQuestion(question);
+      } else {
+        option = rankedChoiceOption(question, candidate.get("id"), ids);
+      }
+      ordered.add(option);
+      names.add(name.trim());
+      descriptions.add(description == null ? "" : ((String) description).trim());
+    }
+    boolean changed = ordered.size() != question.getOptions().size() || !question.getOptions().containsAll(ordered);
+    if (changed && question.getId() != null) {
+      rankedChoiceAnswers.deleteByQuestionId(question.getId());
+      rankedChoiceAnswers.flush();
+    }
+    question.getOptions().removeIf(option -> !ordered.contains(option));
+    for (int i = 0; i < ordered.size(); i++) {
+      RankedChoiceOption option = ordered.get(i);
+      option.setName(names.get(i));
+      option.setDescription(descriptions.get(i));
+      option.setDisplayOrder(i + 1);
+      if (!question.getOptions().contains(option)) question.getOptions().add(option);
+    }
+    question.getOptions().sort(java.util.Comparator.comparing(RankedChoiceOption::getDisplayOrder));
+    return changed;
+  }
+
+  @PostMapping("/{surveyId}/questions/ranked-choice")
+  @Transactional
+  public Map<String, Object> createRankedChoiceQuestion(@PathVariable Long surveyId,
+    @RequestBody Map<String, Object> request) {
+    String prompt = questionPrompt(request);
+    RankedChoiceQuestion question = new RankedChoiceQuestion();
+    question.setSurvey(surveyService.findById(surveyId));
+    question.setType(QuestionType.RANKED_CHOICE);
+    question.setPrompt(prompt);
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+    question.setDisplayOrder((Integer) request.getOrDefault("displayOrder", 1));
+    updateRankedChoiceOptions(question, request.get("options"));
+    questionService.save(question);
+    return Map.of("id", question.getId(), "optionCount", question.getOptions().size());
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/ranked-choice")
+  @Transactional
+  public Map<String, Object> updateRankedChoiceQuestion(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @RequestBody Map<String, Object> request) {
+    String prompt = questionPrompt(request);
+    RankedChoiceQuestion question = findRankedChoiceQuestion(surveyId, questionId);
+    boolean changed = updateRankedChoiceOptions(question, request.get("options"));
+    question.setPrompt(prompt);
+    question.setRequired(Boolean.TRUE.equals(request.get("required")));
+    questionService.save(question);
+    return Map.of("id", questionId, "responsesCleared", changed);
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/answers/ranked-choice")
+  @Transactional
+  public Map<String, Object> answerRankedChoiceQuestion(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @AuthenticationPrincipal OidcUser oidcUser,
+    @RequestBody Map<String, Object> request) {
+    RankedChoiceQuestion question = findRankedChoiceQuestion(surveyId, questionId);
+    Survey survey = question.getSurvey();
+    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    if (!(request.get("optionIds") instanceof List<?> values)) {
+      throw new IllegalArgumentException("Submit candidate IDs in preference order.");
+    }
+    HashSet<Long> ids = new HashSet<>();
+    List<RankedChoiceOption> ordered = values.stream().map(value -> rankedChoiceOption(question, value, ids)).toList();
+    if (question.isRequired() && ordered.isEmpty()) throw new IllegalArgumentException("Rank at least one candidate.");
+    User user = userService.findOrCreate(oidcUser);
+    surveyParticipantService.add(survey, user);
+    rankedChoiceAnswers.deleteByQuestionIdAndUserId(questionId, user.getId());
+    rankedChoiceAnswers.flush();
+    for (int i = 0; i < ordered.size(); i++) {
+      RankedChoiceAnswer answer = new RankedChoiceAnswer();
+      answer.setQuestion(question);
+      answer.setUser(user);
+      answer.setOption(ordered.get(i));
+      answer.setPreferenceRank(i + 1);
+      rankedChoiceAnswers.save(answer);
+    }
+    return Map.of("questionId", questionId, "userId", user.getId(), "responseCount", ordered.size());
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/ranked-choice")
+  public List<Map<String, Object>> getRankedChoiceAnswers(@PathVariable Long surveyId, @PathVariable Long questionId) {
+    findRankedChoiceQuestion(surveyId, questionId);
+    return rankedChoiceAnswers.findByQuestionIdOrderByUserIdAscPreferenceRankAsc(questionId).stream()
+      .map(this::rankedChoiceAnswerResult).toList();
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/answers/ranked-choice/{userId}")
+  public List<Map<String, Object>> getRankedChoiceAnswersForUser(@PathVariable Long surveyId,
+    @PathVariable Long questionId, @PathVariable Long userId) {
+    findRankedChoiceQuestion(surveyId, questionId);
+    return rankedChoiceAnswers.findByQuestionIdAndUserIdOrderByPreferenceRankAsc(questionId, userId).stream()
+      .map(this::rankedChoiceAnswerResult).toList();
+  }
+
+  private Map<String, Object> rankedChoiceAnswerResult(RankedChoiceAnswer answer) {
+    User user = answer.getUser();
+    return Map.of("answerId", answer.getId(), "userId", user.getId(), "username", user.getUsername(),
+      "name", user.getDisplayName() == null ? user.getUsername() : user.getDisplayName(),
+      "optionId", answer.getOption().getId(), "rank", answer.getPreferenceRank());
+  }
+
   @PostMapping("/{surveyId}/questions/multi-select")
   @Transactional
   public Map<String, Object> createMultiSelectQuestion(@PathVariable Long surveyId,
@@ -1889,10 +2072,8 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     }
     // Validate every selection before replacing any existing answers.
     List<MultiSelectOption> selected = values.stream().map(value -> {
-      if (!(value instanceof Number number) || number.doubleValue() != number.longValue()) {
-        throw new IllegalArgumentException("Each selection must be a valid option ID.");
-      }
-      return question.getOptions().stream().filter(option -> option.getId().equals(number.longValue()))
+      long optionId = choiceOptionId(value, "Each selection must be a valid option ID.");
+      return question.getOptions().stream().filter(option -> option.getId().equals(optionId))
         .findFirst().orElseThrow(() -> new IllegalArgumentException("Option does not belong to question: " + questionId));
     }).distinct().toList();
     if (question.isRequired() && selected.isEmpty()) {

@@ -563,6 +563,9 @@ async function loadQuestions() {
       const nominationContainer = section.querySelector(".nomination-view-answers");
       if (nominationContainer) await renderNominationAnswers(question, nominationContainer);
 
+      const rankedContainer = section.querySelector(".ranked-choice-view-results");
+      if (rankedContainer) await RankedChoice.renderResults(surveyId, question, rankedContainer);
+
       const selectContainer = section.querySelector(".single-select-view-results, .multi-select-view-results");
       if (selectContainer) await renderSelectResults(question, selectContainer);
 

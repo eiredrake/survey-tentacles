@@ -16,6 +16,7 @@ public enum QuestionType {
         "multi-select-participant-template",
         "multi-select-view-template"
     ),
+    RANKED_CHOICE("ranked-choice-question-template", "ranked-choice-participant-template", "ranked-choice-view-template"),
     NOMINATION("nomination-question-template", "nomination-participant-template", "nomination-view-template"),
     SHORT_TEXT(
         "short-text-question-template",

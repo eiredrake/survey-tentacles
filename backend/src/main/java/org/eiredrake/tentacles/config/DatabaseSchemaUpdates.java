@@ -28,7 +28,7 @@ public class DatabaseSchemaUpdates {
       try {
         ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/023-nomination-question-type.sql"));
         connection.commit();
-        log.info("Nomination question schema update applied.");
+        log.info("Question type schema update applied.");
       } catch (RuntimeException | SQLException error) {
         try { connection.rollback(); } catch (SQLException rollbackError) { error.addSuppressed(rollbackError); }
         throw error;

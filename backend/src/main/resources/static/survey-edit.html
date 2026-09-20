@@ -388,6 +388,32 @@
         </section>
     </template>
 
+    <template id="ranked-choice-question-template">
+        <section class="question-editor-panel">
+            <label for="ranked-choice-editor-prompt">Question:</label>
+            <input id="ranked-choice-editor-prompt" type="text" maxlength="255">
+            <label><input type="checkbox" class="question-required"> Required</label>
+            <div class="section-heading">
+                <h3>Candidates</h3>
+                <button id="add-ranked-choice-option" class="icon-button" type="button" title="Add candidate" aria-label="Add candidate">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                </button>
+            </div>
+            <p>Drag candidates or use the arrow buttons to change their order. Participants rank only the candidates they select. Adding or removing candidates clears previous responses.</p>
+            <div id="ranked-choice-editor-options"></div>
+
+            <div class="question-editor-actions">
+                <button id="cancel-question-button" class="icon-button" type="button" title="Cancel" aria-label="Cancel">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+                <button id="save-question-button" class="icon-button" type="button" title="Save question" aria-label="Save question">
+                    <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                </button>
+            </div>
+        </section>
+    </template>
+
+    <script src="/js/ranked-choice.js"></script>
     <script src="/js/getCsrfToken.js"></script>
     <script src="/js/question-images.js"></script>
     <script src="/js/toast.js"></script>
