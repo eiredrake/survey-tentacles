@@ -28,6 +28,7 @@ function page(name, replies = {}) {
     return { ok: true, json: async () => value };
   };
   dom.window.eval(readFileSync(path.join(staticDir, "js/getCsrfToken.js"), "utf8"));
+  dom.window.eval(readFileSync(path.join(staticDir, "js/SmartInput.js"), "utf8"));
   dom.window.eval(readFileSync(path.join(staticDir, "js", `${name}.js`), "utf8")
     .replace(/^initialize\(\);\s*$/m, ""));
   return { dom, window: dom.window, document: dom.window.document, calls, toasts };

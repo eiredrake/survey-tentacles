@@ -27,6 +27,7 @@ function page(name, replies = {}) {
     return { ok: true, json: async () => value };
   };
   dom.window.eval(readFileSync(path.join(staticDir, "js/getCsrfToken.js"), "utf8"));
+  dom.window.eval(readFileSync(path.join(staticDir, "js/SmartInput.js"), "utf8"));
   for (const file of ["date-format", "scheduling-results", "meetup"]) {
     dom.window.eval(readFileSync(path.join(staticDir, `js/${file}.js`), "utf8"));
   }

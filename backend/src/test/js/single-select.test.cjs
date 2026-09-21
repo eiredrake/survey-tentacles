@@ -27,6 +27,7 @@ function page(name, replies = {}) {
     return { ok: true, json: async () => value };
   };
   dom.window.eval(readFileSync(path.join(staticDir, "js/getCsrfToken.js"), "utf8"));
+  dom.window.eval(readFileSync(path.join(staticDir, "js/SmartInput.js"), "utf8"));
   dom.window.eval(readFileSync(path.join(staticDir, "js", `${name}.js`), "utf8")
     .replace(/^initialize\(\);\s*$/m, ""));
   return { dom, window: dom.window, document: dom.window.document, calls, toasts };
@@ -92,7 +93,7 @@ test("Editor adds, edits, removes, tracks dirty state, and sends labels in order
   p.window.eval('showQuestionEditor("single-select-question-template")');
   p.document.getElementById("single-select-editor-prompt").value = "Pick";
   const add = p.document.getElementById("add-single-select-option");
-  add.click(); add.click(); add.click();
+  add.click(); add.click(); add.click(); await tick();
   const rows = [...p.document.querySelectorAll(".single-select-editor-option")];
   rows[0].querySelector("input").value = "First";
   rows[1].querySelector("input").value = "Remove me";

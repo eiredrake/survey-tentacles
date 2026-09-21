@@ -16,6 +16,7 @@ function browser(html = "survey-edit") {
   const script = name => evaluate(readFileSync(path.join(staticDir, "js", name + ".js"), "utf8")
     .replace(/^initialize\(\);\s*$/m, ""));
   script("getCsrfToken");
+  script("SmartInput");
   window.console.error = () => {};
   window.HTMLElement.prototype.scrollIntoView = () => {};
   return { dom, window, evaluate, script };

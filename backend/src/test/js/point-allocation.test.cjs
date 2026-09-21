@@ -27,6 +27,7 @@ function page(name, replies = {}) {
     return { ok: true, json: async () => value };
   };
   dom.window.eval(readFileSync(path.join(staticDir, "js/getCsrfToken.js"), "utf8"));
+  dom.window.eval(readFileSync(path.join(staticDir, "js/SmartInput.js"), "utf8"));
   dom.window.eval(readFileSync(path.join(staticDir, "js/point-allocation.js"), "utf8"));
   dom.window.eval(readFileSync(path.join(staticDir, "js", `${name}.js`), "utf8")
     .replace(/^initialize\(\);\s*$/m, ""));
@@ -88,6 +89,20 @@ test("Editor restores budget and categories, validates budget, and uses shared s
   assert.equal(post.url, "/api/surveys/1/questions/2/point-allocation");
   assert.deepEqual(JSON.parse(post.options.body).options, ["First", "New"]);
   assert.equal(JSON.parse(post.options.body).pointBudget, 20); p.window.close();
+});
+test("Editor commits a category locally when Enter is pressed", async () => {
+  const p = page("survey-edit"); await p.window.eval("loadQuestions()");
+  p.document.querySelector('[title="Edit question"]').click(); await tick();
+  const input = p.document.querySelector(".point-allocation-editor-option input");
+  input.value = "Updated"; input.focus();
+  input.dispatchEvent(new p.window.KeyboardEvent("keydown", {
+    key: "Enter", bubbles: true, cancelable: true
+  }));
+  await tick();
+  assert.equal(p.calls.some(call => call.options.method === "POST"), false);
+  assert.equal(p.document.getElementById("question-form-container").hidden, false);
+  assert.equal(input.value, "Updated");
+  p.window.close();
 });
 test("View shows totals and averages, including zero allocations, with escaped category text", async () => {
   const p = page("survey-view", { "/api/surveys/1/questions/2/answers/point-allocation": [

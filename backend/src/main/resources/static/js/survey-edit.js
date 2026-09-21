@@ -4,6 +4,55 @@ let editingQuestionId = null;
 
 const dirtySources = new Set();
 
+const smartEditors = new WeakMap();
+
+function bindSmartEditor(container, save, button, character = false) {
+  smartEditors.get(container)?.destroy();
+  const controls = new Map();
+  let saving = false;
+  const onReadyToSave = (value, { element, reason, relatedTarget }) => {
+    if (saving || !element.isConnected || container.hidden) return;
+    const focused = relatedTarget || document.activeElement;
+    if (reason === "blur" && container.contains(focused) && focused?.closest("button")) return;
+    // Name and description are one staged character edit; moving between them must not close the row.
+    if (reason === "blur" && character && container.contains(focused)) return;
+    saving = true;
+    try {
+      const result = save();
+      if (result?.then) return result.finally(() => { saving = false; });
+      saving = false;
+      return result;
+    } catch (error) { saving = false; throw error; }
+  };
+  function refresh() {
+    if (!container.isConnected) { destroy(); return; }
+    for (const [element, control] of controls) {
+      if (!container.contains(element)) { control.destroy(); controls.delete(element); }
+    }
+    for (const target of container.querySelectorAll('input[type="text"], input:not([type]), textarea')) {
+      if (!character && target.closest(".relationship-subject, #relationship-subject-editor")) continue;
+      if (target.closest("[data-select-option]")) continue;
+      if (controls.has(target)) continue;
+      const type = target.tagName === "TEXTAREA" ? "multi" : "single";
+      controls.set(target, window.SmartInput.create({ target, type, onReadyToSave }));
+    }
+  }
+  const manualSave = () => controls.values().next().value?.triggerSave();
+  const observer = new MutationObserver(refresh);
+  function destroy() {
+    observer.disconnect();
+    for (const control of controls.values()) control.destroy();
+    controls.clear();
+    button?.removeEventListener("click", manualSave);
+    smartEditors.delete(container);
+  }
+  smartEditors.set(container, { destroy, refresh });
+  observer.observe(document.body, { childList: true, subtree: true });
+  button?.addEventListener("click", manualSave);
+  refresh();
+}
+
+
 function markDirty(source) {
   dirtySources.add(source);
 }
@@ -39,6 +88,7 @@ function showQuestionEditor(templateId) {
     return;
   }
 
+  smartEditors.get(container)?.destroy();
   container.replaceChildren(
     template.content.cloneNode(true)
   );
@@ -79,11 +129,17 @@ function showQuestionEditor(templateId) {
 function addSelectOption(label = "", type = "single-select") {
   const row = document.createElement("div");
   row.className = `${type}-editor-option`;
+  row.dataset.selectOption = "";
   const input = document.createElement("input");
   input.type = "text";
   input.maxLength = 255;
   input.value = label;
   input.setAttribute("aria-label", "Option label");
+  window.SmartInput.create({
+    target: input,
+    type: "single",
+    onReadyToSave: value => { input.value = value; markDirty("question"); }
+  });
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "icon-button";
@@ -96,6 +152,7 @@ function addSelectOption(label = "", type = "single-select") {
   });
   row.append(input, remove);
   document.getElementById(`${type}-editor-options`).appendChild(row);
+  smartEditors.get(document.getElementById("question-form-container"))?.refresh();
   return input;
 }
 
@@ -109,7 +166,7 @@ function setupSelectEditor(type, displayName, ranking = null, readSettings = () 
     markDirty("question");
   });
   const saveButton = document.getElementById("save-question-button");
-  saveButton.addEventListener("click", async () => {
+  const saveQuestion = async () => {
     const prompt = promptInput.value.trim();
     const options = ranking ? ranking.getOptions()
       : [...optionsContainer.querySelectorAll("input")].map(input => input.value.trim());
@@ -146,7 +203,8 @@ function setupSelectEditor(type, displayName, ranking = null, readSettings = () 
     } finally {
       saveButton.disabled = false;
     }
-  });
+  };
+  bindSmartEditor(document.getElementById("question-form-container"), saveQuestion, saveButton);
 }
 
 function setupRelationshipEditor() {
@@ -202,7 +260,7 @@ function setupRelationshipEditor() {
     subjectEditor.hidden = true;
   });
 
-  addButton.addEventListener("click", () => {
+  const saveCharacter = () => {
     const name = nameInput.value.trim();
     const description =
       descriptionInput.value.trim();
@@ -235,7 +293,8 @@ function setupRelationshipEditor() {
     descriptionInput.value = "";
 
     subjectEditor.hidden = true;
-  });
+  };
+  bindSmartEditor(subjectEditor, saveCharacter, addButton, true);
 }
 
 function createRelationshipSubjectRow(
@@ -338,7 +397,7 @@ function createRelationshipSubjectRow(
       editButton.focus();
     };
     cancel.addEventListener("click", finish);
-    save.addEventListener("click", () => {
+    const saveCharacter = () => {
       if (!nameInput.value.trim()) { showToast("Enter a character name.", "error"); nameInput.focus(); return; }
       name = nameInput.value.trim(); description = descriptionInput.value.trim();
       row.dataset.name = name; row.dataset.description = description;
@@ -352,7 +411,8 @@ function createRelationshipSubjectRow(
       finish();
       markDirty("question");
       row.dispatchEvent(new CustomEvent("character-updated", { bubbles: true }));
-    });
+    };
+    bindSmartEditor(row, saveCharacter, save, true);
     actionsCell.append(cancel, save);
     nameInput.focus();
   });
@@ -412,6 +472,7 @@ function setupQuestionEditorButtons() {
 
   if (cancelButton) {
     cancelButton.addEventListener("click", () => {
+      smartEditors.get(container)?.destroy();
       clearDirty("question");
 
       container.replaceChildren();
@@ -503,14 +564,10 @@ function setupTitleEditor() {
       "edit-title-button"
     );
 
-  const heading =
-    document.getElementById(
-      "survey-title"
-    );
-
   button.addEventListener(
     "click",
     () => {
+      const heading = document.getElementById("survey-title");
       const currentTitle =
         heading.textContent.replace(
           /^Edit:\s*/,
@@ -528,12 +585,7 @@ function setupTitleEditor() {
       input.focus();
       input.select();
 
-      input.addEventListener(
-        "keydown",
-        async event => {
-          if (event.key !== "Enter") {
-            return;
-          }
+      const saveTitle = async () => {
 
           const newTitle =
             input.value.trim();
@@ -589,8 +641,8 @@ function setupTitleEditor() {
             "Survey title updated.",
             "success"
           );
-        }
-      );
+      };
+      window.SmartInput.create({ target: input, type: "single", onReadyToSave: saveTitle });
     }
   );
 }
@@ -630,7 +682,9 @@ function setupTaglineEditor() {
     return;
   }
 
-  saveButton.addEventListener("click", saveTagline);
+  const target = document.getElementById("survey-tagline");
+  window.SmartInput.create({ target, type: "single", onReadyToSave: saveTagline });
+  saveButton.remove();
 }
 
 function setupSchedulingQuestionSave() {
@@ -648,9 +702,7 @@ function setupSchedulingQuestionSave() {
     return;
   }
 
-  saveButton.addEventListener(
-    "click",
-    async () => {
+  const saveQuestion = async () => {
       const required =
         document.querySelector(
           ".question-required"
@@ -747,15 +799,15 @@ function setupSchedulingQuestionSave() {
           : "Scheduling question created.",
         "success"
       );
-    }
-  );
+  };
+  bindSmartEditor(document.getElementById("question-form-container"), saveQuestion, saveButton);
 }
 
 function setupPromptQuestionSave(type, displayName) {
   const saveButton = document.getElementById("save-question-button");
   const promptInput = document.getElementById(`${type}-editor-prompt`);
   if (!saveButton || !promptInput) return;
-  saveButton.addEventListener("click", async () => {
+  const saveQuestion = async () => {
     const prompt = promptInput.value.trim();
     if (!prompt) { showToast("Enter a question.", "error"); return; }
     if (saveButton.disabled) return;
@@ -782,7 +834,8 @@ function setupPromptQuestionSave(type, displayName) {
     } finally {
       saveButton.disabled = false;
     }
-  });
+  };
+  bindSmartEditor(document.getElementById("question-form-container"), saveQuestion, saveButton);
 }
 
 function setupRelationshipQuestionSave() {
@@ -809,9 +862,7 @@ function setupRelationshipQuestionSave() {
     return;
   }
 
-  saveButton.addEventListener(
-    "click",
-    async () => {
+  const saveQuestion = async () => {
       const prompt =
         promptInput.value.trim();
 
@@ -928,8 +979,8 @@ function setupRelationshipQuestionSave() {
       } catch (error) {
         showToast(error.message || "Unable to save relationship question. Please retry.", "error");
       } finally { saveButton.disabled = false; }
-    }
-  );
+  };
+  bindSmartEditor(document.getElementById("question-form-container"), saveQuestion, saveButton);
 }
 
 async function loadQuestionTypes() {
@@ -2217,7 +2268,7 @@ function setupNominationQuestionSave() {
   if (!promptInput) return;
   const maximum = document.getElementById("nomination-editor-maximum");
   const saveButton = document.getElementById("save-question-button");
-  saveButton.addEventListener("click", async () => {
+  const saveQuestion = async () => {
     const prompt = promptInput.value.trim();
     const maxNominations = maximum.value === "" ? 0 : Number(maximum.value);
     if (!prompt || prompt.length > 255 || !Number.isInteger(maxNominations) || maxNominations < 0 || maxNominations > 2147483647) {
@@ -2246,5 +2297,6 @@ function setupNominationQuestionSave() {
     } finally {
       saveButton.disabled = false;
     }
-  });
+  };
+  bindSmartEditor(document.getElementById("question-form-container"), saveQuestion, saveButton);
 }

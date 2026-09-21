@@ -10,6 +10,7 @@ function editor() {
     { url: 'http://localhost/survey-edit.html?id=1', runScripts: 'outside-only' });
   dom.window.showToast = () => {};
   dom.window.fetch = () => { throw new Error('Sorting must not send requests.'); };
+  dom.window.eval(readFileSync(path.join(staticDir, 'js/SmartInput.js'), 'utf8'));
   dom.window.eval(readFileSync(path.join(staticDir, 'js/survey-edit.js'), 'utf8').replace(/^initialize\(\);\s*$/m, ''));
   dom.window.eval('showQuestionEditor("relationship-question-template")');
   return dom;

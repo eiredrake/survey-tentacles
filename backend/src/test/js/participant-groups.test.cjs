@@ -34,7 +34,7 @@ function page(name) {
     return { ok: true, json: async () => value };
   };
   const scripts = name === 'survey-edit' ? ['participant-picker', 'survey-edit'] : ['participant-groups'];
-  for (const script of ["getCsrfToken", ...scripts]) require('node:vm').runInContext(readFileSync(path.join(dir, 'js', script + '.js'), 'utf8').replace(/^initialize\(\);\s*$/m, ''), dom.getInternalVMContext());
+  for (const script of ["getCsrfToken", "SmartInput", ...scripts]) require('node:vm').runInContext(readFileSync(path.join(dir, 'js', script + '.js'), 'utf8').replace(/^initialize\(\);\s*$/m, ''), dom.getInternalVMContext());
   return { dom, w, d, calls, state, messages };
 }
 
