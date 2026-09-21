@@ -76,6 +76,8 @@ public class SecurityConfig {
                 .requestMatchers("/admin", "/admin/**", "/participant-groups.html", "/api/participant-groups", "/api/participant-groups/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/surveys/*/assignments/batch").hasRole("ADMIN")
 
+                .requestMatchers("/api/rewards/admin/**").hasRole("ADMIN")
+
                 // Survey administration
                 .requestMatchers(
                     HttpMethod.POST,

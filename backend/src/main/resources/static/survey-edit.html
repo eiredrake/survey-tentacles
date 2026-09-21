@@ -75,6 +75,17 @@
             <span id="survey-notifications-status" role="status"></span>
         </section>
 
+        <details id="survey-rewards" class="survey-section" hidden>
+          <summary>Participation Rewards</summary>
+          <form id="survey-rewards-form">
+            <label><input id="survey-rewards-enabled" type="checkbox"> Enable rewards for this survey</label>
+            <p>Set values for saved questions. Each participant earns points once per qualifying question when submitting. Changes do not alter past awards.</p>
+            <table class="survey-table"><thead><tr><th>Question</th><th id="survey-point-name">Points</th></tr></thead><tbody id="question-rewards"></tbody></table>
+            <button id="" type="submit" class="icon-button" title="Save rewards" aria-label="Save rewards"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i></button><button id="reload-rewards" type="button" class="icon-button" title="Reload saved questions" aria-label="Reload saved questions"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+            <span id="survey-rewards-status" role="status"></span>
+          </form>
+        </details>
+
         <section class="survey-image-editor">
             <div class="section-heading">
                 <h2>Survey Image</h2>
@@ -499,6 +510,7 @@
         </section>
     </template>
 
+    <script src="/js/icon-button.js"></script>
     <script src="/js/ranked-choice.js"></script>
     <script src="/js/getCsrfToken.js"></script>
     <script src="/js/question-images.js"></script>
@@ -507,6 +519,8 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="/js/participant-picker.js"></script>
     <script src="/js/survey-edit.js"></script>
+    <script src="/js/rewards.js"></script>
+    <script src="/js/survey-rewards.js"></script>
     <script src="/js/survey-events.js"></script>
     <script src="/js/administration-nav.js"></script>
     <script src="/js/logout.js"></script>

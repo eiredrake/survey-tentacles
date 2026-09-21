@@ -1,16 +1,5 @@
 // Shared candidate ordering for editing and voting; read-only results use the same candidate text.
 window.RankedChoice = (() => {
-  function button(label, icon, action) {
-    const control = document.createElement("button");
-    control.type = "button";
-    control.className = "icon-button";
-    control.title = label;
-    control.setAttribute("aria-label", label);
-    control.innerHTML = `<i class="fa-solid fa-${icon}" aria-hidden="true"></i>`;
-    control.addEventListener("click", action);
-    return control;
-  }
-
   function candidateText(container, option) {
     const name = document.createElement("strong");
     name.textContent = option.name;
@@ -84,14 +73,14 @@ window.RankedChoice = (() => {
         const actions = document.createElement("span");
         actions.className = "ranked-choice-actions";
         for (const [step, label, icon] of [[-1, "Move up", "arrow-up"], [1, "Move down", "arrow-down"]]) {
-          const control = button(label, icon, () => {
+          const control = createIconButton(label, icon, () => {
             move(option, ranking[index + step]);
             list.children[options.indexOf(option)]?.querySelector(`[aria-label="${label}"]`)?.focus();
           });
           control.disabled = disabled || index < 0 || !ranking[index + step];
           actions.append(control);
         }
-        if (editing) actions.append(button("Remove candidate", "xmark", () => {
+        if (editing) actions.append(createIconButton("Remove candidate", "xmark", () => {
           options.splice(options.indexOf(option), 1); render(); onChange();
         }));
         row.append(actions);

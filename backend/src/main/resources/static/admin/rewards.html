@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Participation Rewards - Tentacles</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="/css/tentacles.css">
+  <link rel="stylesheet" href="/css/toast.css">
+</head>
+<body data-rewards-admin="true">
+  <main>
+        <header class="app-header">
+            <div class="app-title">Tentacles Survey System</div>
+
+            <div class="app-user">
+                <span>User:</span>
+                <span id="user">Loading user...</span>
+
+                <button
+                    id="logout-button"
+                    class="icon-button"
+                    type="button"
+                    title="Logout"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <hr class="app-divider">
+    <a href="/admin/index.html">&larr; Administration</a>
+    <h1>Participation Rewards</h1>
+    <p>Participants share one balance and perk store across Tentacles. Points are awarded once per completed question on successful submission.</p>
+    <p id="rewards-status" role="status"></p>
+    <form id="rewards-settings" class="survey-section">
+      <label><input id="rewards-enabled" type="checkbox"> Enable participation rewards</label>
+      <label>Point name <input id="point-name" maxlength="80" required></label>
+      <button id="" type="submit" class="icon-button" title="Save settings" aria-label="Save settings"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i></button>
+      <p>Enable rewards and set question values from each survey's Edit page. Disabling rewards pauses earning and spending without deleting history.</p>
+    </form>
+    <section class="survey-section"><h2>Perks <button id="add-perk" type="button" class="icon-button" title="Add perk" aria-label="Add perk"><i class="fa-solid fa-plus" aria-hidden="true"></i></button></h2>
+    <form id="perk-form" hidden>
+      <label>Name <input id="perk-name" maxlength="120" required></label>
+      <label>Description <input id="perk-description" maxlength="1000"></label>
+      <label>Cost <input id="perk-cost" type="number" min="1" max="2147483647" step="1" required></label>
+      <label><input id="perk-active" type="checkbox" checked> Available</label>
+      <button id="" type="submit" class="icon-button" title="Save perk" aria-label="Save perk"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i></button><button id="cancel-perk" type="button" class="icon-button" title="Cancel" aria-label="Cancel"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </form>
+    <p>Uncheck Available to retire a perk. Past redemptions retain their original name and cost.</p>
+    <table class="survey-table"><thead><tr><th scope="col">Perk</th><th scope="col">Description</th><th scope="col">Cost</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody id="perks"></tbody></table></section>
+    <section class="survey-section"><h2>Redemptions</h2><table class="survey-table"><thead><tr><th scope="col">Date</th><th scope="col">Participant</th><th scope="col">Perk</th><th scope="col">Points spent</th></tr></thead><tbody id="redemptions"></tbody></table></section>
+  </main>
+  <script src="/js/getCsrfToken.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/date-format.js"></script>
+  <script src="/js/icon-button.js"></script>
+    <script src="/js/rewards.js"></script>
+  <script src="/js/rewards-page.js"></script>
+  <script src="/js/survey-events.js"></script>
+  <script src="/js/administration-nav.js"></script>
+  <script src="/js/logout.js"></script>
+  <script src="/js/app-footer.js"></script>
+</body></html>

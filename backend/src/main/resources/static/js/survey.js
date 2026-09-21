@@ -1011,6 +1011,12 @@ async function loadQuestions() {
 
     container.replaceChildren();
 
+    let rewardConfig = null;
+    if (window.Rewards) {
+      try { rewardConfig = await Rewards.request(`/surveys/${surveyId}`); }
+      catch (error) { console.warn("Unable to load question rewards.", error); }
+    }
+
     questionHandlers.length = 0;
     hasUnsavedChanges = false;
 
@@ -1047,6 +1053,13 @@ async function loadQuestions() {
             ".question-prompt"
         ).textContent = question.prompt;
         await window.QuestionImages?.renderQuestion(question, section.querySelector(".question-prompt"));
+        const rewardPoints = rewardConfig?.questions.find(value => value.id === question.id)?.points;
+        if (surveyAcceptingResponses && rewardConfig?.available && rewardConfig.enabled && rewardPoints > 0) {
+            const hint = document.createElement("p");
+            hint.textContent = `${rewardPoints} ${rewardConfig.pointName} for completing this question. Awarded once on submission.`;
+            section.querySelector(".question-prompt").after(hint);
+        }
+
 
         const optionsContainer =
             section.querySelector(

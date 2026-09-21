@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Participation Rewards - Tentacles</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="/css/tentacles.css">
+  <link rel="stylesheet" href="/css/toast.css">
+</head>
+<body>
+  <main>
+        <header class="app-header">
+            <div class="app-title">Tentacles Survey System</div>
+
+            <div class="app-user">
+                <span>User:</span>
+                <span id="user">Loading user...</span>
+
+                <button
+                    id="logout-button"
+                    class="icon-button"
+                    type="button"
+                    title="Logout"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <hr class="app-divider">
+    <a href="/">&larr; Surveys</a>
+    <h1>Participation Rewards</h1>
+    <p id="rewards-status" role="status"></p>
+    <h2>Your balance</h2><p id="balance">Loading...</p>
+    <section class="survey-section"><h2>Perk Store</h2><table class="survey-table"><thead><tr><th scope="col">Perk</th><th scope="col">Description</th><th scope="col">Cost</th><th scope="col">Actions</th></tr></thead><tbody id="perks"></tbody></table></section>
+    <section class="survey-section"><h2>Your History</h2><table class="survey-table"><thead><tr><th scope="col">Date</th><th scope="col">Description</th><th scope="col">Points</th></tr></thead><tbody id="reward-history"></tbody></table></section>
+    <section class="survey-section"><h2>Leaderboard</h2><p>Ranked by lifetime points earned. Redeeming perks does not reduce your score.</p><table class="survey-table"><thead><tr><th scope="col">Rank</th><th scope="col">Participant</th><th scope="col">Points earned</th></tr></thead><tbody id="leaderboard"></tbody></table></section>
+  </main>
+  <script src="/js/getCsrfToken.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/date-format.js"></script>
+  <script src="/js/icon-button.js"></script>
+    <script src="/js/rewards.js"></script>
+  <script src="/js/rewards-page.js"></script>
+  <script src="/js/survey-events.js"></script>
+  <script src="/js/administration-nav.js"></script>
+  <script src="/js/logout.js"></script>
+  <script src="/js/app-footer.js"></script>
+</body></html>

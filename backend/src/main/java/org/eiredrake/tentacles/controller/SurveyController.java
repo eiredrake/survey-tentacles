@@ -88,6 +88,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/surveys")
 public class SurveyController {
 
+  private final org.eiredrake.tentacles.service.QuestionCompletionService questionCompletion;
+  private final org.eiredrake.tentacles.rewards.RewardService rewards;
   private final ImageAttachmentService imageAttachments;
   private final ApplicationEventPublisher eventPublisher;
   private final SurveyService surveyService;
@@ -125,8 +127,12 @@ public class SurveyController {
     PointAllocationAnswerRepository pointAllocationAnswers,
     MeetupAvailabilityService meetupAvailability,
     ApplicationEventPublisher eventPublisher,
-    ImageAttachmentService imageAttachments
+    ImageAttachmentService imageAttachments,
+    org.eiredrake.tentacles.service.QuestionCompletionService questionCompletion,
+    org.eiredrake.tentacles.rewards.RewardService rewards
   ) {
+    this.questionCompletion = questionCompletion;
+    this.rewards = rewards;
     this.eventPublisher = eventPublisher;
     this.imageAttachments = imageAttachments;
     this.surveyService = surveyService;
@@ -166,6 +172,7 @@ public class SurveyController {
     if (!participated || (survey.getQuestions().stream().anyMatch(Question::isRequired) && !isSurveyCompletedForUser(survey, user))) {
       throw new IllegalArgumentException("Save the survey responses before confirming submission.");
     }
+    rewards.award(survey, user);
     String name = user.getDisplayName();
     if (name == null || name.isBlank()) name = user.getUsername();
     String eventId = surveyId + ":" + user.getId() + ":" + request.submissionId();
@@ -1593,76 +1600,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
   }
 
   private boolean isSurveyCompletedForUser(Survey survey, User user) {
-    List<Question> requiredQuestions = survey
-      .getQuestions()
-      .stream()
-      .filter(Question::isRequired)
-      .toList();
-
-    if (!requiredQuestions.isEmpty()) {
-      return requiredQuestions
-        .stream()
-        .allMatch(question ->
-          switch (question.getType()) {
-            case SCHEDULING -> schedulingAnswerService.hasAnswered(
-              question.getId(),
-              user.getId()
-            );
-            case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
-              question.getId(),
-              user.getId()
-            );
-            case RELATIONSHIP -> relationshipAnswerService
-              .findByQuestionIdAndUserId(question.getId(), user.getId())
-              .stream()
-              .anyMatch(
-                answer ->
-                  (answer.getLikeScore() != null &&
-                    answer.getLikeScore() != 0) ||
-                  (answer.getTrustScore() != null &&
-                    answer.getTrustScore() != 0)
-              );
-            case SINGLE_SELECT, YES_NO_ABSTAIN -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
-            case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
-            case POINT_ALLOCATION -> pointAllocationAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
-            case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
-            case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
-            case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
-          }
-        );
-    }
-
-    return survey
-      .getQuestions()
-      .stream()
-      .anyMatch(question ->
-        switch (question.getType()) {
-          case SCHEDULING -> schedulingAnswerService.hasAnswered(
-            question.getId(),
-            user.getId()
-          );
-          case SHORT_TEXT -> shortTextAnswerService.hasAnswered(
-            question.getId(),
-            user.getId()
-          );
-          case RELATIONSHIP -> relationshipAnswerService
-            .findByQuestionIdAndUserId(question.getId(), user.getId())
-            .stream()
-            .anyMatch(
-              answer ->
-                (answer.getLikeScore() != null && answer.getLikeScore() != 0) ||
-                (answer.getTrustScore() != null &&
-                  answer.getTrustScore() != 0) ||
-                (answer.getComment() != null && !answer.getComment().isBlank())
-            );
-          case SINGLE_SELECT, YES_NO_ABSTAIN -> singleSelectAnswerService.hasAnswered(question.getId(), user.getId());
-          case MULTI_SELECT -> multiSelectAnswerService.hasAnswered(question.getId(), user.getId());
-          case POINT_ALLOCATION -> pointAllocationAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
-          case MEETUP -> meetupAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
-          case RANKED_CHOICE -> rankedChoiceAnswers.existsByQuestionIdAndUserId(question.getId(), user.getId());
-          case NOMINATION -> nominationAnswerService.hasAnswered(question.getId(), user.getId());
-        }
-      );
+    return questionCompletion.isSurveyCompleted(survey, user);
   }
 
   @PostMapping("/{surveyId}/questions/single-select")

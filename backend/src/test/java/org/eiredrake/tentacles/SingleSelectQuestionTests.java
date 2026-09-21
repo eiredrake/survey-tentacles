@@ -30,11 +30,13 @@ class SingleSelectQuestionTests {
   @Mock SurveyImageService images;
   @Mock ImageAttachmentService attachments;
   @InjectMocks SurveyController controller;
+  @InjectMocks QuestionCompletionService completion;
   SingleSelectQuestion question;
   Survey survey;
   User user;
 
   @BeforeEach void setup() {
+    ReflectionTestUtils.setField(controller, "questionCompletion", completion);
     survey = new Survey();
     ReflectionTestUtils.setField(survey, "id", 1L);
     survey.setTitle("Survey");

@@ -27,6 +27,7 @@ function page(name, replies = {}) {
     return { ok: true, json: async () => value };
   };
   dom.window.eval(readFileSync(path.join(staticDir, "js/getCsrfToken.js"), "utf8"));
+  dom.window.eval(readFileSync(path.join(staticDir, "js/icon-button.js"), "utf8"));
   dom.window.eval(readFileSync(path.join(staticDir, "js/ranked-choice.js"), "utf8"));
   dom.window.eval(readFileSync(path.join(staticDir, "js", `${name}.js`), "utf8")
     .replace(/^initialize\(\);\s*$/m, ""));
