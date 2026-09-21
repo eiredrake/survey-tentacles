@@ -213,8 +213,9 @@ async function loadQuestions() {
     
     let answersLoaded = false;
 
-    viewButton.addEventListener("click", async () => {
+    async function toggleAnswers() {
       detailRow.hidden = !detailRow.hidden;
+      viewButton.setAttribute("aria-expanded", String(!detailRow.hidden));
     
       if (!detailRow.hidden && !answersLoaded) {
         if (question.type ===  "RELATIONSHIP") {
@@ -270,7 +271,11 @@ async function loadQuestions() {
         answersLoaded = true;
       }
 
-    });   
+    }
+
+    viewButton.addEventListener("click", toggleAnswers);
+    try { await toggleAnswers(); }
+    catch (error) { showToast("Unable to load question answers. Please try again.", "error"); }
   }
 }
 
