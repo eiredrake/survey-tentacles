@@ -998,23 +998,8 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
   }
 
   @GetMapping("/{surveyId}/participants")
-  public List<Map<String, Object>> getParticipants(
-    @PathVariable Long surveyId
-  ) {
-    return surveyParticipantService
-      .findBySurveyId(surveyId)
-      .stream()
-      .map(participant ->
-        Map.<String, Object>of(
-          "userId",
-          participant.getUser().getId(),
-          "username",
-          participant.getUser().getUsername(),
-          "name",
-          participant.getUser().getDisplayName()
-        )
-      )
-      .toList();
+  public List<SurveyParticipantService.ParticipantView> getParticipants(@PathVariable Long surveyId) {
+    return surveyParticipantService.findForView(surveyId);
   }
 
   @GetMapping("/{surveyId}/questions/{questionId}/participation")

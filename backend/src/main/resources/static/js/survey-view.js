@@ -640,14 +640,8 @@ async function renderShortTextAnswers(question, container) {
 async function loadParticipants() {
   const container = document.getElementById("participants-view");
 
-  const response = await fetch(`/api/surveys/${surveyId}/assignments`);
-
-  if (!response.ok) {
-    showToast("Unable to load participants.", "error");
-    return;
-  }
-
-  const participants = await response.json();
+  const participants = await loadSurveyParticipants(surveyId);
+  if (!participants) return;
   participants.sort((a, b) => {
     if (a.completed !== b.completed) {
       return a.completed ? -1 : 1;
@@ -688,9 +682,9 @@ async function loadParticipants() {
     const participantName =
     participant.name || participant.username;
   
-    if (participant.completed) {
+    if (participant.completed || participant.responded) {
       const participantLink = document.createElement("a");
-      row.classList.add("participant-completed");
+      if (participant.completed) row.classList.add("participant-completed");
     
       participantLink.href =
         `/survey-participant-view.html?id=${surveyId}&userId=${participant.userId}`;
@@ -721,7 +715,7 @@ async function loadParticipants() {
   }
 
   table.appendChild(tbody);
-  container.appendChild(table);
+  container.replaceChildren(table);
 }
 
 async function initialize() {

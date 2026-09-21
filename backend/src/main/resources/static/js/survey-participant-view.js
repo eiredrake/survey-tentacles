@@ -66,16 +66,8 @@ async function renderShortTextAnswer(question, container) {
 }
 
 async function loadParticipant() {
-  const response = await fetch(
-    `/api/surveys/${surveyId}/assignments`
-  );
-
-  if (!response.ok) {
-    showToast("Unable to load participant.", "error");
-    return;
-  }
-
-  const participants = await response.json();
+  const participants = await loadSurveyParticipants(surveyId);
+  if (!participants) return;
 
   const participant = participants.find(
     participant => String(participant.userId) === String(userId)
