@@ -783,3 +783,8 @@ main {
 /* Tentacles owns only the surrounding presentation of the vendored FDatepicker control. */
 .fdatepicker-popup { border: 1px solid #999; box-shadow: 0 4px 14px rgb(0 0 0 / 18%); }
 .fdatepicker-timepicker { border-top: 1px solid #ddd; background: #f8f8f8; }
+
+.survey-section-heading {
+  font-size: 1.5em;
+  font-weight: bold;
+}
