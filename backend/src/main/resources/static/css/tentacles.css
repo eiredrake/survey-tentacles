@@ -779,3 +779,7 @@ main {
 .point-allocation-option { display: flex; align-items: center; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid #ddd; }
 .point-allocation-option > span { flex: 1; overflow-wrap: anywhere; }
 .point-allocation-option > input { width: 6rem; }
+
+/* Tentacles owns only the surrounding presentation of the vendored FDatepicker control. */
+.fdatepicker-popup { border: 1px solid #999; box-shadow: 0 4px 14px rgb(0 0 0 / 18%); }
+.fdatepicker-timepicker { border-top: 1px solid #ddd; background: #f8f8f8; }

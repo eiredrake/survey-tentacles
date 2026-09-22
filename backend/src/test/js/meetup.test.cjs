@@ -19,6 +19,7 @@ function page(name, replies = {}) {
   dom.window.eval = code => runInContext(code, dom.getInternalVMContext());
   dom.window.showToast = (...args) => toasts.push(args);
   dom.window.HTMLElement.prototype.scrollIntoView = () => {};
+  dom.window.ResizeObserver = class { observe() {} disconnect() {} };
   dom.window.fetch = async (url, options = {}) => {
     calls.push({ url, options });
     const value = replies[url] ?? (url === "/csrf" ? { headerName: "X-CSRF", token: "test" }
@@ -28,6 +29,7 @@ function page(name, replies = {}) {
   };
   dom.window.eval(readFileSync(path.join(staticDir, "js/getCsrfToken.js"), "utf8"));
   dom.window.eval(readFileSync(path.join(staticDir, "js/SmartInput.js"), "utf8"));
+  dom.window.eval(readFileSync(path.join(staticDir, "vendor/fdatepicker/fdatepicker.min.js"), "utf8"));
   for (const file of ["date-format", "scheduling-results", "meetup"]) {
     dom.window.eval(readFileSync(path.join(staticDir, `js/${file}.js`), "utf8"));
   }

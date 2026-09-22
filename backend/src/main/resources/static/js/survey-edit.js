@@ -1089,144 +1089,47 @@ function setupQuestionTypePicker() {
 }
 
 function setupSchedulingEditor() {
-  const includeTimeCheckbox =
-    document.getElementById(
-      "scheduling-editor-include-time"
-    );
+  const includeTimeCheckbox = document.getElementById("scheduling-editor-include-time");
+  const timeContainer = document.getElementById("scheduling-editor-time-container");
+  const timeInput = document.getElementById("scheduling-editor-time");
+  const dateInput = document.getElementById("scheduling-editor-date");
+  const selectionList = document.getElementById("scheduling-editor-selection-list");
+  if (!includeTimeCheckbox || !timeContainer || !timeInput || !dateInput || !selectionList) return;
 
-  const timeContainer =
-    document.getElementById(
-      "scheduling-editor-time-container"
-    );
-
-  const timeInput =
-    document.getElementById(
-      "scheduling-editor-time"
-    );
-
-  const dateInput =
-    document.getElementById(
-      "scheduling-editor-date"
-    );
-
-  const selectionList =
-    document.getElementById(
-      "scheduling-editor-selection-list"
-    );
-
-  if (
-    !includeTimeCheckbox ||
-    !timeContainer ||
-    !timeInput ||
-    !dateInput ||
-    !selectionList
-  ) {
-    return;
+  function selectedTime() {
+    const date = timeInput._fdatepicker?.selectedDate;
+    return date ? FDatepicker.formatDate(date, "H:i") : "";
   }
 
-  function renderSelections(
-    selectedDates
-  ) {
+  function renderSelections(selectedDates) {
     selectionList.replaceChildren();
-
-    if (!selectedDates.length) {
-      selectionList.textContent =
-        "No dates selected.";
-      return;
-    }
-
-    for (
-      const selectedDate
-      of selectedDates
-    ) {
-      const year =
-        selectedDate.getFullYear();
-
-      const month =
-        String(
-          selectedDate.getMonth() + 1
-        ).padStart(2, "0");
-
-      const day =
-        String(
-          selectedDate.getDate()
-        ).padStart(2, "0");
-
-      const dateValue =
-        `${year}-${month}-${day}`;
-
-      const selection =
-        document.createElement("div");
-
-      selection.className =
-        "scheduling-selection";
-
-      selection.dataset.date =
-        dateValue;
-
-      selection.dataset.time =
-        includeTimeCheckbox.checked
-          ? timeInput.value
-          : "";
-
-      const text =
-        document.createElement("span");
-
-      text.textContent =
-        selection.dataset.time
-          ? `${dateValue} ${selection.dataset.time}`
-          : dateValue;
-
+    if (!selectedDates.length) { selectionList.textContent = "No dates selected."; return; }
+    for (const selectedDate of selectedDates) {
+      const selection = document.createElement("div");
+      selection.className = "scheduling-selection";
+      selection.dataset.date = FDatepicker.formatDate(selectedDate, "Y-m-d");
+      selection.dataset.time = includeTimeCheckbox.checked ? selectedTime() : "";
+      const text = document.createElement("span");
+      text.textContent = selection.dataset.time ? `${selection.dataset.date} ${selection.dataset.time}` : selection.dataset.date;
       selection.appendChild(text);
-      selectionList.appendChild(
-        selection
-      );
+      selectionList.appendChild(selection);
     }
   }
 
-  dateInput._flatpickr =
-    flatpickr(
-      dateInput,
-      {
-        mode: "multiple",
-        dateFormat: "Y-m-d",
-        inline: true,
-
-        onChange: selectedDates => {
-          renderSelections(
-            selectedDates
-          );
-          markDirty("question");
-        }
-      }
-    );
-
-  includeTimeCheckbox
-    .addEventListener(
-      "change",
-      () => {
-        timeContainer.hidden =
-          !includeTimeCheckbox.checked;
-
-        renderSelections(
-          dateInput._flatpickr
-            .selectedDates
-        );
-        markDirty("question");
-      }
-    );
-
-  timeInput.addEventListener(
-    "change",
-    () => {
-      renderSelections(
-        dateInput._flatpickr
-          .selectedDates
-      );
-    }
-  );
+  const datePicker = new FDatepicker(dateInput, {
+    multiple: true, format: "Y-m-d", autoClose: false,
+    onSelect: (_, dates) => { renderSelections(dates); markDirty("question"); }
+  });
+  new FDatepicker(timeInput, {
+    timeOnly: true, timepicker: true, ampm: true, format: "h:i a", minutesStep: 1,
+    onSelect: () => { renderSelections(datePicker.selectedDates); markDirty("question"); }
+  });
+  includeTimeCheckbox.addEventListener("change", () => {
+    timeContainer.hidden = !includeTimeCheckbox.checked;
+    renderSelections(datePicker.selectedDates);
+    markDirty("question");
+  });
 }
-
 async function loadQuestions() {
   const response =
     await fetch(
@@ -1809,10 +1712,10 @@ function populateSchedulingSelections(
               item.dataset.date
           );
 
-        if (dateInput?._flatpickr) {
-          dateInput._flatpickr
+        if (dateInput?._fdatepicker) {
+          dateInput._fdatepicker
             .setDate(
-              remainingDates,
+              remainingDates.map(date => new Date(`${date}T00:00`)),
               false
             );
         }
@@ -1838,7 +1741,7 @@ function populateSchedulingSelections(
     );
   }
 
-  if (dateInput?._flatpickr) {
+  if (dateInput?._fdatepicker) {
     const selectedDates =
       Array.from(
         selectionList
@@ -1850,8 +1753,8 @@ function populateSchedulingSelections(
           selection.dataset.date
       );
 
-    dateInput._flatpickr.setDate(
-      selectedDates,
+    dateInput._fdatepicker.setDate(
+      selectedDates.map(date => new Date(`${date}T00:00`)),
       false
     );
   }

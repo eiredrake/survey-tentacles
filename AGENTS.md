@@ -625,3 +625,9 @@ When choosing between:
 prefer:
 
 **reuse, narrow scope, verified facts, obvious code, and asking when the boundary must change.**
+## Third-Party Frontend Assets
+
+Vendored frontend dependencies live in `backend/src/main/resources/static/vendor/<library-name>/`.
+Keep each dependency self-contained with required license or attribution material. Third-party distribution
+JavaScript and CSS belong in that directory, never Tentacles' `/js` or `/css`. Tentacles-specific wrappers,
+behavior, and styling remain Tentacles-owned code. Do not modify vendored files for application customization.

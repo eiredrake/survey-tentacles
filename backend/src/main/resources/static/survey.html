@@ -10,6 +10,7 @@
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
     <link rel="stylesheet" href="/css/toast.css">
+    <link rel="stylesheet" href="/vendor/fdatepicker/fdatepicker.css">
     <link rel="stylesheet" href="/css/tentacles.css">
 </head>
 
@@ -54,7 +55,7 @@
 
         <div class="survey-page-heading">
             <a href="/">
-                ← Surveys
+                <a href="/">&larr; Surveys</a>
             </a>
 
             <h1 id="survey-title">
@@ -207,7 +208,7 @@
     <template id="meetup-participant-template">
         <section class="survey-question">
             <h3 class="question-prompt"></h3>
-            <p>Add specific times, availability windows, or both. A window’s end time is when you are no longer available. Results will be shown after the survey closes.</p>
+            <p>Add specific times, availability windows, or both. A windowÃ¢â‚¬â„¢s end time is when you are no longer available. Results will be shown after the survey closes.</p>
             <p class="meetup-time-zone"></p>
             <label>Availability:
                 <select class="meetup-entry-type">
@@ -215,8 +216,8 @@
                     <option value="window">Time window</option>
                 </select>
             </label>
-            <label>Start: <input type="datetime-local" class="meetup-date-time" step="60"></label>
-            <label class="meetup-end-label" hidden>End: <input type="datetime-local" class="meetup-end-time" step="60"></label>
+            <label>Start: <input type="text" class="meetup-date-time" data-timepicker="true" data-ampm="true" data-format="m/d/Y h:i a"></label>
+            <label class="meetup-end-label" hidden>End: <input type="text" class="meetup-end-time" data-timepicker="true" data-ampm="true" data-format="m/d/Y h:i a"></label>
             <button type="button" class="icon-button meetup-add" title="Add availability" aria-label="Add availability">
                 <i class="fa-solid fa-plus" aria-hidden="true"></i>
             </button>
@@ -241,6 +242,7 @@
     <script src="/js/question-images.js"></script>
     <script src="/js/toast.js"></script>
     <script src="/js/date-format.js"></script>
+    <script src="/vendor/fdatepicker/fdatepicker.min.js"></script>
     <script src="/js/scheduling-results.js"></script>
     <script src="/js/meetup.js"></script>
     <script src="/js/rewards.js"></script>

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Survey - Tentacles</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="/vendor/fdatepicker/fdatepicker.css">
     <link rel="stylesheet" href="/css/tentacles.css">
     <link rel="stylesheet" href="/css/toast.css">
 </head>
@@ -44,7 +44,7 @@
             </div>
         </div>    
                 
-        <a href="/">← Surveys</a>
+        <a href="/">&larr; Surveys</a>
 
         <div class="editor-title">
             <h1 id="survey-title">Edit Survey</h1>
@@ -190,12 +190,12 @@
                     <div class="question-editor-picker">
                         <label for="scheduling-editor-date">Date:</label>
 
-                        <input id="scheduling-editor-date" type="date">
+                        <input id="scheduling-editor-date" type="text" data-multiple="true" data-auto-close="false" data-format="Y-m-d">
 
                         <div id="scheduling-editor-time-container" hidden>
                             <label for="scheduling-editor-time">Time:</label>
 
-                            <input id="scheduling-editor-time" type="time">
+                            <input id="scheduling-editor-time" type="text" data-time-only="true" data-timepicker="true" data-ampm="true" data-format="h:i a">
                         </div>
                     </div>
 
@@ -516,7 +516,7 @@
     <script src="/js/question-images.js"></script>
     <script src="/js/toast.js"></script>
     <script src="/js/date-format.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="/vendor/fdatepicker/fdatepicker.min.js"></script>
     <script src="/js/SmartInput.js"></script>
     <script src="/js/participant-picker.js"></script>
     <script src="/js/survey-edit.js"></script>

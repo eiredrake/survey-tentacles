@@ -17,6 +17,9 @@ window.Meetup = (() => {
     const list = section.querySelector(".meetup-selections");
     section.querySelector(".meetup-time-zone").textContent = `Times are in ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
     input.disabled = endInput.disabled = mode.disabled = add.disabled = disabled;
+    const pickerOptions = { timepicker: true, ampm: true, format: "m/d/Y h:i a", minutesStep: 1 };
+    new FDatepicker(input, pickerOptions);
+    new FDatepicker(endInput, pickerOptions);
     mode.addEventListener("change", () => { endLabel.hidden = mode.value !== "window"; onChange(); });
     function render() {
       list.replaceChildren();
@@ -39,10 +42,12 @@ window.Meetup = (() => {
       }
     }
     function localDateTime(field) {
-      const date = new Date(field.value);
-      const parts = field.value.split(/[-T:]/).map(Number);
+      const pickerDate = field._fdatepicker?.selectedDate;
+      const value = pickerDate ? FDatepicker.formatDate(pickerDate, "Y-m-d\\TH:i") : field.value;
+      const date = pickerDate || new Date(value);
+      const parts = value.split(/[-T:]/).map(Number);
       // A nonexistent local time during a DST jump must not silently become another time.
-      if (!field.value || !field.checkValidity() || Number.isNaN(date.getTime()) || parts.length !== 5
+      if (!value || Number.isNaN(date.getTime()) || parts.length !== 5
           || date.getFullYear() !== parts[0] || date.getMonth() + 1 !== parts[1] || date.getDate() !== parts[2]
           || date.getHours() !== parts[3] || date.getMinutes() !== parts[4]) {
         showToast("Choose a valid local date and time.", "error");
@@ -59,6 +64,8 @@ window.Meetup = (() => {
       if (end && end <= start) { showToast("Availability must end after it starts.", "error"); return false; }
       const value = end ? { dateTime: start, endDateTime: end } : start;
       dates.set(JSON.stringify(value), value);
+      input._fdatepicker?.setDate(null, false);
+      endInput._fdatepicker?.setDate(null, false);
       input.value = endInput.value = "";
       render(); onChange();
       return true;
