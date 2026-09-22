@@ -1,6 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 const surveyId = params.get("id");
 let editingQuestionId = null;
+let loadedSurvey = null;
 
 const dirtySources = new Set();
 
@@ -533,6 +534,8 @@ async function loadSurvey() {
     return;
   }
 
+  loadedSurvey = survey;
+
   const developmentBanner = document.getElementById("development-mode-banner");
 
   if (developmentBanner && survey.status === "DEVELOPMENT") {
@@ -675,6 +678,51 @@ async function saveTagline() {
   }
 }
 
+function setupAutomaticClosing() {
+  const closeAt = document.getElementById("survey-auto-close-at");
+  const participants = document.getElementById("survey-auto-close-participants");
+  const saveButton = document.getElementById("save-automatic-closing");
+  const status = document.getElementById("automatic-closing-status");
+  if (!closeAt || !participants || !saveButton || !status) return;
+
+  const picker = new FDatepicker(closeAt, {
+    timepicker: true, ampm: true, format: "m/d/Y h:i a", minutesStep: 1
+  });
+  if (loadedSurvey?.autoCloseAt) picker.setDate(new Date(loadedSurvey.autoCloseAt), false);
+  participants.value = loadedSurvey?.autoCloseParticipantCount ?? "";
+
+  saveButton.addEventListener("click", async () => {
+    const participantCount = participants.value.trim();
+    if (participantCount && (!participants.checkValidity() || !Number.isInteger(Number(participantCount)))) {
+      status.textContent = "Enter a positive whole-number participant count.";
+      return;
+    }
+    saveButton.disabled = true;
+    status.textContent = "";
+    try {
+      const csrf = await getCsrfToken();
+      const response = await fetch(`/api/surveys/${surveyId}/auto-close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+        body: JSON.stringify({
+          closeAt: picker.selectedDate?.toISOString() ?? "",
+          participantCount
+        })
+      });
+      if (!response.ok) throw new Error("Unable to save automatic closing settings.");
+      const settings = await response.json();
+      loadedSurvey = { ...loadedSurvey, ...settings };
+      picker.setDate(settings.autoCloseAt ? new Date(settings.autoCloseAt) : null, false);
+      participants.value = settings.autoCloseParticipantCount ?? "";
+      status.textContent = "Saved";
+    } catch (error) {
+      console.error(error);
+      status.textContent = error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+}
 function setupTaglineEditor() {
   const saveButton = document.getElementById("save-survey-tagline");
 
@@ -2026,6 +2074,7 @@ async function initialize() {
 
   setupTitleEditor();
   setupTaglineEditor();
+  setupAutomaticClosing();
   setupSurveyImageUpload();
   setupQuestionTypePicker();
 

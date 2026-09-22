@@ -1,5 +1,6 @@
 let currentUser = null;
 let surveyStatuses = [];
+let acceptingSurveyIds = new Set();
 
 async function loadSurveyStatuses() {
     const response = await fetch("/api/surveys/statuses");
@@ -27,6 +28,19 @@ async function loadUser() {
     document.getElementById("user").textContent = `${user.name}`;
 }
 
+let refreshSurveyListAtDeadline = null;
+
+function nearestSurveyDeadline(surveys) {
+  return surveys
+    .filter(survey => survey.acceptingResponses && survey.autoCloseAt)
+    .map(survey => new Date(survey.autoCloseAt))
+    .filter(deadline => Number.isFinite(deadline.getTime()) && deadline > new Date())
+    .sort((left, right) => left - right)[0]?.toISOString() ?? null;
+}
+function scheduleSurveyListRefresh(surveys) {
+  refreshSurveyListAtDeadline ??= createDeadlineRefresh(loadSurveys);
+  refreshSurveyListAtDeadline(nearestSurveyDeadline(surveys));
+}
 async function loadSurveys() {
   const response = await fetch("/api/surveys");
 
@@ -40,6 +54,10 @@ async function loadSurveys() {
   }
 
   const surveys = await response.json();
+  const closedSurveys = surveys.filter(survey =>
+      acceptingSurveyIds.has(survey.id) && !survey.acceptingResponses);
+  acceptingSurveyIds = new Set(surveys.filter(survey => survey.acceptingResponses).map(survey => survey.id));
+  scheduleSurveyListRefresh(surveys);
 
   const activeContainer =
       document.getElementById("active-surveys");
@@ -67,8 +85,13 @@ async function loadSurveys() {
   activeContainer.replaceChildren();
   inactiveContainer.replaceChildren();
 
+  for (const survey of closedSurveys) {
+      showToast(`${survey.title} has closed.`, "info");
+  }
+
   for (const survey of surveys) {
       const item = document.createElement("tr");
+      if (survey.status === "CLOSED") item.classList.add("survey-closed-row");
 
       const nameCell = document.createElement("td");
 
@@ -77,6 +100,12 @@ async function loadSurveys() {
       link.textContent = survey.title;
 
       nameCell.appendChild(link);
+      if (survey.acceptingResponses && survey.autoCloseAt) {
+          const closing = document.createElement("div");
+          closing.className = "survey-closing-info";
+          closing.textContent = `Closes ${formatSchedulingDate(null, survey.autoCloseAt)}`;
+          nameCell.appendChild(closing);
+      }
 
       const requiredCell = document.createElement("td");
 

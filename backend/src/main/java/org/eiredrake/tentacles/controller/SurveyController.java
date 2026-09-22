@@ -161,7 +161,9 @@ public class SurveyController {
     @RequestBody SubmissionNotice request, Authentication authentication) {
     if (request.submissionId() == null) throw new IllegalArgumentException("Submission ID is required.");
     Survey survey = surveyService.findById(surveyId);
-    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    if (!surveyService.isManuallyAcceptingResponses(survey)) {
+      throw new IllegalStateException("Survey is not open for responses.");
+    }
     User user = userService.findOrCreate(oidcUser);
     boolean isAdmin = authentication.getAuthorities().stream().anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
     if (!isAdmin && !surveyAssignmentService.findBySurveyId(surveyId).isEmpty() && !surveyAssignmentService.isAssigned(surveyId, user.getId())) {
@@ -287,7 +289,9 @@ public class SurveyController {
 
         boolean completed = isSurveyCompletedForUser(survey, currentUser);
 
-        boolean active = switch (survey.getStatus()) {
+        SurveyService.ResponseAvailability availability = surveyService.responseAvailability(survey);
+        SurveyStatus effectiveStatus = availability.effectiveStatus();
+        boolean active = switch (effectiveStatus) {
           case DEVELOPMENT, OPEN -> true;
           case CLOSED, PUBLISHED -> false;
         };
@@ -301,14 +305,16 @@ public class SurveyController {
         result.put("creatorId", survey.getCreator().getId());
         result.put("creatorName", survey.getCreator().getDisplayName());
         result.put("questionCount", survey.getQuestions().size());
-        result.put("status", survey.getStatus().name());
-        result.put("statusIcon", survey.getStatus().getIcon());
+        result.put("status", effectiveStatus.name());
+        result.put("statusIcon", effectiveStatus.getIcon());
         result.put("required", required);
         result.put("everPublished", survey.isEverPublished());
         result.put("imageFilename", survey.getImageFilename());
         result.put("completed", completed);
-        result.put("acceptingResponses", survey.getStatus().isAcceptingResponses()
-        );
+        result.put("acceptingResponses", availability.acceptingResponses());
+        result.put("closureReason", availability.closureReason() == null ? null : availability.closureReason().name());
+        result.put("autoCloseAt", survey.getAutoCloseAt());
+        result.put("autoCloseParticipantCount", survey.getAutoCloseParticipantCount());
 
         return result;
       })
@@ -687,6 +693,7 @@ public class SurveyController {
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/short-text")
+  @Transactional
   public Map<String, Object> answerShortTextQuestion(
     @PathVariable Long surveyId,
     @PathVariable Long questionId,
@@ -705,9 +712,7 @@ public class SurveyController {
 
     Survey survey = surveyService.findById(surveyId);
 
-    if (survey.getStatus() != SurveyStatus.OPEN) {
-      throw new IllegalStateException("Survey is not open for responses.");
-    }
+    surveyService.requireAcceptingResponses(surveyId);
 
     User user = userService.findOrCreate(oidcUser);
 
@@ -847,6 +852,7 @@ public List<Map<String, Object>> getRelationshipAnswersForUser(
   }
 
   @PostMapping("/{surveyId}/questions/{questionId}/answers/scheduling")
+  @Transactional
   public Map<String, Object> answerSchedulingQuestion(
     @PathVariable Long surveyId,
     @PathVariable Long questionId,
@@ -860,9 +866,7 @@ public List<Map<String, Object>> getRelationshipAnswersForUser(
     User user = userService.findOrCreate(oidcUser);
     Survey survey = surveyService.findById(surveyId);
 
-    if (survey.getStatus() != SurveyStatus.OPEN) {
-      throw new IllegalStateException("Survey is not open for responses.");
-    }
+    surveyService.requireAcceptingResponses(surveyId);
 
     surveyParticipantService.add(survey, user);
 
@@ -1376,6 +1380,39 @@ public List<Map<String, Object>> getSchedulingAnswersForUser(
     );
   }
 
+  @PostMapping("/{surveyId}/auto-close")
+  public Map<String, Object> updateAutomaticClosing(@PathVariable Long surveyId,
+    @RequestBody Map<String, String> request) {
+    Survey survey = surveyService.findById(surveyId);
+    survey.setAutoCloseAt(parseAutoCloseAt(request.get("closeAt")));
+    survey.setAutoCloseParticipantCount(parseAutoCloseParticipantCount(request.get("participantCount")));
+    surveyService.save(survey);
+    Map<String, Object> result = new HashMap<>();
+    result.put("id", survey.getId());
+    result.put("autoCloseAt", survey.getAutoCloseAt());
+    result.put("autoCloseParticipantCount", survey.getAutoCloseParticipantCount());
+    return result;
+  }
+
+  private Instant parseAutoCloseAt(String value) {
+    if (value == null || value.isBlank()) return null;
+    try {
+      return Instant.parse(value);
+    } catch (DateTimeParseException error) {
+      throw new IllegalArgumentException("Choose a valid closing date and time.");
+    }
+  }
+
+  private Integer parseAutoCloseParticipantCount(String value) {
+    if (value == null || value.isBlank()) return null;
+    try {
+      int count = Integer.parseInt(value);
+      if (count < 1) throw new IllegalArgumentException("Participant count must be a positive whole number.");
+      return count;
+    } catch (NumberFormatException error) {
+      throw new IllegalArgumentException("Participant count must be a positive whole number.");
+    }
+  }
   @GetMapping("/statuses")
   public List<String> getSurveyStatuses() {
     return java.util.Arrays.stream(SurveyStatus.values())
@@ -1692,9 +1729,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     @RequestBody Map<String, Object> request) {
     SingleSelectQuestion question = findSingleSelectQuestion(surveyId, questionId);
     Survey survey = question.getSurvey();
-    if (survey.getStatus() != SurveyStatus.OPEN) {
-      throw new IllegalStateException("Survey is not open for responses.");
-    }
+    surveyService.requireAcceptingResponses(surveyId);
     Object value = request.get("optionId");
     SingleSelectOption option = question.getDefaultOption();
     if (value != null) {
@@ -1788,8 +1823,11 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     @AuthenticationPrincipal OidcUser oidcUser, @RequestBody Map<String, Object> request, Authentication authentication) {
     NominationQuestion question = findNominationQuestion(surveyId, questionId);
     Survey survey = question.getSurvey();
-    if (survey.getStatus() != SurveyStatus.OPEN) {
-      throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Survey is not open for responses.");
+    try {
+      surveyService.requireAcceptingResponses(surveyId);
+    } catch (IllegalStateException error) {
+      throw new org.springframework.web.server.ResponseStatusException(
+        org.springframework.http.HttpStatus.CONFLICT, error.getMessage());
     }
     if (!(request.get("nominations") instanceof List<?> values)) {
       throw new IllegalArgumentException("Submit a list of nominations.");
@@ -1898,7 +1936,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     @AuthenticationPrincipal OidcUser oidcUser, @RequestBody Map<String, Object> request) {
     MeetupQuestion question = findMeetupQuestion(surveyId, questionId);
     Survey survey = question.getSurvey();
-    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    surveyService.requireAcceptingResponses(surveyId);
     if (!(request.get("dateTimes") instanceof List<?> values)) {
       throw new IllegalArgumentException("Submit a list of available dates and times.");
     }
@@ -1994,7 +2032,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     @AuthenticationPrincipal OidcUser oidcUser, @RequestBody Map<String, Object> request) {
     PointAllocationQuestion question = findPointAllocationQuestion(surveyId, questionId);
     Survey survey = question.getSurvey();
-    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    surveyService.requireAcceptingResponses(surveyId);
     if (!(request.get("allocations") instanceof List<?> entries)) throw new IllegalArgumentException("Submit a list of point allocations.");
     Map<Long, Integer> allocations = new HashMap<>();
     long total = 0;
@@ -2155,7 +2193,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     @RequestBody Map<String, Object> request) {
     RankedChoiceQuestion question = findRankedChoiceQuestion(surveyId, questionId);
     Survey survey = question.getSurvey();
-    if (survey.getStatus() != SurveyStatus.OPEN) throw new IllegalStateException("Survey is not open for responses.");
+    surveyService.requireAcceptingResponses(surveyId);
     if (!(request.get("optionIds") instanceof List<?> values)) {
       throw new IllegalArgumentException("Submit candidate IDs in preference order.");
     }
@@ -2257,9 +2295,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
     @RequestBody Map<String, Object> request) {
     MultiSelectQuestion question = findMultiSelectQuestion(surveyId, questionId);
     Survey survey = question.getSurvey();
-    if (survey.getStatus() != SurveyStatus.OPEN) {
-      throw new IllegalStateException("Survey is not open for responses.");
-    }
+    surveyService.requireAcceptingResponses(surveyId);
     if (!(request.get("optionIds") instanceof List<?> values)) {
       throw new IllegalArgumentException("Submit a list of selected option IDs.");
     }
@@ -2324,9 +2360,7 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
 
     Survey survey = surveyService.findById(surveyId);
 
-    if (survey.getStatus() != SurveyStatus.OPEN) {
-      throw new IllegalStateException("Survey is not open for responses.");
-    }
+    surveyService.requireAcceptingResponses(surveyId);
 
     User user = userService.findOrCreate(oidcUser);
 

@@ -119,6 +119,7 @@ class MultiSelectQuestionTests {
     when(questions.findById(2L)).thenReturn(question);
     for (SurveyStatus status : List.of(SurveyStatus.DEVELOPMENT, SurveyStatus.CLOSED, SurveyStatus.PUBLISHED)) {
       survey.setStatus(status);
+      doThrow(new IllegalStateException()).when(surveys).requireAcceptingResponses(1L);
       assertThrows(IllegalStateException.class,
         () -> controller.answerMultiSelectQuestion(1L, 2L, null, Map.of("optionIds", List.of(3, 5))));
     }

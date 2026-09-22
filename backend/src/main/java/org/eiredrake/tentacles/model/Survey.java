@@ -1,6 +1,7 @@
 package org.eiredrake.tentacles.model;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,7 +32,13 @@ public class Survey {
     private String imageFilename;    
 
     @Column(name = "tagline", length = 255)
-    private String tagline;    
+    private String tagline;
+
+    @Column(name = "auto_close_at")
+    private Instant autoCloseAt;
+
+    @Column(name = "auto_close_participant_count")
+    private Integer autoCloseParticipantCount;
 
     public Long getId() {
         return id;
@@ -95,5 +102,21 @@ public class Survey {
 
     public void setTagline(String tagline) {
         this.tagline = tagline;
-    }    
+    }
+
+    public Instant getAutoCloseAt() {
+        return autoCloseAt;
+    }
+
+    public void setAutoCloseAt(Instant autoCloseAt) {
+        this.autoCloseAt = autoCloseAt;
+    }
+
+    public Integer getAutoCloseParticipantCount() {
+        return autoCloseParticipantCount;
+    }
+
+    public void setAutoCloseParticipantCount(Integer autoCloseParticipantCount) {
+        this.autoCloseParticipantCount = autoCloseParticipantCount;
+    }
 }

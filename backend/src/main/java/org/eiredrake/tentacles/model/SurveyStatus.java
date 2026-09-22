@@ -3,7 +3,7 @@ package org.eiredrake.tentacles.model;
 public enum SurveyStatus {
     DEVELOPMENT("fa-file-pen", false),
     OPEN("fa-lock-open", true),
-    CLOSED("fa-unlock", false),
+    CLOSED("fa-lock", false),
     PUBLISHED("fa-book", false);
 
     private final String icon;

@@ -788,3 +788,22 @@ main {
   font-size: 1.5em;
   font-weight: bold;
 }
+.automatic-closing-fields { display: flex; flex-wrap: wrap; gap: 16px; }
+.automatic-closing-fields label { display: grid; gap: 4px; }
+.automatic-closing-fields input { box-sizing: border-box; min-width: 14rem; }
+.automatic-closing-fields input[type="number"] { min-width: 5rem; width: 5rem; }
+.survey-closed-banner {
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid #c9c9c9;
+  border-left: 5px solid #747474;
+  border-radius: 6px;
+  background: #f3f3f3;
+  color: #444;
+}
+
+.survey-closed-banner strong { display: block; }
+.survey-closed-banner div { margin-top: 0.4rem; }
+.survey-closing-info { margin-top: 0.25rem; color: #666; font-size: 0.9rem; }
+.survey-closed-row { background: #f6f6f6; color: #666; }
+.survey-closed-row a { color: #555; }

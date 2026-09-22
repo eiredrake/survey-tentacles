@@ -96,6 +96,7 @@ class SingleSelectQuestionTests {
     when(questions.findById(2L)).thenReturn(question);
     for (SurveyStatus status : List.of(SurveyStatus.DEVELOPMENT, SurveyStatus.CLOSED, SurveyStatus.PUBLISHED)) {
       survey.setStatus(status);
+      doThrow(new IllegalStateException()).when(surveys).requireAcceptingResponses(1L);
       assertThrows(IllegalStateException.class,
         () -> controller.answerSingleSelectQuestion(1L, 2L, null, Map.of("optionId", 3)));
     }

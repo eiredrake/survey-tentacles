@@ -61,6 +61,24 @@
             <input id="survey-tagline" type="text" maxlength="255">
             <button id="save-survey-tagline" type="button">Save</button>
             <span id="survey-tagline-status" role="status"></span>
+        </section>
+        <section class="survey-section" id="automatic-closing">
+            <h2>Automatic Closing</h2>
+            <div class="automatic-closing-fields">
+                <label for="survey-auto-close-at">Close at
+                    <input id="survey-auto-close-at" type="text" autocomplete="off"
+                        placeholder="Select a local date and time">
+                </label>
+                <label for="survey-auto-close-participants">Close after
+                    <span>
+                        <input id="survey-auto-close-participants" type="number" min="1" step="1">
+                        participants respond
+                    </span>
+                </label>
+            </div>
+            <p>Both conditions are optional. The survey closes when either configured condition is reached.</p>
+            <button id="save-automatic-closing" type="button">Save</button>
+            <span id="automatic-closing-status" role="status"></span>
         </section>  
 
         <div id="survey-editor">

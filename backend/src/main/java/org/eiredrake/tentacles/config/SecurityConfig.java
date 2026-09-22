@@ -94,6 +94,7 @@ public class SecurityConfig {
                     "/api/surveys/*/title",
                     "/api/surveys/*/image",
                     "/api/surveys/*/status",
+                    "/api/surveys/*/auto-close",
                     "/api/surveys/*/participants",
                     "/api/surveys/*/assignments",
                     "/api/surveys/*/assignments/*/required"

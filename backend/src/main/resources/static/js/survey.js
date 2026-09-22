@@ -4,6 +4,7 @@ const surveyId = params.get("id");
 let surveyStatus = null;
 let currentUser = null;
 let surveyAcceptingResponses = false;
+let refreshSurveyAtDeadline = null;
 
 let hasUnsavedChanges = false;
 let isSubmittingSurvey = false;
@@ -40,6 +41,39 @@ async function loadCurrentUser() {
     }
 }
 
+function showPendingClosureNotice() {
+    const key = `survey-close-notice:${surveyId}`;
+    if (sessionStorage.getItem(key) !== "true") return;
+
+    sessionStorage.removeItem(key);
+    showToast("This survey has closed.", "info");
+}
+function renderSurveyAvailability(survey) {
+    const banner = document.getElementById("survey-closed-banner");
+    const context = document.getElementById("survey-closed-context");
+    if (!banner || !context) return;
+
+    banner.hidden = survey.acceptingResponses;
+    context.hidden = true;
+    if (survey.acceptingResponses) return;
+
+    if (survey.closureReason === "DEADLINE" && survey.autoCloseAt) {
+        context.textContent = `This survey closed on ${formatSchedulingDate(null, survey.autoCloseAt)}.`;
+        context.hidden = false;
+    } else if (survey.closureReason === "PARTICIPANT_LIMIT") {
+        context.textContent =
+            `The participation limit of ${survey.autoCloseParticipantCount} participants was reached.`;
+        context.hidden = false;
+    }
+}
+
+function scheduleAutomaticClosureRefresh(survey) {
+    refreshSurveyAtDeadline ??= createDeadlineRefresh(() => {
+        sessionStorage.setItem(`survey-close-notice:${surveyId}`, "true");
+        window.location.reload();
+    });
+    refreshSurveyAtDeadline(survey.acceptingResponses ? survey.autoCloseAt : null);
+}
 async function loadSurveyStatus() {
     const response = await fetch("/api/surveys");
 
@@ -56,6 +90,9 @@ async function loadSurveyStatus() {
     if (survey) {
         surveyStatus = survey.status;
         surveyAcceptingResponses = survey.acceptingResponses;
+        renderSurveyAvailability(survey);
+        if (!survey.acceptingResponses) showPendingClosureNotice();
+        scheduleAutomaticClosureRefresh(survey);
 
         const developmentBanner = document.getElementById("development-mode-banner");
 
