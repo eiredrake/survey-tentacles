@@ -1254,20 +1254,41 @@ initialize();
 
 async function loadNominationQuestion(question, section) {
     const url = "/api/surveys/" + surveyId + "/questions/" + question.id;
-    const [detailResponse, answersResponse] = await Promise.all([
-        fetch(url), fetch(url + "/answers/nomination/" + currentUser.id)
+    const [detailResponse, poolResponse] = await Promise.all([
+        fetch(url), fetch(url + "/nomination-pool")
     ]);
-    if (!detailResponse.ok || !answersResponse.ok) throw new Error("Unable to load nominations.");
+    if (!detailResponse.ok || !poolResponse.ok) throw new Error("Unable to load nominations.");
     const detail = await detailResponse.json();
-    const answers = await answersResponse.json();
+    const pool = await poolResponse.json();
     const entries = section.querySelector(".nomination-entries");
+    const options = section.querySelector(".nomination-options");
     const add = section.querySelector(".nomination-add");
     const maximum = detail.maxNominations;
     const inputs = () => [...entries.querySelectorAll("input")];
+    const checked = () => [...options.querySelectorAll("input:checked")];
+    const optionTable = document.createElement("table");
+    optionTable.className = "survey-table";
+    const optionHead = optionTable.createTHead().insertRow();
+    optionHead.insertCell().textContent = "Nomination";
+    const optionBody = optionTable.createTBody();
+    optionTable.appendChild(optionBody); options.appendChild(optionTable);
     const updateLimit = () => {
-        add.disabled = !surveyAcceptingResponses || (maximum > 0 && inputs().length >= maximum);
+        const count = checked().length + inputs().filter(input => input.value.trim()).length;
+        add.disabled = !surveyAcceptingResponses || (maximum > 0 && count >= maximum);
         section.querySelector(".nomination-limit").textContent = maximum > 0
-            ? inputs().length + " / " + maximum + " nominations" : "Unlimited nominations";
+            ? count + " / " + maximum + " nominations" : "Unlimited nominations";
+    };
+    const addOption = option => {
+        const row = optionBody.insertRow();
+        row.className = "nomination-option";
+        const cell = row.insertCell();
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox"; input.checked = option.selected; input.disabled = !surveyAcceptingResponses;
+        if (option.canonicalId !== null) input.dataset.canonicalId = option.canonicalId;
+        else input.dataset.rawValue = option.displayName;
+        input.addEventListener("change", () => { updateLimit(); markSurveyDirty(); });
+        label.append(input, document.createTextNode(" " + option.displayName)); cell.appendChild(label);
     };
     const addEntry = (value = "") => {
         const row = document.createElement("div");
@@ -1293,25 +1314,29 @@ async function loadNominationQuestion(question, section) {
         updateLimit();
         return input;
     };
-    answers.forEach(answer => addEntry(answer.value));
+    pool.forEach(addOption);
     updateLimit();
     add.addEventListener("click", () => { addEntry().focus(); markSurveyDirty(); });
     questionHandlers.push({
         section,
         validate() {
             const values = inputs().map(input => input.value.trim());
+            const count = checked().length + values.filter(Boolean).length;
             let error = "";
-            if (question.required && !values.length) error = "This question is required. Please add a nomination.";
+            if (question.required && !count) error = "This question is required. Please add a nomination.";
             else if (values.some(value => !value || value.length > 255)) error = "Enter 1 to 255 characters for each nomination, or remove the empty row.";
-            else if (new Set(values).size !== values.length) error = "Enter each nomination only once.";
-            else if (maximum > 0 && values.length > maximum) error = "Please keep no more than " + maximum + " nominations.";
+            else if (maximum > 0 && count > maximum) error = "Please keep no more than " + maximum + " nominations.";
             if (error) { showRequiredError(section, error); return false; }
             return true;
         },
         async save(csrf) {
             const response = await fetch(url + "/answers/nomination", {
                 method: "POST", headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
-                body: JSON.stringify({ nominations: inputs().map(input => input.value.trim()) })
+                body: JSON.stringify({
+                    canonicalIds: checked().filter(input => input.dataset.canonicalId).map(input => Number(input.dataset.canonicalId)),
+                    nominations: checked().filter(input => input.dataset.rawValue).map(input => input.dataset.rawValue)
+                        .concat(inputs().map(input => input.value.trim()))
+                })
             });
             return response.ok;
         }

@@ -18,6 +18,10 @@ public class NominationAnswerService {
     return repository.save(answer);
   }
 
+  public void delete(NominationAnswer answer) {
+    repository.delete(answer);
+  }
+
   public List<NominationAnswer> findByQuestionId(Long questionId) {
     return repository.findByQuestionIdOrderByIdAsc(questionId);
   }

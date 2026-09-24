@@ -17,12 +17,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import org.eiredrake.tentacles.model.PointAllocationQuestion;
 import org.eiredrake.tentacles.model.PointAllocationOption;
 import org.eiredrake.tentacles.model.PointAllocationAnswer;
 import org.eiredrake.tentacles.repository.PointAllocationAnswerRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Set;
 import org.eiredrake.tentacles.model.RankedChoiceQuestion;
 import org.eiredrake.tentacles.model.RankedChoiceOption;
 import org.eiredrake.tentacles.model.RankedChoiceAnswer;
@@ -32,7 +34,9 @@ import java.util.Map;
 import org.eiredrake.tentacles.model.Question;
 import org.eiredrake.tentacles.model.NominationQuestion;
 import org.eiredrake.tentacles.model.NominationAnswer;
+import org.eiredrake.tentacles.model.CanonicalNomination;
 import org.eiredrake.tentacles.service.NominationAnswerService;
+import org.eiredrake.tentacles.service.CanonicalNominationService;
 import org.eiredrake.tentacles.model.QuestionType;
 import org.eiredrake.tentacles.model.RelationshipAnswer;
 import org.eiredrake.tentacles.model.RelationshipQuestion;
@@ -104,6 +108,7 @@ public class SurveyController {
   private final SingleSelectAnswerService singleSelectAnswerService;
   private final MultiSelectAnswerService multiSelectAnswerService;
   private final NominationAnswerService nominationAnswerService;
+  private final CanonicalNominationService canonicalNominationService;
   private final RankedChoiceAnswerRepository rankedChoiceAnswers;
   private final MeetupAnswerRepository meetupAnswers;
   private final PointAllocationAnswerRepository pointAllocationAnswers;
@@ -122,6 +127,7 @@ public class SurveyController {
     SingleSelectAnswerService singleSelectAnswerService,
     MultiSelectAnswerService multiSelectAnswerService,
     NominationAnswerService nominationAnswerService,
+    CanonicalNominationService canonicalNominationService,
     RankedChoiceAnswerRepository rankedChoiceAnswers,
     MeetupAnswerRepository meetupAnswers,
     PointAllocationAnswerRepository pointAllocationAnswers,
@@ -147,6 +153,7 @@ public class SurveyController {
     this.singleSelectAnswerService = singleSelectAnswerService;
     this.multiSelectAnswerService = multiSelectAnswerService;
     this.nominationAnswerService = nominationAnswerService;
+    this.canonicalNominationService = canonicalNominationService;
     this.rankedChoiceAnswers = rankedChoiceAnswers;
     this.meetupAnswers = meetupAnswers;
     this.pointAllocationAnswers = pointAllocationAnswers;
@@ -1829,41 +1836,189 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
       throw new org.springframework.web.server.ResponseStatusException(
         org.springframework.http.HttpStatus.CONFLICT, error.getMessage());
     }
-    if (!(request.get("nominations") instanceof List<?> values)) {
+    if (!request.containsKey("nominations") && !request.containsKey("canonicalIds")) {
       throw new IllegalArgumentException("Submit a list of nominations.");
     }
+    if (request.containsKey("nominations") && !(request.get("nominations") instanceof List<?>)) {
+      throw new IllegalArgumentException("Submit a list of nominations.");
+    }
+    List<?> values = request.get("nominations") instanceof List<?> list ? list : List.of();
     List<String> nominations = values.stream().map(value -> {
       if (!(value instanceof String text) || text.isBlank() || text.trim().length() > 255) {
         throw new IllegalArgumentException("Each nomination must contain 1 to 255 characters.");
       }
       return text.trim();
     }).toList();
-    if (nominations.stream().distinct().count() != nominations.size()) {
-      throw new IllegalArgumentException("Enter each nomination only once.");
-    }
-    if (question.isRequired() && nominations.isEmpty()) {
-      throw new IllegalArgumentException("This question requires at least one nomination.");
-    }
-    if (question.getMaxNominations() > 0 && nominations.size() > question.getMaxNominations()) {
-      throw new IllegalArgumentException("Too many nominations. Maximum: " + question.getMaxNominations());
-    }
     User user = userService.findOrCreate(oidcUser);
     boolean admin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     if (!admin && !surveyAssignmentService.findBySurveyId(surveyId).isEmpty() && !surveyAssignmentService.isAssigned(surveyId, user.getId())) {
       throw new org.springframework.security.access.AccessDeniedException("You are not assigned to this survey.");
     }
     surveyParticipantService.add(survey, user);
-    nominationAnswerService.deleteForUserAndQuestion(questionId, user.getId());
+    Map<Long, CanonicalNomination> selected = new LinkedHashMap<>();
+    Object selectedIds = request.get("canonicalIds");
+    if (selectedIds != null && !(selectedIds instanceof List<?>)) {
+      throw new IllegalArgumentException("Selected nominations must be a list.");
+    }
+    if (selectedIds instanceof List<?> ids) for (Object value : ids) {
+      if (!(value instanceof Number number)) throw new IllegalArgumentException("Invalid nomination selection.");
+      CanonicalNomination canonical = canonicalNominationService.findById(number.longValue());
+      if (!canonical.getQuestion().getId().equals(questionId)) throw new IllegalArgumentException("Invalid nomination selection.");
+      selected.put(canonical.getId(), canonical);
+    }
+    Map<Long, String> typed = new LinkedHashMap<>();
     for (String value : nominations) {
+      CanonicalNomination canonical = canonicalNominationService.resolve(question, value);
+      selected.put(canonical.getId(), canonical); typed.putIfAbsent(canonical.getId(), value);
+    }
+    if (question.isRequired() && selected.isEmpty()) throw new IllegalArgumentException("This question requires at least one nomination.");
+    if (question.getMaxNominations() > 0 && selected.size() > question.getMaxNominations()) {
+      throw new IllegalArgumentException("Too many nominations. Maximum: " + question.getMaxNominations());
+    }
+    List<NominationAnswer> existing = nominationAnswerService.findByQuestionIdAndUserId(questionId, user.getId());
+    Set<Long> retained = new HashSet<>();
+    for (NominationAnswer answer : existing) {
+      CanonicalNomination canonical = answer.getCanonicalNomination();
+      if (canonical != null && selected.containsKey(canonical.getId())) retained.add(canonical.getId());
+      else nominationAnswerService.delete(answer);
+    }
+    for (CanonicalNomination canonical : selected.values()) if (!retained.contains(canonical.getId())) {
       NominationAnswer answer = new NominationAnswer();
       answer.setQuestion(question);
       answer.setUser(user);
-      answer.setNomination(value);
+      answer.setNomination(typed.getOrDefault(canonical.getId(), canonical.getDisplayName()));
+      answer.setCanonicalNomination(canonical);
       nominationAnswerService.save(answer);
     }
-    return Map.of("questionId", questionId, "userId", user.getId(), "responseCount", nominations.size());
+    return Map.of("questionId", questionId, "userId", user.getId(), "responseCount", selected.size());
   }
 
+  @GetMapping("/{surveyId}/questions/{questionId}/nomination-pool")
+  public List<Map<String, Object>> nominationPool(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @AuthenticationPrincipal OidcUser oidcUser) {
+    findNominationQuestion(surveyId, questionId);
+    User user = userService.findOrCreate(oidcUser);
+    List<NominationAnswer> answers = nominationAnswerService.findByQuestionId(questionId);
+    Map<String, Map<String, Object>> pool = new LinkedHashMap<>();
+    for (CanonicalNomination canonical : canonicalNominationService.findByQuestionId(questionId)) {
+      pool.put("canonical:" + canonical.getId(), nominationPoolEntry(canonical.getDisplayName(), canonical.getId(), false));
+    }
+    for (NominationAnswer answer : answers) {
+      CanonicalNomination canonical = answer.getCanonicalNomination();
+      String key = canonical == null ? "raw:" + canonicalNominationService.normalize(answer.getNomination())
+        : "canonical:" + canonical.getId();
+      Map<String, Object> entry = pool.computeIfAbsent(key,
+        ignored -> nominationPoolEntry(canonical == null ? answer.getNomination() : canonical.getDisplayName(),
+          canonical == null ? null : canonical.getId(), false));
+      if (answer.getUser().getId().equals(user.getId())) entry.put("selected", true);
+    }
+    return new ArrayList<>(pool.values());
+  }
+
+  private Map<String, Object> nominationPoolEntry(String displayName, Long canonicalId, boolean selected) {
+    Map<String, Object> entry = new HashMap<>();
+    entry.put("displayName", displayName); entry.put("canonicalId", canonicalId); entry.put("selected", selected);
+    return entry;
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/canonical-nominations")
+  public Map<String, Object> canonicalNominations(@PathVariable Long surveyId, @PathVariable Long questionId) {
+    findNominationQuestion(surveyId, questionId);
+    List<NominationAnswer> answers = nominationAnswerService.findByQuestionId(questionId);
+    List<Map<String, Object>> canonicals = canonicalNominationService.findByQuestionId(questionId).stream().map(value -> {
+      List<Map<String, Object>> members = answers.stream().filter(answer -> answer.getCanonicalNomination() != null
+        && answer.getCanonicalNomination().getId().equals(value.getId())).map(this::nominationAnswerResult).toList();
+      long count = members.stream().map(member -> member.get("userId")).distinct().count();
+      return Map.<String, Object>of("id", value.getId(), "displayName", value.getDisplayName(), "count", count,
+        "answers", members);
+    }).toList();
+    return Map.of("canonicalNominations", canonicals, "answers", answers.stream().map(this::nominationAnswerResult).toList());
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/canonical-nominations")
+  @Transactional
+  public Map<String, Object> createCanonicalNomination(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @RequestBody Map<String, Object> request) {
+    requireSelectedNominations(request.get("answerIds"));
+    CanonicalNomination canonical = new CanonicalNomination();
+    canonical.setQuestion(findNominationQuestion(surveyId, questionId));
+    canonical.setDisplayName(canonicalDisplayName(request.get("displayName")));
+    canonical = canonicalNominationService.save(canonical);
+    assignCanonicalAnswers(questionId, request.get("answerIds"), canonical);
+    return Map.of("id", canonical.getId(), "displayName", canonical.getDisplayName());
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/canonical-nominations/{canonicalId}")
+  @Transactional
+  public Map<String, Object> updateCanonicalNomination(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @PathVariable Long canonicalId, @RequestBody Map<String, Object> request) {
+    findNominationQuestion(surveyId, questionId);
+    CanonicalNomination canonical = canonicalNominationService.findById(canonicalId);
+    if (!canonical.getQuestion().getId().equals(questionId)) throw new IllegalArgumentException("Canonical nomination does not belong to this question.");
+    if (request.containsKey("displayName")) canonical.setDisplayName(canonicalDisplayName(request.get("displayName")));
+    assignCanonicalAnswers(questionId, request.get("answerIds"), canonical);
+    canonicalNominationService.save(canonical);
+    return Map.of("id", canonical.getId(), "displayName", canonical.getDisplayName());
+  }
+
+  @PostMapping("/{surveyId}/questions/{questionId}/canonical-nominations/unassign")
+  @Transactional
+  public Map<String, Object> unassignCanonicalNominations(@PathVariable Long surveyId, @PathVariable Long questionId,
+    @RequestBody Map<String, Object> request) {
+    findNominationQuestion(surveyId, questionId);
+    requireSelectedNominations(request.get("answerIds"));
+    assignCanonicalAnswers(questionId, request.get("answerIds"), null);
+    return Map.of("unassigned", true);
+  }
+
+  private String canonicalDisplayName(Object value) {
+    if (!(value instanceof String name) || name.isBlank() || name.trim().length() > 255) {
+      throw new IllegalArgumentException("Canonical nomination must contain 1 to 255 characters.");
+    }
+    return name.trim();
+  }
+
+  private void assignCanonicalAnswers(Long questionId, Object value, CanonicalNomination canonical) {
+    if (value == null) return;
+    if (!(value instanceof List<?> values)) throw new IllegalArgumentException("Selected nominations must be a list.");
+    if (values.isEmpty()) return;
+    Map<Long, NominationAnswer> answers = nominationAnswerService.findByQuestionId(questionId).stream()
+      .collect(java.util.stream.Collectors.toMap(NominationAnswer::getId, answer -> answer));
+    for (Object entry : values) {
+      if (!(entry instanceof Number number) || !answers.containsKey(number.longValue())) {
+        throw new IllegalArgumentException("Selected nomination does not belong to this question.");
+      }
+      NominationAnswer answer = answers.get(number.longValue());
+      answer.setCanonicalNomination(canonical);
+      nominationAnswerService.save(answer);
+    }
+  }
+
+  private void requireSelectedNominations(Object value) {
+    if (!(value instanceof List<?> values) || values.isEmpty()) {
+      throw new IllegalArgumentException("Select at least one nomination.");
+    }
+  }
+
+  @GetMapping("/{surveyId}/questions/{questionId}/nomination-results")
+  public List<Map<String, Object>> nominationResults(@PathVariable Long surveyId, @PathVariable Long questionId) {
+    findNominationQuestion(surveyId, questionId);
+    List<NominationAnswer> answers = nominationAnswerService.findByQuestionId(questionId);
+    Map<String, List<NominationAnswer>> groups = new LinkedHashMap<>();
+    for (NominationAnswer answer : answers) {
+      String key = answer.getCanonicalNomination() == null ? "raw:" + canonicalNominationService.normalize(answer.getNomination())
+        : "canonical:" + answer.getCanonicalNomination().getId();
+      groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(answer);
+    }
+    return groups.values().stream().map(group -> {
+      NominationAnswer first = group.getFirst();
+      String displayName = first.getCanonicalNomination() == null ? first.getNomination()
+        : first.getCanonicalNomination().getDisplayName();
+      long count = group.stream().map(answer -> answer.getUser().getId()).distinct().count();
+      return Map.<String, Object>of("displayName", displayName, "count", count,
+        "answers", group.stream().map(this::nominationAnswerResult).toList());
+    }).toList();
+  }
   @GetMapping("/{surveyId}/questions/{questionId}/answers/nomination")
   public List<Map<String, Object>> getNominationAnswers(@PathVariable Long surveyId, @PathVariable Long questionId) {
     findNominationQuestion(surveyId, questionId);
@@ -1879,8 +2034,16 @@ public List<Map<String, Object>> getShortTextAnswersForUser(
 
   private Map<String, Object> nominationAnswerResult(NominationAnswer answer) {
     User user = answer.getUser();
-    return Map.of("answerId", answer.getId(), "userId", user.getId(), "username", user.getUsername(),
-      "name", user.getDisplayName() == null ? user.getUsername() : user.getDisplayName(), "value", answer.getNomination());
+    Map<String, Object> result = new HashMap<>();
+    result.put("answerId", answer.getId());
+    result.put("userId", user.getId());
+    result.put("username", user.getUsername());
+    result.put("name", user.getDisplayName() == null ? user.getUsername() : user.getDisplayName());
+    result.put("value", answer.getNomination());
+    CanonicalNomination canonical = answer.getCanonicalNomination();
+    result.put("canonicalId", canonical == null ? null : canonical.getId());
+    result.put("canonicalDisplayName", canonical == null ? null : canonical.getDisplayName());
+    return result;
   }
 
   private MeetupQuestion findMeetupQuestion(Long surveyId, Long questionId) {

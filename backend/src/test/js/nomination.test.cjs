@@ -46,27 +46,28 @@ async function voting(replies = {}, accepting = true) {
   return p;
 }
 
-test("Vote restores only this participant's nominations and submits the edited list", async () => {
-  const p = await voting({ "/api/surveys/1/questions/2/answers/nomination/7": [{ value: "Alien" }] });
-  assert.equal(p.document.querySelector(".nomination-entry input").value, "Alien");
-  p.add(" Arrival ");
+test("Vote shows the shared pool and submits canonical selections with new text", async () => {
+  const p = await voting({ "/api/surveys/1/questions/2/nomination-pool": [
+    { canonicalId: 8, displayName: "Alien", selected: true }, { canonicalId: 9, displayName: "Arrival", selected: false }] });
+  const choices = p.document.querySelectorAll('.nomination-option input');
+  assert.equal(p.document.querySelector('.nomination-options table').className, "survey-table");
+  assert.equal(choices.length, 2); assert.equal(choices[0].checked, true);
+  choices[1].checked = true; choices[1].dispatchEvent(new p.window.Event("change", { bubbles: true }));
   assert.equal(p.window.eval("hasUnsavedChanges"), true);
-  assert.equal(p.document.querySelector(".nomination-add").disabled, true);
   await p.submit();
   const post = p.calls.find(c => c.url.endsWith("/answers/nomination"));
-  assert.deepEqual(JSON.parse(post.options.body), { nominations: ["Alien", "Arrival"] });
+  assert.deepEqual(JSON.parse(post.options.body), { canonicalIds: [8, 9], nominations: [] });
   assert.equal(post.options.headers["X-CSRF"], "test");
   assert.equal(p.calls.at(-1).url, "/api/surveys/1/submitted");
   p.dom.window.close();
 });
 
-test("Required, blank and repeated nominations block submission", async () => {
+test("Required and blank new nominations block submission", async () => {
   const p = await voting();
   await p.submit();
   p.add(" ");
   await p.submit();
-  p.document.querySelector(".nomination-entry input").value = "Alien";
-  p.add("Alien");
+  p.document.querySelector(".nomination-entry input").value = " ";
   await p.submit();
   assert.equal(p.calls.some(c => c.options.method === "POST"), false);
   p.dom.window.close();
@@ -79,19 +80,19 @@ test("Optional nominations can all be removed and unlimited allows more than two
   assert.equal(p.document.querySelectorAll(".nomination-entry").length, 3);
   for (const remove of p.document.querySelectorAll(".nomination-entry button")) remove.click();
   await p.submit();
-  assert.deepEqual(JSON.parse(p.calls.find(c => c.options.method === "POST").options.body), { nominations: [] });
+  assert.deepEqual(JSON.parse(p.calls.find(c => c.options.method === "POST").options.body), { canonicalIds: [], nominations: [] });
   p.dom.window.close();
 });
 
-test("Lowered limit preserves existing entries and requires removing extras before resubmitting", async () => {
+test("Lowered limit counts selected shared nominations", async () => {
   const p = await voting({ "/api/surveys/1/questions/2": { ...detail, maxNominations: 1 },
-    "/api/surveys/1/questions/2/answers/nomination/7": [{ value: "Alien" }, { value: "Arrival" }] });
-  assert.equal(p.document.querySelectorAll(".nomination-entry").length, 2);
+    "/api/surveys/1/questions/2/nomination-pool": [{ canonicalId: 8, displayName: "Alien", selected: true },
+      { canonicalId: 9, displayName: "Arrival", selected: true }] });
   await p.submit();
   assert.equal(p.calls.some(c => c.options.method === "POST"), false);
-  p.document.querySelector(".nomination-entry button").click();
+  p.document.querySelector('.nomination-option input').click();
   await p.submit();
-  assert.deepEqual(JSON.parse(p.calls.find(c => c.options.method === "POST").options.body), { nominations: ["Arrival"] });
+  assert.deepEqual(JSON.parse(p.calls.find(c => c.options.method === "POST").options.body), { canonicalIds: [9], nominations: [] });
   p.dom.window.close();
 });
 
@@ -140,13 +141,28 @@ test("Editing restores settings, rejects a negative limit, and retains input on 
   p.dom.window.close();
 });
 
-test("View displays nominations with their submitters and renders supplied text safely", async () => {
-  const p = page("survey-view", { "/api/surveys/1/questions/2/answers/nomination": [
-    { value: "<b>Alien</b>", name: "First" }, { value: "Alien", name: "Second" }] });
+test("View aggregates canonical nominations and posts selected raw entries safely", async () => {
+  const raw = [{ answerId: 3, value: "<b>Alien</b>", name: "First" },
+    { answerId: 4, value: "Alien", name: "Second" }];
+  const p = page("survey-view", {
+    "/api/surveys/1/questions/2/nomination-results": [{ displayName: "Alien", count: 2, answers: raw }],
+    "/api/surveys/1/questions/2/canonical-nominations": { canonicalNominations: [], answers: raw }
+  });
   await p.window.eval('renderNominationAnswers({ id: 2 }, document.getElementById("question-list"))');
   const container = p.document.getElementById("question-list");
-  assert.match(container.textContent, /<b>Alien<\/b>FirstAlienSecond/);
-  assert.equal(container.querySelector("b, input, button"), null);
+  assert.match(container.textContent, /Alien — 2 nominations/);
+  assert.match(container.textContent, /<b>Alien<\/b> — First/);
+  assert.equal(container.querySelector("b"), null);
+  const checks = container.querySelectorAll('input[type="checkbox"]');
+  checks[0].checked = true;
+  checks[1].checked = true;
+  const name = container.querySelector('input[placeholder="Canonical display name"]');
+  name.value = "Alien";
+  container.querySelector('button[title="Apply consolidation"]').click();
+  await tick();
+  const save = p.calls.find(call => call.url.endsWith("/canonical-nominations") && call.options.method === "POST");
+  assert.deepEqual(JSON.parse(save.options.body), { answerIds: [3, 4], displayName: "Alien" });
+  assert.equal(save.options.headers["X-CSRF"], "test");
   p.dom.window.close();
 });
 

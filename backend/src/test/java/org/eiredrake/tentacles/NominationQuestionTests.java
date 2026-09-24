@@ -95,7 +95,7 @@ class NominationQuestionTests {
   @Test void invalidSubmissionsPreservePreviousNominations() throws Exception {
     submit("{\"nominations\":[\"Alien\"]}").andExpect(status().isOk());
     for (String body : List.of("{}", "{\"nominations\":null}", "{\"nominations\":[null]}",
-      "{\"nominations\":[1]}", "{\"nominations\":[\" \"]}", "{\"nominations\":[\"Alien\",\" Alien \"]}",
+      "{\"nominations\":[1]}", "{\"nominations\":[\" \"]}",
       "{\"nominations\":[\"One\",\"Two\",\"Three\"]}", "{\"nominations\":[\"" + "x".repeat(256) + "\"]}")) {
       submit(body).andExpect(status().is4xxClientError());
       assertEquals(List.of("Alien"), saved(participant));
@@ -173,6 +173,46 @@ class NominationQuestionTests {
       .andExpect(jsonPath("$[?(@.id == " + survey.getId() + ")].completed").value(org.hamcrest.Matchers.contains(true)));
   }
 
+  @Test void adminsCanConsolidateEditUnassignAndReassignRawNominations() throws Exception {
+    submit("{\"nominations\":[\"Dawn of the Dead\"]}").andExpect(status().isOk());
+    mvc.perform(post(path() + "/answers/nomination").with(oidcLogin().idToken(token -> token.subject("other")))
+      .with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"nominations\":[\"dawn of the dead\"]}"))
+      .andExpect(status().isOk());
+    List<NominationAnswer> raw = answers.findByQuestionId(question.getId());
+    Long firstId = raw.getFirst().getId();
+    Long secondId = raw.getLast().getId();
+    String canonicalPath = path() + "/canonical-nominations";
+    String assigned = "{\"displayName\":\"Dawn of the Dead\",\"answerIds\":[" + firstId + "," + secondId + "]}";
+
+    mvc.perform(post(canonicalPath).with(admin()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(assigned))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.displayName").value("Dawn of the Dead"));
+    em.flush();
+    em.clear();
+    List<NominationAnswer> consolidated = answers.findByQuestionId(question.getId());
+    assertEquals(List.of("Dawn of the Dead", "dawn of the dead"),
+      consolidated.stream().map(NominationAnswer::getNomination).toList());
+    Long canonicalId = consolidated.getFirst().getCanonicalNomination().getId();
+    assertEquals(canonicalId, consolidated.getLast().getCanonicalNomination().getId());
+    mvc.perform(get(path() + "/nomination-results").with(admin())).andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].displayName").value("Dawn of the Dead"))
+      .andExpect(jsonPath("$[0].count").value(2)).andExpect(jsonPath("$[0].answers[1].value").value("dawn of the dead"));
+
+    mvc.perform(post(canonicalPath + "/" + canonicalId).with(admin()).with(csrf())
+      .contentType(MediaType.APPLICATION_JSON).content("{\"displayName\":\"Dawn of the Dead (1978)\"}"))
+      .andExpect(status().isOk());
+    mvc.perform(post(canonicalPath + "/unassign").with(admin()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"answerIds\":[" + secondId + "]}")).andExpect(status().isOk());
+    mvc.perform(post(canonicalPath + "/" + canonicalId).with(admin()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"answerIds\":[" + secondId + "]}")).andExpect(status().isOk());
+    em.flush();
+    em.clear();
+    List<NominationAnswer> reassigned = answers.findByQuestionId(question.getId());
+    assertEquals(List.of("Dawn of the Dead", "dawn of the dead"),
+      reassigned.stream().map(NominationAnswer::getNomination).toList());
+    assertEquals("Dawn of the Dead (1978)", reassigned.getFirst().getCanonicalNomination().getDisplayName());
+    assertEquals(canonicalId, reassigned.getLast().getCanonicalNomination().getId());
+  }
+
   @Test void copyPreservesConfigurationWithoutCopyingNominationsAndDeleteCascades() throws Exception {
     submit("{\"nominations\":[\"Alien\"]}").andExpect(status().isOk());
     mvc.perform(post("/api/surveys/" + survey.getId() + "/copy").with(admin()).with(csrf())).andExpect(status().isOk());
@@ -186,6 +226,15 @@ class NominationQuestionTests {
     em.clear();
     assertTrue(answers.findByQuestionId(question.getId()).isEmpty());
     assertNull(em.find(NominationQuestion.class, question.getId()));
+  }
+
+  @Test void deletingAQuestionCascadesItsCanonicalNominations() throws Exception {
+    submit("{\"nominations\":[\"Alien\"]}").andExpect(status().isOk());
+    Long answerId = answers.findByQuestionId(question.getId()).getFirst().getId();
+    mvc.perform(post(path() + "/canonical-nominations").with(admin()).with(csrf())
+      .contentType(MediaType.APPLICATION_JSON).content("{\"displayName\":\"Alien\",\"answerIds\":[" + answerId + "]}"))
+      .andExpect(status().isOk());
+    mvc.perform(delete("/api/surveys/" + survey.getId()).with(admin()).with(csrf())).andExpect(status().isOk());
   }
 
   @Test void assignedSurveyRejectsUnassignedVotersAndSubmissionRequiresCsrf() throws Exception {

@@ -117,6 +117,8 @@ public class SecurityConfig {
                     "/api/surveys/*/questions/short-text",
                     "/api/surveys/*/questions/nomination",
                     "/api/surveys/*/questions/*/nomination",
+                    "/api/surveys/*/questions/*/canonical-nominations",
+                    "/api/surveys/*/questions/*/canonical-nominations/*",
                     "/api/surveys/*/questions/meetup",
                     "/api/surveys/*/questions/*/meetup",
                     "/api/surveys/*/questions/ranked-choice",
@@ -133,6 +135,11 @@ public class SecurityConfig {
                     "/api/surveys/*/questions/*/short-text"
                 ).hasRole("ADMIN")
 
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/surveys/*/questions/*/canonical-nominations",
+                    "/api/surveys/*/questions/*/nomination-results"
+                ).hasRole("ADMIN")
                 .requestMatchers(
                     HttpMethod.DELETE,
                     "/api/surveys/*/questions/*"

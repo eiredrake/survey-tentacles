@@ -727,24 +727,129 @@ async function initialize() {
 initialize();
 
 async function renderNominationAnswers(question, container) {
-  const response = await fetch("/api/surveys/" + surveyId + "/questions/" + question.id + "/answers/nomination");
-  if (!response.ok) { showToast("Unable to load nominations.", "error"); return; }
-  const answers = await response.json();
+  const base = `/api/surveys/${surveyId}/questions/${question.id}`;
+  const [resultsResponse, consolidationResponse] = await Promise.all([
+    fetch(`${base}/nomination-results`), fetch(`${base}/canonical-nominations`)
+  ]);
+  if (!resultsResponse.ok || !consolidationResponse.ok) {
+    showToast("Unable to load nominations.", "error");
+    return;
+  }
+  const results = await resultsResponse.json();
+  const consolidation = await consolidationResponse.json();
   container.replaceChildren();
-  if (!answers.length) { container.textContent = "No nominations yet."; return; }
+  const heading = document.createElement("h3");
+  heading.textContent = "Results";
+  container.appendChild(heading);
+  if (!results.length) {
+    container.append(document.createTextNode("No nominations yet."));
+  }
+  for (const result of results) {
+    const group = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = `${result.displayName} — ${result.count} nomination${result.count === 1 ? "" : "s"}`;
+    group.appendChild(summary);
+    const list = document.createElement("ul");
+    for (const answer of result.answers) {
+      const item = document.createElement("li");
+      item.textContent = `${answer.value} — ${answer.name || answer.username}`;
+      list.appendChild(item);
+    }
+    group.appendChild(list);
+    container.appendChild(group);
+  }
+  renderNominationConsolidation(base, consolidation, container);
+}
+
+function renderNominationConsolidation(base, consolidation, container) {
+  const panel = document.createElement("section");
+  panel.className = "nomination-consolidation";
+  const heading = document.createElement("h3");
+  heading.textContent = "Consolidate nominations";
+  panel.appendChild(heading);
+  const explanation = document.createElement("p");
+  explanation.textContent = "Assign submitted entries to a shared display name. Original text remains visible.";
+  panel.appendChild(explanation);
+  const controls = document.createElement("div");
+  const target = document.createElement("select");
+  target.innerHTML = '<option value="new">New canonical nomination</option><option value="unassigned">Unassign selected</option>';
+  for (const canonical of consolidation.canonicalNominations) {
+    const option = document.createElement("option");
+    option.value = canonical.id;
+    option.textContent = canonical.displayName;
+    target.appendChild(option);
+  }
+  const name = document.createElement("input");
+  name.maxLength = 255;
+  name.placeholder = "Canonical display name";
+  const apply = document.createElement("button");
+  apply.className = "icon-button";
+  apply.title = "Apply consolidation";
+  apply.setAttribute("aria-label", "Apply consolidation");
+  apply.innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>';
+  controls.append(target, name, apply);
+  panel.appendChild(controls);
   const table = document.createElement("table");
   table.className = "survey-table";
   const head = table.createTHead().insertRow();
-  for (const label of ["Nomination", "Nominated by"]) {
-    const cell = document.createElement("th");
-    cell.textContent = label;
-    head.appendChild(cell);
+  for (const label of ["", "Submitted text", "Participant", "Canonical nomination"]) {
+    head.insertCell().textContent = label;
   }
   const body = table.createTBody();
-  for (const answer of answers) {
+  for (const answer of consolidation.answers) {
     const row = body.insertRow();
+    const select = document.createElement("input");
+    select.type = "checkbox";
+    select.value = answer.answerId;
+    row.insertCell().appendChild(select);
     row.insertCell().textContent = answer.value;
     row.insertCell().textContent = answer.name || answer.username;
+    row.insertCell().textContent = answer.canonicalDisplayName || "Unassigned";
   }
-  container.appendChild(table);
+  table.appendChild(body);
+  panel.appendChild(table);
+  apply.addEventListener("click", async () => {
+    const answerIds = [...body.querySelectorAll("input:checked")].map(input => Number(input.value));
+    if (!answerIds.length) { showToast("Select at least one nomination.", "error"); return; }
+    try {
+      const csrf = await getCsrfToken();
+      let url = `${base}/canonical-nominations`, bodyValue;
+      if (target.value === "unassigned") {
+        url += "/unassign";
+        bodyValue = { answerIds };
+      } else if (target.value === "new") {
+        bodyValue = { answerIds, displayName: name.value };
+      } else {
+        url += `/${target.value}`;
+        bodyValue = { answerIds };
+      }
+      const response = await fetch(url, { method: "POST", headers: {
+        "Content-Type": "application/json", [csrf.headerName]: csrf.token
+      }, body: JSON.stringify(bodyValue) });
+      if (!response.ok) throw new Error("Unable to update nomination consolidation.");
+      await renderNominationAnswers({ id: Number(base.split("/").at(-1)) }, container);
+    } catch (error) { showToast(error.message, "error"); }
+  });
+  for (const canonical of consolidation.canonicalNominations) {
+    const label = document.createElement("label");
+    label.textContent = "Canonical name: ";
+    const input = document.createElement("input");
+    input.value = canonical.displayName;
+    input.maxLength = 255;
+    const save = document.createElement("button");
+    save.className = "icon-button";
+    save.title = "Save canonical name";
+    save.innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>';
+    save.addEventListener("click", async () => {
+      const csrf = await getCsrfToken();
+      const response = await fetch(`${base}/canonical-nominations/${canonical.id}`, { method: "POST", headers: {
+        "Content-Type": "application/json", [csrf.headerName]: csrf.token
+      }, body: JSON.stringify({ displayName: input.value }) });
+      if (!response.ok) { showToast("Unable to save canonical name.", "error"); return; }
+      await renderNominationAnswers({ id: Number(base.split("/").at(-1)) }, container);
+    });
+    label.append(input, save);
+    panel.appendChild(label);
+  }
+  container.appendChild(panel);
 }
