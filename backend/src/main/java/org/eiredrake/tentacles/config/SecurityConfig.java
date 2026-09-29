@@ -67,8 +67,13 @@ public class SecurityConfig {
                     "/health",
                     "/oauth2/**",
                     "/login/**",
-                    "/s/**"
+                    "/s/**",
+                    "/p/**"
                 ).permitAll()
+
+                .requestMatchers(HttpMethod.GET, "/api/promotional-pages/*/image").permitAll()
+                .requestMatchers(HttpMethod.GET, "/css/tentacles.css", "/js/app-footer.js", "/app-version.json").permitAll()
+                .requestMatchers("/api/promotional-pages", "/api/promotional-pages/**").hasRole("ADMIN")
 
                 .requestMatchers(HttpMethod.GET, "/api/surveys/events", "/api/surveys/*/notifications").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/surveys/*/notifications").hasRole("ADMIN")

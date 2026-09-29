@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Promotional Pages - Tentacles</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="/vendor/fdatepicker/fdatepicker.css">
+  <link rel="stylesheet" href="/css/tentacles.css">
+  <link rel="stylesheet" href="/css/toast.css">
+  <link rel="stylesheet" href="/css/promotional-pages.css">
+</head>
+<body>
+  <main>
+    <header class="app-header">
+      <div class="app-title">Tentacles Survey System</div>
+      <div class="app-user">
+        <span>User:</span><span id="user">Loading user...</span>
+        <button id="logout-button" class="icon-button" type="button" title="Logout" aria-label="Logout"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button>
+      </div>
+    </header>
+    <hr class="app-divider">
+    <a href="/admin/index.html">&larr; Administration</a>
+    <h1>Promotional Pages <button id="create" type="button" class="icon-button" title="Create Promotional Page" aria-label="Create Promotional Page"><i class="fa-solid fa-plus" aria-hidden="true"></i></button></h1>
+    <form id="editor" class="survey-section promo-editor" aria-labelledby="editor-heading" novalidate hidden>
+      <h2 id="editor-heading">Create Promotional Page</h2>
+      <p id="editing-page" class="promo-help" hidden></p>
+      <p class="promo-help">Title and Public address are required. All other fields are optional.</p>
+      <section class="promo-section" aria-labelledby="basic-heading">
+        <h3 id="basic-heading">Basic information</h3>
+        <div class="promo-field">
+          <label for="page-title">Title</label>
+          <input id="page-title" name="title" maxlength="255" required aria-describedby="page-title-error">
+          <p id="page-title-error" class="promo-error" hidden></p>
+        </div>
+        <div class="promo-field">
+          <label for="page-tagline">Tagline / Short description</label>
+          <input id="page-tagline" name="tagline" maxlength="255" aria-describedby="tagline-help page-tagline-error">
+          <p id="tagline-help" class="promo-help">A short description displayed with the page and when its link is shared. Up to 255 characters.</p>
+          <p id="page-tagline-error" class="promo-error" hidden></p>
+        </div>
+        <div class="promo-field">
+          <label for="page-slug">Public address</label>
+          <div class="promo-address"><span aria-hidden="true">/p/</span><input id="page-slug" name="slug" maxlength="120" pattern="[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*" required aria-describedby="slug-help page-slug-error"></div>
+          <p id="slug-help" class="promo-help">This becomes the public link used to open and share the page. Enter only the part after /p/, not a full web address. Use letters A–Z, numbers, and single hyphens between words (up to 120 characters). Example: october-event-2026.</p>
+          <p id="page-slug-error" class="promo-error" hidden></p>
+        </div>
+      </section>
+      <section class="promo-section" aria-labelledby="content-heading">
+        <h3 id="content-heading">Page content</h3>
+        <div class="promo-field">
+          <label for="page-content">Content</label>
+          <textarea id="page-content" name="content" maxlength="10000" rows="9" aria-describedby="content-help page-content-error"></textarea>
+          <p id="content-help" class="promo-help">Detailed information displayed when someone opens the promotional page. Plain text, up to 10,000 characters.</p>
+          <p id="page-content-error" class="promo-error" hidden></p>
+        </div>
+        <div class="promo-field">
+          <label for="page-image">Promotional image</label>
+          <div class="promo-preview">
+            <p id="image-state" class="promo-help" role="status">No promotional image selected.</p>
+            <img id="image-preview" alt="Promotional image preview" hidden>
+          </div>
+          <input id="page-image" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-describedby="image-help page-image-error" hidden>
+          <div class="promo-actions">
+            <button id="choose-image" type="button" aria-describedby="image-help page-image-error">Choose Image</button>
+            <button id="remove-image" type="button" hidden>Remove Image</button>
+          </div>
+          <p id="image-help" class="promo-help">Choose a PNG, JPEG, WEBP, or GIF image, up to 5 MB. A selected image is uploaded when you save. Removing a current image takes effect immediately.</p>
+          <p id="page-image-error" class="promo-error" hidden></p>
+        </div>
+      </section>
+      <section class="promo-section" aria-labelledby="publishing-heading">
+        <h3 id="publishing-heading">Publishing</h3>
+        <div class="promo-field">
+          <div class="promo-checkbox"><input id="page-enabled" name="enabled" type="checkbox" checked aria-describedby="enabled-help"><label for="page-enabled">Published</label></div>
+          <p id="enabled-help" class="promo-help">Published pages can be opened using their public link until they expire.</p>
+        </div>
+      </section>
+      <section class="promo-section" aria-labelledby="expiration-heading">
+        <h3 id="expiration-heading">Expiration (optional)</h3>
+        <p class="promo-help">Leave both limits blank for no expiration. If you set both, the first condition reached expires the page.</p>
+        <div class="promo-field">
+          <label for="expires-at">Expire at</label>
+          <input id="expires-at" name="expiresAt" autocomplete="off" aria-describedby="expires-help expires-at-error">
+          <p id="expires-help" class="promo-help">Choose a date and time in your local time zone. Leave blank if this page should not expire on a specific date.</p>
+          <p id="expires-at-error" class="promo-error" hidden></p>
+        </div>
+        <div class="promo-field">
+          <label for="visitor-limit">Expire after unique visitors</label>
+          <input id="visitor-limit" name="uniqueVisitorLimit" type="number" min="1" max="2147483647" step="1" aria-describedby="visitor-help visitor-limit-error">
+          <p id="visitor-help" class="promo-help">The page expires after this many different visitors have viewed it. Repeat visits by the same visitor do not count again. Leave blank for no visitor limit.</p>
+          <p id="visitor-limit-error" class="promo-error" hidden></p>
+        </div>
+        <div class="promo-field">
+          <label for="expired-destination">After expiration, send visitors to</label>
+          <input id="expired-destination" name="expiredDestination" maxlength="2048" placeholder="/survey.html?id=123" aria-describedby="destination-help expired-destination-error">
+          <p id="destination-help" class="promo-help">Optional. Enter a Tentacles path beginning with "/", such as /admin/ or /survey.html?id=123. External web addresses (including full https:// URLs) are not supported. Leave blank to show Not Found after expiration.</p>
+          <p id="expired-destination-error" class="promo-error" hidden></p>
+        </div>
+      </section>
+      <div class="promo-actions promo-editor-actions">
+        <button type="submit">Save Promotional Page</button>
+        <button id="cancel" type="button">Cancel</button>
+      </div>
+    </form>
+    <div class="promo-table-scroll" role="region" aria-label="Promotional pages" tabindex="0">
+      <table class="survey-table">
+        <thead><tr><th scope="col">Title</th><th scope="col">Public link</th><th scope="col">Status</th><th scope="col">Views</th><th scope="col">Unique visitors</th><th scope="col">Actions</th></tr></thead>
+        <tbody id="pages"></tbody>
+      </table>
+    </div>
+    <section id="analytics" class="survey-section" hidden>
+      <h2>Analytics</h2>
+      <div class="promo-table-scroll" role="region" aria-label="Visitor analytics" tabindex="0">
+        <table class="survey-table">
+          <thead><tr><th scope="col">Visitor</th><th scope="col">First visit</th><th scope="col">Last visit</th><th scope="col">Views</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="/js/getCsrfToken.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/icon-button.js"></script>
+  <script src="/vendor/fdatepicker/fdatepicker.min.js"></script>
+  <script src="/js/promotional-pages.js"></script>
+  <script src="/js/survey-events.js"></script>
+  <script src="/js/administration-nav.js"></script>
+  <script src="/js/logout.js"></script>
+  <script src="/js/app-footer.js"></script>
+</body>
+</html>
