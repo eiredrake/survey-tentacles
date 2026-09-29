@@ -10,7 +10,9 @@ public class PromotionalPage {
   @Column(nullable = false, length = 120) private String slug;
   @Column(nullable = false, length = 255) private String title;
   @Column(length = 255) private String tagline;
-  @Column(nullable = false, length = 10000) private String content = "";
+  @Column(nullable = false, columnDefinition = "text") private String content = "";
+  // NULL identifies existing plain-text records; never infer HTML from their contents.
+  @Column(length = 16) private String contentFormat;
   private String imageFilename;
   private Instant expiresAt;
   private Integer uniqueVisitorLimit;
@@ -21,6 +23,7 @@ public class PromotionalPage {
   public String getTitle() { return title; } public void setTitle(String value) { title = value; }
   public String getTagline() { return tagline; } public void setTagline(String value) { tagline = value; }
   public String getContent() { return content; } public void setContent(String value) { content = value; }
+  public String getContentFormat() { return contentFormat; } public void setContentFormat(String value) { contentFormat = value; }
   public String getImageFilename() { return imageFilename; } public void setImageFilename(String value) { imageFilename = value; }
   public Instant getExpiresAt() { return expiresAt; } public void setExpiresAt(Instant value) { expiresAt = value; }
   public Integer getUniqueVisitorLimit() { return uniqueVisitorLimit; } public void setUniqueVisitorLimit(Integer value) { uniqueVisitorLimit = value; }

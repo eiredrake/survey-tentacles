@@ -40,12 +40,12 @@ public class PromotionalPageController {
     }
     String title = HtmlUtils.htmlEscape(page.getTitle());
     String tagline = HtmlUtils.htmlEscape(page.getTagline() == null ? "" : page.getTagline());
-    String content = HtmlUtils.htmlEscape(page.getContent()).replace("\n", "<br>");
+    String content = pages.contentHtml(page);
     String imageUrl = page.getImageFilename() == null ? null : publicBaseUrl + "/api/promotional-pages/" + page.getId() + "/image";
     String image = imageUrl == null ? "" : "<img style=\"max-width:100%\" alt=\"\" src=\"" + HtmlUtils.htmlEscape(imageUrl) + "\">";
-    String body = "<main><h1>" + title + "</h1><p>" + tagline + "</p>" + image + "<p>" + content
-      + "</p></main><script src=\"/js/app-footer.js\"></script>";
+    String body = "<main><h1>" + title + "</h1><p>" + tagline + "</p>" + image + "<div class=\"promotional-content\">" + content
+      + "</div></main><script src=\"/js/app-footer.js\"></script>";
     return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(documents.render(page.getTitle(), page.getTagline(),
-      pages.publicUrl(page), imageUrl, "<link rel=\"stylesheet\" href=\"/css/tentacles.css\">", body));
+      pages.publicUrl(page), imageUrl, "<link rel=\"stylesheet\" href=\"/css/tentacles.css\"><link rel=\"stylesheet\" href=\"/css/promotional-content.css\">", body));
   }
 }

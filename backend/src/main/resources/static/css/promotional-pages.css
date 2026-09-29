@@ -31,6 +31,16 @@
 .promo-editor-actions button[type="submit"] { background: #222; border-color: #222; color: #fff; }
 .promo-editor-actions button[type="submit"]:hover { background: #444; }
 .promo-table-scroll { max-width: 100%; overflow-x: auto; }
+.promo-field .sun-editor { min-width: 0; max-width: 100%; border-radius: 4px; }
+.promo-field .sun-editor .se-toolbar-btn.active { outline: 2px solid currentColor; outline-offset: -3px; }
+/* These editor operations depend on attributes outside the supported content format. */
+.promo-field .sun-editor [data-command="openTableProperties"],
+.promo-field .sun-editor [data-command="openCellProperties"],
+.promo-field .sun-editor [data-command="layout"],
+.promo-field .sun-editor [data-command="resize"],
+.promo-field .sun-editor [data-command="merge"],
+.promo-field .sun-editor [data-command="onsplit"],
+.promo-field .sun-editor [data-command="unmerge"] { display: none !important; }
 .promo-table-scroll .survey-table td:first-child, .promo-table-scroll .survey-table a { overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .promo-editor { padding: 14px; }

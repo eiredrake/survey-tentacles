@@ -72,7 +72,7 @@ public class SecurityConfig {
                 ).permitAll()
 
                 .requestMatchers(HttpMethod.GET, "/api/promotional-pages/*/image").permitAll()
-                .requestMatchers(HttpMethod.GET, "/css/tentacles.css", "/js/app-footer.js", "/app-version.json").permitAll()
+                .requestMatchers(HttpMethod.GET, "/css/tentacles.css", "/css/promotional-content.css", "/js/app-footer.js", "/app-version.json").permitAll()
                 .requestMatchers("/api/promotional-pages", "/api/promotional-pages/**").hasRole("ADMIN")
 
                 .requestMatchers(HttpMethod.GET, "/api/surveys/events", "/api/surveys/*/notifications").hasRole("ADMIN")

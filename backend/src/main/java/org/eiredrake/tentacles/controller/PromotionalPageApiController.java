@@ -19,6 +19,7 @@ import org.eiredrake.tentacles.service.SurveyImageService;
 import org.eiredrake.tentacles.model.PromotionalPage;
 import org.eiredrake.tentacles.model.PromotionalPageVisitor;
 import org.eiredrake.tentacles.service.PromotionalPageService;
+import org.eiredrake.tentacles.service.PromotionalContentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -95,13 +96,17 @@ public class PromotionalPageApiController {
     if (!slug.matches("[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*")) throw new IllegalArgumentException("Slug must contain letters, numbers, and single hyphens between words.");
     String title = text(input.get("title"), "Title", 255);
     String tagline = optional(input.get("tagline"), 255);
-    String content = optional(input.get("content"), 10000);
+    String content = optional(input.get("content"), PromotionalContentService.MAX_LENGTH);
+    String contentFormat = optional(input.get("contentFormat"), 16);
+    if (contentFormat != null && !contentFormat.equals("html") && !contentFormat.equals("text"))
+      throw new IllegalArgumentException("Unsupported content format.");
     Object enabled = input.get("enabled");
     if (enabled != null && !(enabled instanceof Boolean)) throw new IllegalArgumentException("Published must be true or false.");
     Instant expiresAt = instant(input.get("expiresAt"));
     Integer limit = positive(input.get("uniqueVisitorLimit"));
     String destination = destination(input.get("expiredDestination"));
     page.setSlug(slug); page.setTitle(title); page.setTagline(tagline); page.setContent(content == null ? "" : content);
+    page.setContentFormat(contentFormat);
     page.setEnabled(!Boolean.FALSE.equals(enabled)); page.setExpiresAt(expiresAt);
     page.setUniqueVisitorLimit(limit); page.setExpiredDestination(destination);
   }
@@ -159,7 +164,8 @@ public class PromotionalPageApiController {
     Map<String, Object> view = new HashMap<>();
     view.put("id", page.getId()); view.put("slug", page.getSlug()); view.put("title", page.getTitle());
     view.put("publicUrl", pages.publicUrl(page));
-    view.put("tagline", page.getTagline() == null ? "" : page.getTagline()); view.put("content", page.getContent());
+    view.put("tagline", page.getTagline() == null ? "" : page.getTagline()); view.put("content", pages.contentHtml(page));
+    view.put("contentFormat", "html");
     view.put("imageFilename", page.getImageFilename()); view.put("enabled", page.isEnabled());
     view.put("expired", pages.isExpired(page, Instant.now())); view.put("expiresAt", page.getExpiresAt());
     view.put("uniqueVisitorLimit", page.getUniqueVisitorLimit());

@@ -17,12 +17,14 @@ import org.springframework.web.server.ResponseStatusException;
 public class PromotionalPageService {
   private final PromotionalPageRepository pages;
   private final PromotionalPageVisitorRepository visitors;
+  private final PromotionalContentService content;
   @Value("${tentacles.public-base-url}") private String publicBaseUrl;
 
-  public PromotionalPageService(PromotionalPageRepository pages, PromotionalPageVisitorRepository visitors) {
-    this.pages = pages; this.visitors = visitors;
+  public PromotionalPageService(PromotionalPageRepository pages, PromotionalPageVisitorRepository visitors, PromotionalContentService content) {
+    this.pages = pages; this.visitors = visitors; this.content = content;
   }
-  public PromotionalPage save(PromotionalPage page) { return pages.save(page); }
+  public PromotionalPage save(PromotionalPage page) { content.prepareForSave(page); return pages.save(page); }
+  public String contentHtml(PromotionalPage page) { return content.render(page); }
   public String publicUrl(PromotionalPage page) { return publicBaseUrl + "/p/" + page.getSlug(); }
   public List<PromotionalPage> findAll() { return pages.findAll(); }
   public PromotionalPage findById(Long id) { return pages.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promotional page not found.")); }

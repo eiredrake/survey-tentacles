@@ -6,13 +6,26 @@ const { JSDOM } = require('jsdom');
 const root = path.resolve(__dirname, '../../main/resources/static');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const sample = { id: 7, slug: 'welcome', publicUrl: 'https://public.example.org/p/welcome', title: '<b>Welcome</b>', tagline: 'Hello', content: 'Content', enabled: true,
+const sample = { id: 7, slug: 'welcome', publicUrl: 'https://public.example.org/p/welcome', title: '<b>Welcome</b>', tagline: 'Hello', content: '<p>Content</p>', contentFormat: 'html', enabled: true,
   expired: false, expiresAt: '2030-10-01T14:30:00Z', uniqueVisitorLimit: 10, totalViews: 4, uniqueVisitors: 2, imageFilename: 'test.png' };
 
 function setup(reply = () => undefined, list = [sample]) {
-  const dom = new JSDOM(read('admin/promotional-pages.html'), { url: 'http://localhost/admin/promotional-pages.html', runScripts: 'outside-only' });
+  const dom = new JSDOM(read('admin/promotional-pages.html'), { url: 'http://localhost/admin/promotional-pages.html', runScripts: 'outside-only', pretendToBeVisual: true });
   const { window } = dom;
-  window.ResizeObserver = class { observe() {} disconnect() {} };
+  window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+  window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+  window.visualViewport = { width: 1200, height: 900, offsetTop: 0, offsetLeft: 0, addEventListener() {}, removeEventListener() {} };
+  window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+  window.HTMLElement.prototype.scrollTo = () => {};
+  window.scrollTo = () => {};
+  Object.defineProperty(window.HTMLElement.prototype, 'innerText', { get() { return this.textContent; }, set(value) { this.textContent = value; } });
+  window.Range.prototype.getBoundingClientRect = () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 });
+  window.Range.prototype.getClientRects = () => [];
+  // The distribution initializes its unused color wheel; JSDOM has no canvas renderer.
+  window.HTMLCanvasElement.prototype.getContext = () => new Proxy({
+    createLinearGradient: () => ({ addColorStop() {} })
+  }, { get: (target, key) => target[key] || (() => {}) });
   const calls = [], messages = [];
   const objectUrls = [], revokedUrls = [];
   window.URL.createObjectURL = file => { const url = 'blob:test-' + objectUrls.length; objectUrls.push({ url, file }); return url; };
@@ -28,14 +41,118 @@ function setup(reply = () => undefined, list = [sample]) {
       : url.endsWith('/visitors') ? [{ name: '<b>Alice</b>', firstVisitedAt: '2030-01-01', lastVisitedAt: '2030-01-02', viewCount: 2 }] : list);
     return { ok: true, status: options.method === 'DELETE' ? 204 : 200, json: async () => value };
   };
-  for (const name of ['js/getCsrfToken.js', 'js/icon-button.js', 'vendor/fdatepicker/fdatepicker.min.js', 'js/promotional-pages.js']) window.eval(read(name));
+  for (const name of ['js/getCsrfToken.js', 'js/icon-button.js', 'vendor/fdatepicker/fdatepicker.min.js', 'vendor/suneditor/suneditor.min.js']) window.eval(read(name));
+  const richEditors = [];
+  const createEditor = window.SUNEDITOR.create.bind(window.SUNEDITOR);
+  window.SUNEDITOR.create = (...args) => { const instance = createEditor(...args); richEditors.push(instance); return instance; };
+  window.eval(read('js/promotional-pages.js'));
   const document = window.document;
-  return { dom, window, document, calls, messages, objectUrls, revokedUrls, editor: document.getElementById('editor') };
+  return { dom, window, document, calls, messages, objectUrls, revokedUrls, richEditors, editor: document.getElementById('editor') };
 }
 const submit = async p => {
+  await new Promise(resolve => setTimeout(resolve, 20));
   p.editor.dispatchEvent(new p.window.Event('submit', { cancelable: true }));
   await tick();
 };
+
+async function openRichEditor(p) {
+  await tick();
+  p.document.querySelector('#pages [title="Edit"]').click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  return p.richEditors.at(-1);
+}
+
+function selectText(p, rich, text = 'Hello world') {
+  rich.$.html.set('<p>' + text + '</p>');
+  const node = rich.$.frameContext.get('wysiwyg').querySelector('p').firstChild;
+  rich.$.selection.setRange(node, 0, node, node.length);
+}
+
+test('Real rich editor loads sanitized formatting and saves it unchanged with an explicit format', async () => {
+  const content = '<h2>Heading</h2><p><strong>Bold</strong> <em>Italic</em></p><ul><li>Item</li></ul>'
+    + '<blockquote>Quote</blockquote><table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Cell</td></tr></tbody></table>';
+  const p = setup(undefined, [{ ...sample, content }]);
+  try {
+    const rich = await openRichEditor(p);
+    const editable = rich.$.frameContext.get('wysiwyg');
+    assert.equal(editable.getAttribute('role'), 'textbox');
+    assert.equal(editable.getAttribute('aria-labelledby'), 'content-label');
+    for (const selector of ['h2', 'strong', 'em', 'ul li', 'blockquote', 'table th', 'table td']) assert.ok(editable.querySelector(selector), selector);
+    for (const command of ['bold', 'italic', 'blockStyle', 'list_bulleted', 'list_numbered', 'link', 'table'])
+      assert.ok(p.document.querySelector('button[data-command="' + command + '"]').getAttribute('aria-label'));
+    await submit(p);
+    const saved = JSON.parse(p.calls.find(call => call.options.method === 'POST').options.body);
+    assert.equal(saved.contentFormat, 'html');
+    const document = new JSDOM(saved.content).window.document;
+    for (const selector of ['h2', 'strong', 'em', 'ul li', 'blockquote', 'table th', 'table td']) assert.ok(document.querySelector(selector), selector);
+    assert.equal(document.querySelector('td').textContent, 'Cell');
+  } finally { p.window.close(); }
+});
+
+test('Actual Bold, Italic, headings and list toolbar operations produce document formatting', async () => {
+  const p = setup();
+  try {
+    const rich = await openRichEditor(p);
+    for (const [command, tag] of [['bold', 'strong'], ['italic', 'em'], ['list_bulleted', 'ul'], ['list_numbered', 'ol']]) {
+      selectText(p, rich);
+      p.document.querySelector('button[data-command="' + command + '"]').click();
+      assert.ok(rich.$.frameContext.get('wysiwyg').querySelector(tag), command);
+    }
+    for (const heading of ['h2', 'h3', 'h4']) {
+      selectText(p, rich);
+      p.document.querySelector('button[data-command="blockStyle"]').click();
+      p.document.querySelector('button[data-value="' + heading + '"]').click();
+      assert.equal(rich.$.frameContext.get('wysiwyg').querySelector(heading).textContent, 'Hello world');
+    }
+  } finally { p.window.close(); }
+});
+
+test('Actual link dialog and table picker insert editable links and a basic two by three table', async () => {
+  const p = setup();
+  try {
+    const rich = await openRichEditor(p);
+    selectText(p, rich);
+    p.document.querySelector('button[data-command="link"]').click();
+    const modal = p.document.querySelector('.se-modal');
+    modal.querySelector('.se-input-url').value = 'https://example.org/announcement';
+    modal.querySelector('.se-input-url').dispatchEvent(new p.window.Event('input', { bubbles: true }));
+    modal.querySelector('form').dispatchEvent(new p.window.Event('submit', { bubbles: true, cancelable: true }));
+    await tick();
+    assert.equal(rich.$.frameContext.get('wysiwyg').querySelector('a').getAttribute('href'), 'https://example.org/announcement');
+    selectText(p, rich);
+    p.document.querySelector('button[data-command="table"]').click();
+    const picker = p.document.querySelector('.se-controller-table-picker');
+    const move = new p.window.MouseEvent('mousemove', { bubbles: true });
+    Object.defineProperties(move, { offsetX: { value: 36 }, offsetY: { value: 54 } });
+    picker.dispatchEvent(move); picker.click();
+    const table = rich.$.frameContext.get('wysiwyg').querySelector('table');
+    assert.equal(table.rows.length, 3);
+    assert.equal(table.rows[0].cells.length, 2);
+    table.rows[0].cells[0].firstElementChild.textContent = 'Editable cell';
+    await submit(p);
+    assert.match(JSON.parse(p.calls.find(call => call.options.method === 'POST').options.body).content, /Editable cell/);
+  } finally { p.window.close(); }
+});
+
+test('Cancel destroys editor state and reopening restores server content including escaped legacy text', async () => {
+  const content = '<p>Literal &lt;strong&gt;text&lt;/strong&gt; &amp; "quotes"<br>Next line</p>';
+  const p = setup(undefined, [{ ...sample, content }]);
+  try {
+    const first = await openRichEditor(p);
+    assert.equal(first.$.frameContext.get('wysiwyg').querySelector('strong'), null);
+    assert.match(first.$.frameContext.get('wysiwyg').textContent, /Literal <strong>text<\/strong> & "quotes"/);
+    selectText(p, first, 'Unsaved');
+    p.document.getElementById('cancel').click();
+    assert.equal(p.document.querySelector('.sun-editor'), null);
+    p.document.getElementById('create').click();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(p.richEditors.at(-1).isEmpty(), true);
+    p.document.getElementById('cancel').click();
+    const restored = await openRichEditor(p);
+    assert.match(restored.$.frameContext.get('wysiwyg').textContent, /Literal/);
+    assert.doesNotMatch(restored.$.html.get(), /Unsaved/);
+  } finally { p.window.close(); }
+});
 
 test('Administration links to promotional pages and list renders safe titles, public links, states, and counts', async () => {
   const landing = new JSDOM(read('admin/index.html'));

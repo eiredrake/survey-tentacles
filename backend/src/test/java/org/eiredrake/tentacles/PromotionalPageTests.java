@@ -182,6 +182,58 @@ class PromotionalPageTests {
     }
   }
 
+  @Test void directApiRichHtmlIsSanitizedBeforeStorageAndPublicRendering() throws Exception {
+    String input = """
+      {"slug":"%s","title":"<Title>","tagline":"<em>Plain tagline</em>","contentFormat":"html",
+       "content":"<h2>News</h2><p onclick='alert(1)' style='color:red'>Hello <strong>friends</strong></p><script>alert(1)</script><img src=x onerror=alert(1)><iframe src='https://example.com'></iframe><a href='javascript:alert(1)'>bad</a><table><tbody><tr><th>Day</th><td>Monday</td></tr></tbody></table>"}
+      """.formatted(page.getSlug());
+    mvc.perform(post("/api/promotional-pages/" + page.getId()).with(oidcLogin().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))).with(csrf())
+      .contentType("application/json").content(input)).andExpect(status().isOk()).andExpect(jsonPath("$.contentFormat").value("html"))
+      .andExpect(jsonPath("$.content").value(containsString("<strong>friends</strong>")));
+    em.flush(); em.clear();
+    PromotionalPage saved = pages.findById(page.getId());
+    assertEquals("html", saved.getContentFormat());
+    for (String forbidden : List.of("<script", "<img", "<iframe", "onclick", "style=", "javascript:")) assertFalse(saved.getContent().contains(forbidden));
+    mvc.perform(get("/p/" + page.getSlug())).andExpect(status().isOk())
+      .andExpect(content().string(containsString("<div class=\"promotional-content\"><h2>News</h2>")))
+      .andExpect(content().string(containsString("<strong>friends</strong>")))
+      .andExpect(content().string(containsString("<table>")))
+      .andExpect(content().string(containsString("<h1>&lt;Title&gt;</h1>")))
+      .andExpect(content().string(containsString("content=\"&lt;em&gt;Plain tagline&lt;/em&gt;\"")))
+      .andExpect(content().string(not(containsString("alert(1)"))));
+    mvc.perform(get("/css/promotional-content.css")).andExpect(status().isOk());
+    String canonical = saved.getContent(); pages.save(saved);
+    assertEquals(canonical, pages.findById(page.getId()).getContent());
+  }
+
+  @Test void legacyPlainTextAndSanitizedReadbackPreserveLiteralMarkupWhenUpgraded() throws Exception {
+    page.setContent("<strong>literal</strong> & \"quoted\"\nNext > line");
+    page.setContentFormat(null); pages.save(page); em.flush(); em.clear();
+    PromotionalPage legacy = pages.findById(page.getId());
+    assertNull(legacy.getContentFormat());
+    String escaped = pages.contentHtml(legacy);
+    assertTrue(escaped.contains("&lt;strong&gt;literal&lt;/strong&gt;"));
+    mvc.perform(get("/p/" + page.getSlug())).andExpect(status().isOk())
+      .andExpect(content().string(containsString("&lt;strong&gt;literal&lt;/strong&gt; &amp; &quot;quoted&quot;<br>Next &gt; line")));
+    mvc.perform(get("/api/promotional-pages/" + page.getId()).with(oidcLogin().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.content").value(escaped)).andExpect(jsonPath("$.contentFormat").value("html"));
+    // The API's editor representation can be saved without interpreting the old literal tags.
+    legacy.setContent(escaped); legacy.setContentFormat("html"); pages.save(legacy);
+    assertFalse(pages.contentHtml(legacy).contains("<strong>literal</strong>"));
+    assertTrue(pages.contentHtml(legacy).contains("&lt;strong&gt;literal&lt;/strong&gt;"));
+  }
+
+  @Test void rendererAndAdminReadbackResanitizeRichRecordsWrittenOutsideApi() throws Exception {
+    page.setContentFormat("html");
+    page.setContent("<h3>Safe</h3><script>malicious()</script><p onfocus='malicious()'>Text</p>");
+    em.flush(); em.clear();
+    mvc.perform(get("/p/" + page.getSlug())).andExpect(status().isOk())
+      .andExpect(content().string(containsString("<h3>Safe</h3>")))
+      .andExpect(content().string(not(containsString("malicious()"))));
+    mvc.perform(get("/api/promotional-pages/" + page.getId()).with(oidcLogin().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.content").value("<h3>Safe</h3><p>Text</p>"));
+  }
+
   @Test void imageUploadPublicReadReplacementRemovalAndDeleteCascade() throws Exception {
     byte[] gif = "GIF89a-test-image".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
     try {

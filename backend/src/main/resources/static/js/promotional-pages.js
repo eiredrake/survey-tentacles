@@ -5,7 +5,31 @@ const removeImage = document.getElementById('remove-image');
 const imageInput = document.getElementById('page-image');
 const chooseImage = document.getElementById('choose-image');
 const dateInput = document.getElementById('expires-at');
+const contentInput = document.getElementById('page-content');
+let richEditor;
 let editing, currentImage, previewUrl;
+
+function editContent(html) {
+  contentInput.value = html || '';
+  richEditor = SUNEDITOR.create(contentInput, {
+    plugins: ['blockStyle', 'list_bulleted', 'list_numbered', 'link', 'table', 'blockquote', 'hr'].map(name => SUNEDITOR.plugins[name]),
+    buttonList: [['undo', 'redo'], ['bold', 'italic', 'underline', 'strike'], ['blockStyle'],
+      ['list_bulleted', 'list_numbered'], ['link', 'table', 'blockquote', 'hr']],
+    blockStyle: { items: ['p', 'h2', 'h3', 'h4'] },
+    convertTextTags: { bold: 'strong', italic: 'em', underline: 'u', strike: 's' },
+    elementBlacklist: 'script|style|iframe|object|embed|form|input|button|textarea|select|option|canvas|svg|video|audio|img|h1|h5|h6',
+    attributeBlacklist: { '*': 'style|class|id|on.*' },
+    link: { openNewWindow: false, noAutoPrefix: true, defaultRel: { default: 'noopener noreferrer' }, enableFileUpload: false },
+    height: '300px', width: '100%', toolbar_sticky: false,
+    events: { onChange: ({ data }) => { contentInput.value = data; } }
+  });
+  const editable = richEditor.$.frameContext.get('wysiwyg');
+  editable.setAttribute('role', 'textbox');
+  editable.setAttribute('aria-multiline', 'true');
+  editable.setAttribute('aria-labelledby', 'content-label');
+  editable.setAttribute('aria-describedby', 'content-help page-content-error');
+  document.getElementById('content-label').onclick = () => editable.focus();
+}
 
 function releasePreview() {
   if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -30,6 +54,7 @@ function fieldError(field, message) {
   if (output) { output.textContent = message; output.hidden = !message; }
   if (message) field.setAttribute('aria-invalid', 'true');
   else field.removeAttribute('aria-invalid');
+  if (field === contentInput && richEditor) richEditor.$.frameContext.get('wysiwyg').setAttribute('aria-invalid', String(!!message));
 }
 
 function validateField(field) {
@@ -72,13 +97,14 @@ function validateEditor() {
   const fields = [...editor.querySelectorAll('input:not([type="hidden"]), textarea')];
   const invalid = fields.filter(field => !validateField(field));
   if (invalid.length) {
-    (invalid[0] === imageInput ? chooseImage : invalid[0]).focus();
+    (invalid[0] === imageInput ? chooseImage : invalid[0] === contentInput && richEditor ? richEditor.$.frameContext.get('wysiwyg') : invalid[0]).focus();
     showToast('Please correct the highlighted fields.', 'error');
   }
   return !invalid.length;
 }
 
 function closeEditor() {
+  richEditor?.destroy(); richEditor = undefined;
   releasePreview();
   currentImage = undefined; editing = undefined;
   editor.reset();
@@ -94,7 +120,8 @@ function closeEditor() {
 
 function busy(value) {
   editor.setAttribute('aria-busy', String(value));
-  for (const button of document.querySelectorAll('main button')) button.disabled = value;
+  for (const button of document.querySelectorAll('main button')) if (!button.closest('.sun-editor')) button.disabled = value;
+  if (richEditor) value ? richEditor.$.ui.disable() : richEditor.$.ui.enable();
 }
 
 async function request(url, method = 'GET', body, failure = 'Unable to load promotional pages.') {
@@ -132,6 +159,7 @@ function form(page = { enabled: true }) {
   document.getElementById('editing-page').textContent = editing ? page.title : '';
   document.getElementById('editing-page').hidden = !editing;
   editor.hidden = false;
+  editContent(page.content);
   editor.elements.title.focus();
 }
 
@@ -228,11 +256,13 @@ removeImage.onclick = async () => {
 };
 editor.onsubmit = async event => {
   event.preventDefault();
+  contentInput.value = richEditor.isEmpty() ? '' : richEditor.$.html.get();
   if (!validateEditor()) return;
   busy(true);
   try {
     const values = Object.fromEntries(new FormData(editor));
     delete values.image;
+    values.contentFormat = 'html';
     values.title = values.title.trim();
     values.slug = values.slug.trim();
     values.expiredDestination = values.expiredDestination.trim() || null;

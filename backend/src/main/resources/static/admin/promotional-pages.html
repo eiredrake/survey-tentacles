@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/vendor/fdatepicker/fdatepicker.css">
   <link rel="stylesheet" href="/css/tentacles.css">
   <link rel="stylesheet" href="/css/toast.css">
+  <link rel="stylesheet" href="/vendor/suneditor/suneditor.min.css">
   <link rel="stylesheet" href="/css/promotional-pages.css">
 </head>
 <body>
@@ -49,9 +50,9 @@
       <section class="promo-section" aria-labelledby="content-heading">
         <h3 id="content-heading">Page content</h3>
         <div class="promo-field">
-          <label for="page-content">Content</label>
-          <textarea id="page-content" name="content" maxlength="10000" rows="9" aria-describedby="content-help page-content-error"></textarea>
-          <p id="content-help" class="promo-help">Detailed information displayed when someone opens the promotional page. Plain text, up to 10,000 characters.</p>
+          <label id="content-label" for="page-content">Content</label>
+          <textarea id="page-content" name="content" maxlength="100000" rows="9" aria-describedby="content-help page-content-error"></textarea>
+          <p id="content-help" class="promo-help">Add the information visitors should see on this page. Basic text formatting, headings, links, lists and tables are supported. Use the Promotional image control below for images.</p>
           <p id="page-content-error" class="promo-error" hidden></p>
         </div>
         <div class="promo-field">
@@ -123,6 +124,7 @@
   <script src="/js/toast.js"></script>
   <script src="/js/icon-button.js"></script>
   <script src="/vendor/fdatepicker/fdatepicker.min.js"></script>
+  <script src="/vendor/suneditor/suneditor.min.js"></script>
   <script src="/js/promotional-pages.js"></script>
   <script src="/js/survey-events.js"></script>
   <script src="/js/administration-nav.js"></script>
