@@ -65,6 +65,7 @@ function editor() {
   };
   p.w.eval(read("js/getCsrfToken.js"));
   p.w.eval(read("js/survey-edit.js").replace(/^initialize\(\);\s*$/m, ""));
+  p.w.eval(read("js/tentacles-table.js"));
   return { ...p, calls };
 }
 

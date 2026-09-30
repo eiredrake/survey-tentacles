@@ -5,6 +5,7 @@
     for (const table of document.querySelectorAll("table.survey-table")) {
       const first = table.tHead?.rows[0]?.cells[0];
       if (!first || first.dataset.sectionHeader) continue;
+      const sortButton = first.querySelector(':scope > .table-sort-button');
       const details = table.closest("details");
       const summary = details?.querySelector(":scope > summary");
       let heading = table.previousElementSibling;
@@ -32,10 +33,11 @@
         first.replaceChildren();
         if (heading === title) first.appendChild(title);
         else { first.append(...heading.childNodes); heading.remove(); }
-        first.querySelectorAll("button, select, a").forEach(control => {
+        first.querySelectorAll("button:not(.table-sort-button), select, a").forEach(control => {
           control.addEventListener("click", event => event.stopPropagation());
         });
       } else continue;
+      if (sortButton) first.appendChild(sortButton);
       first.dataset.sectionHeader = "true";
       first.classList.add("table-section-heading");
       first.scope = "col";

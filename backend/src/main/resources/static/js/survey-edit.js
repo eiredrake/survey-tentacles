@@ -14,6 +14,7 @@ function bindSmartEditor(container, save, button, character = false) {
   const onReadyToSave = (value, { element, reason, relatedTarget }) => {
     if (saving || !element.isConnected || container.hidden) return;
     const focused = relatedTarget || document.activeElement;
+    if (reason === "blur" && focused?.closest('.table-sort-button')) return;
     if (reason === "blur" && container.contains(focused) && focused?.closest("button")) return;
     // Name and description are one staged character edit; moving between them must not close the row.
     if (reason === "blur" && character && container.contains(focused)) return;
@@ -356,6 +357,7 @@ function createRelationshipSubjectRow(
     "click",
     () => {
       row.remove();
+      document.getElementById("relationship-editor-subject-list").refreshTable?.();
     }
   );
 
@@ -1459,17 +1461,7 @@ function populateRelationshipSubjects(
 
   subjectList.replaceChildren();
 
-  const sortedSubjects =
-    [...subjects].sort(
-      (a, b) =>
-        a.name.localeCompare(
-          b.name,
-          undefined,
-          { sensitivity: "base" }
-        )
-    );
-
-  for (const subject of sortedSubjects) {
+  for (const subject of subjects) {
     const row =
       createRelationshipSubjectRow(
         subject.name,
@@ -1479,124 +1471,24 @@ function populateRelationshipSubjects(
 
     subjectList.appendChild(row);
   }
+  subjectList.refreshTable?.();
 }
 
 function setupRelationshipSubjectSorting() {
-  const subjectList =
-    document.getElementById(
-      "relationship-editor-subject-list"
-    );
-
-  const table =
-    subjectList?.closest(
-      ".relationship-editor-table"
-    );
-
-  if (!subjectList || !table) {
-    return;
-  }
-
-  const sortHeaders = [
-    ...table.querySelectorAll(
-      "[data-sort-key]"
-    )
-  ];
-
-  for (const header of sortHeaders) {
-    header.classList.add(
-      "sortable-header"
-    );
-  }
-
-  let currentSortKey =
-    "character";
-
-  let currentSortAscending =
-    true;
-
-  const updateSortIndicators = () => {
-    for (const header of sortHeaders) {
-      header.classList.remove(
-        "sort-ascending",
-        "sort-descending"
-      );
-
-      if (
-        header.dataset.sortKey ===
-        currentSortKey
-      ) {
-        header.classList.add(
-          currentSortAscending
-            ? "sort-ascending"
-            : "sort-descending"
-        );
-      }
-    }
-  };
-
-  const sortRows = () => {
-    const rows = [
-      ...subjectList.querySelectorAll(
-        ".relationship-subject"
-      )
-    ];
-
-    rows.sort((a, b) => {
-      const aValue =
-        currentSortKey === "description"
-          ? a.dataset.description || ""
-          : a.dataset.name || "";
-
-      const bValue =
-        currentSortKey === "description"
-          ? b.dataset.description || ""
-          : b.dataset.name || "";
-
-      const comparison =
-        aValue.localeCompare(
-          bValue,
-          undefined,
-          { sensitivity: "base" }
-        );
-
-      return currentSortAscending
-        ? comparison
-        : -comparison;
-    });
-
-    for (const row of rows) {
-      subjectList.appendChild(row);
-    }
-  };
-
-  for (const header of sortHeaders) {
-    header.addEventListener(
-      "click",
-      () => {
-        const sortKey =
-          header.dataset.sortKey;
-
-        if (
-          sortKey === currentSortKey
-        ) {
-          currentSortAscending =
-            !currentSortAscending;
-        } else {
-          currentSortKey =
-            sortKey;
-
-          currentSortAscending =
-            true;
-        }
-
-        sortRows();
-        updateSortIndicators();
-      }
-    );
-  }
-
-  updateSortIndicators();
-  return sortRows;
+  const subjectList = document.getElementById('relationship-editor-subject-list');
+  if (!subjectList) return;
+  const controller = createTentaclesTable(subjectList.closest('table'), {
+    body: subjectList,
+    rows: () => subjectList.querySelectorAll(':scope > .relationship-subject'),
+    columns: {
+      character: { value: row => row.querySelector('input[aria-label="Character name"]')?.value ?? row.dataset.name },
+      description: { value: row => row.querySelector('input[aria-label="Character description"]')?.value ?? row.dataset.description }
+    },
+    defaultSort: { key: 'character', direction: 'ascending' },
+    emptyMessage: 'No characters have been added.'
+  });
+  subjectList.refreshTable = () => controller.refresh();
+  return subjectList.refreshTable;
 }
 
 function populateSchedulingSelections(

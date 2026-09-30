@@ -320,125 +320,18 @@ function showRequiredError(section, message) {
     }, 1200);
 }
 
-function setupRelationshipSorting(section, relationshipSubjects) {
-    const sortHeaders = [
-        ...section.querySelectorAll("[data-sort-key]")
-    ];
-
-    for (const header of sortHeaders) {
-        header.classList.add("sortable-header");
-    }
-
-    let currentSortKey = "character";
-    let currentSortAscending = true;
-
-    const updateSortIndicators = () => {
-        for (const header of sortHeaders) {
-            header.classList.remove(
-                "sort-ascending",
-                "sort-descending"
-            );
-
-            if (header.dataset.sortKey === currentSortKey) {
-                header.classList.add(
-                    currentSortAscending
-                        ? "sort-ascending"
-                        : "sort-descending"
-                );
-            }
-        }
-    };
-
-    const sortRelationshipRows = (sortKey, ascending) => {
-        const rows = [
-            ...relationshipSubjects.querySelectorAll("tr")
-        ];
-
-        rows.sort((a, b) => {
-            let comparison = 0;
-
-            if (sortKey === "character") {
-                const aValue = a.cells[0].textContent.trim();
-                const bValue = b.cells[0].textContent.trim();
-
-                comparison = aValue.localeCompare(
-                    bValue,
-                    undefined,
-                    {
-                        sensitivity: "base"
-                    }
-                );
-            } else if (sortKey === "like") {
-                const aValue = Number(
-                    a.querySelector(".relationship-like").value
-                );
-
-                const bValue = Number(
-                    b.querySelector(".relationship-like").value
-                );
-
-                comparison = aValue - bValue;
-            } else if (sortKey === "trust") {
-                const aValue = Number(
-                    a.querySelector(".relationship-trust").value
-                );
-
-                const bValue = Number(
-                    b.querySelector(".relationship-trust").value
-                );
-
-                comparison = aValue - bValue;
-            } else if (sortKey === "comments") {
-                const aValue = a
-                    .querySelector(".relationship-comment")
-                    .value
-                    .trim();
-
-                const bValue = b
-                    .querySelector(".relationship-comment")
-                    .value
-                    .trim();
-
-                comparison = aValue.localeCompare(
-                    bValue,
-                    undefined,
-                    {
-                        sensitivity: "base"
-                    }
-                );
-            }
-
-            return ascending
-                ? comparison
-                : -comparison;
-        });
-
-        for (const row of rows) {
-            relationshipSubjects.appendChild(row);
-        }
-    };
-
-    updateSortIndicators();
-
-    for (const header of sortHeaders) {
-        header.addEventListener("click", () => {
-            const sortKey = header.dataset.sortKey;
-
-            if (sortKey === currentSortKey) {
-                currentSortAscending = !currentSortAscending;
-            } else {
-                currentSortKey = sortKey;
-                currentSortAscending = true;
-            }
-
-            sortRelationshipRows(
-                currentSortKey,
-                currentSortAscending
-            );
-
-            updateSortIndicators();
-        });
-    }
+function setupRelationshipSorting(relationshipSubjects) {
+    return createTentaclesTable(relationshipSubjects.closest('table'), {
+        body: relationshipSubjects,
+        columns: {
+            character: { value: row => row.cells[0].textContent },
+            like: { type: 'number', value: row => row.querySelector('.relationship-like').value },
+            trust: { type: 'number', value: row => row.querySelector('.relationship-trust').value },
+            comments: { value: row => row.querySelector('.relationship-comment').value }
+        },
+        defaultSort: { key: 'character', direction: 'ascending' },
+        emptyMessage: 'No characters have been added.'
+    });
 }
 
 async function loadRelationshipQuestion(
@@ -489,17 +382,7 @@ async function loadRelationshipQuestion(
 
     relationshipSubjects.replaceChildren();
 
-    const sortedSubjects = [...detail.subjects].sort((a, b) =>
-        a.name.localeCompare(
-            b.name,
-            undefined,
-            {
-                sensitivity: "base"
-            }
-        )
-    );
-
-    for (const subject of sortedSubjects) {
+    for (const subject of detail.subjects) {
         const row = document.createElement("tr");
 
         const nameCell = document.createElement("td");
@@ -568,13 +451,12 @@ async function loadRelationshipQuestion(
     }
 
     setupRelationshipSorting(
-        section,
         relationshipSubjects
     );
 
     const getResponses = () => {
         const rows = [
-            ...relationshipSubjects.querySelectorAll("tr")
+            ...relationshipSubjects.querySelectorAll("tr:has(.relationship-like)")
         ];
 
         return rows.map(row => {

@@ -114,14 +114,7 @@ async function renderRelationshipResults(question, container) {
         averageLike: average(likeScores),
         averageTrust: average(trustScores),
       };
-    })
-    .sort((a, b) =>
-      a.subject.name.localeCompare(
-        b.subject.name,
-        undefined,
-        { sensitivity: "base" },
-      ),
-    );
+    });
 
   for (const result of subjects) {
     const {
@@ -266,146 +259,19 @@ async function renderRelationshipResults(question, container) {
     row._relationshipDetailRow = detailRow;
   }
 
-  const section = container.closest(".survey-question");
-
-  const sortHeaders = [
-    ...section.querySelectorAll("[data-sort-key]"),
-  ];
-
-  for (const header of sortHeaders) {
-    header.classList.add("sortable-header");
-  }
-
-  let currentSortKey = "character";
-  let currentSortAscending = true;
-
-  const updateSortIndicators = () => {
-    for (const header of sortHeaders) {
-      header.classList.remove(
-        "sort-ascending",
-        "sort-descending",
-      );
-
-      if (
-        header.dataset.sortKey ===
-        currentSortKey
-      ) {
-        header.classList.add(
-          currentSortAscending
-            ? "sort-ascending"
-            : "sort-descending",
-        );
-      }
-    }
-  };
-
-  const sortRelationshipRows = (
-    sortKey,
-    ascending,
-  ) => {
-    const rows = [
-      ...container.querySelectorAll(
-        ":scope > tr:not([hidden])",
-      ),
-    ].filter(
-      (row) =>
-        !row.classList.contains(
-          "relationship-comment-toggle",
-        ) ||
-        row.dataset.character,
-    );
-
-    /*
-     * Only sort the actual subject rows.
-     * Detail/comment rows stay attached to
-     * their subject row.
-     */
-    const subjectRows = rows.filter(
-      (row) => row.dataset.character !== undefined,
-    );
-
-    subjectRows.sort((a, b) => {
-      let comparison = 0;
-
-      if (sortKey === "character") {
-        comparison =
-          a.dataset.character.localeCompare(
-            b.dataset.character,
-            undefined,
-            { sensitivity: "base" },
-          );
-      } else if (sortKey === "like") {
-        const aValue =
-          a.dataset.like === ""
-            ? Number.NEGATIVE_INFINITY
-            : Number(a.dataset.like);
-
-        const bValue =
-          b.dataset.like === ""
-            ? Number.NEGATIVE_INFINITY
-            : Number(b.dataset.like);
-
-        comparison = aValue - bValue;
-      } else if (sortKey === "trust") {
-        const aValue =
-          a.dataset.trust === ""
-            ? Number.NEGATIVE_INFINITY
-            : Number(a.dataset.trust);
-
-        const bValue =
-          b.dataset.trust === ""
-            ? Number.NEGATIVE_INFINITY
-            : Number(b.dataset.trust);
-
-        comparison = aValue - bValue;
-      } else if (sortKey === "responses") {
-        comparison =
-          Number(a.dataset.responses) -
-          Number(b.dataset.responses);
-      }
-
-      return ascending
-        ? comparison
-        : -comparison;
-    });
-
-    for (const row of subjectRows) {
-      container.appendChild(row);
-
-      if (row._relationshipDetailRow) {
-        container.appendChild(
-          row._relationshipDetailRow,
-        );
-      }
-    }
-  };
-
-  for (const header of sortHeaders) {
-    header.addEventListener(
-      "click",
-      () => {
-        const sortKey =
-          header.dataset.sortKey;
-
-        if (sortKey === currentSortKey) {
-          currentSortAscending =
-            !currentSortAscending;
-        } else {
-          currentSortKey = sortKey;
-          currentSortAscending = true;
-        }
-
-        sortRelationshipRows(
-          currentSortKey,
-          currentSortAscending,
-        );
-
-        updateSortIndicators();
-      },
-    );
-  }
-
-  updateSortIndicators();
+  createTentaclesTable(container.closest('table'), {
+    body: container,
+    rows: () => container.querySelectorAll(':scope > tr[data-character]'),
+    companions: row => row._relationshipDetailRow ? [row._relationshipDetailRow] : [],
+    columns: {
+      character: { value: row => row.dataset.character },
+      like: { type: 'number', value: row => row.dataset.like },
+      trust: { type: 'number', value: row => row.dataset.trust },
+      responses: { type: 'number', value: row => row.dataset.responses }
+    },
+    defaultSort: { key: 'character', direction: 'ascending' },
+    emptyMessage: 'No characters have been added.'
+  });
 }
 
 async function renderSchedulingResults(question, section) {

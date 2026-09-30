@@ -523,8 +523,17 @@ main {
   display: inline-block;
   width: 1em;
   margin-left: 0.35rem;
-  content: "";
+  content: "↕";
 }
+
+.table-sort-button { font: inherit; font-weight: inherit; color: inherit; background: transparent; border: 0; padding: .25rem; cursor: pointer; }
+.table-sort-button:focus-visible, [data-table-interactive]:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+.table-toolbar, .table-actions { display: inline-flex; align-items: center; gap: .5rem; }
+.table-toolbar { display: flex; margin-bottom: .5rem; }
+.table-actions > [hidden] { display: none; }
+.table-empty-state td { text-align: center; padding: 1rem; color: #555; }
+[data-table-interactive] { cursor: pointer; }
+[data-table-interactive]:hover { text-decoration: underline; }
 
 .sortable-header.sort-ascending::after {
   content: "▲";
